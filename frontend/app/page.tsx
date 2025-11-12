@@ -5,7 +5,7 @@ export default function Home() {
   return (
     <>
     <div className="min-w-screen">
-      <Loginpage/>
+      {/* <Loginpage/> */}
       <Signuppage/>
 
     </div>

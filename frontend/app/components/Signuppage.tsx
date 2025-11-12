@@ -8,9 +8,22 @@ function Signuppage() {
     let [email, setemail] = useState<string>("")
     let [password, setpassword] = useState<string>("")
 
-    const handleSignup = () => {
-
-    }
+    const handleSignup = async  (e:React.FormEvent)=>{
+        console.log({name,email,password})
+        try{
+          const res = await fetch('http://localhost:2007/login',{
+            method:"POST",
+            headers:{"content-type":"application/json"},
+            credentials: "include",
+            body:JSON.stringify({name,email,password})
+          })
+          const data =await  res.json()
+          console.log(data)
+        }
+        catch(err){
+          console.log(err)
+        }
+      }
 
     return (
         <>

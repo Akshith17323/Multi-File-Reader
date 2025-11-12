@@ -3,12 +3,24 @@ import React, { useState } from "react";
 import { X, Eye, EyeClosed } from "lucide-react";
 
 function Loginpage() {
-  const [name,setUsername] = useState<string>("")
   const [email,setEmail] = useState<string>("")
   const [password,setPassword] = useState<string>("")
   let [showpassword, setShowpassword] = useState<boolean>(false);
   const handleLogin  = async  (e:React.FormEvent)=>{
-    console.log({name,email,password})
+    console.log({email,password})
+    try{
+      const res = await fetch('http://localhost:2007/login',{
+        method:"POST",
+        headers:{"content-type":"application/json"},
+        credentials: "include",
+        body:JSON.stringify({email,password})
+      })
+      const data = res.json()
+      console.log(data)
+    }
+    catch(err){
+      console.log(err)
+    }
   }
   return (
     <>
@@ -19,15 +31,6 @@ function Loginpage() {
             <p className="">Connect your account</p>
           </div>
           <form className="flex flex-col mt-4 gap-4 ">
-            <label htmlFor="name">Name</label>
-            <input
-              type="text"
-              placeholder="Name"
-              id="name"
-              value = {name}
-              onChange={(e)=>setUsername(e.target.value)}
-              className="border border-gray-300 rounded-md p-2 mt-4 w-80"
-            />
 
             <label htmlFor="email">Email</label>
             <input
