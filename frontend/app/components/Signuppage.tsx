@@ -7,22 +7,32 @@ function Signuppage() {
     let [name, setName] = useState<string>("")
     let [email, setemail] = useState<string>("")
     let [password, setpassword] = useState<string>("")
+    let [chackpassowrd,setcheckpassword] = useState<string>("")
 
     const handleSignup = async  (e:React.FormEvent)=>{
-        console.log({name,email,password})
+        e.preventDefault();
+        // console.log({name,email,password})
         try{
-          const res = await fetch('http://localhost:2007/login',{
+          const res = await fetch('http://localhost:2007/signup',{
             method:"POST",
             headers:{"content-type":"application/json"},
             credentials: "include",
             body:JSON.stringify({name,email,password})
           })
           const data =await  res.json()
-          console.log(data)
+        //   console.log(data)
+        console.log("signup successfull")
+        if (data){
+            setName("") 
+            setemail("")
+            setpassword("")
+            setcheckpassword("")
+        }
         }
         catch(err){
           console.log(err)
         }
+
       }
 
     return (
@@ -61,6 +71,8 @@ function Signuppage() {
                                 placeholder="Password"
                                 id="password"
                                 className=" border border-gray-300 rounded-md  py-1 w-80 text-center"
+                                value={chackpassowrd}
+                                onChange={(e)=>setcheckpassword(e.target.value)}
                             />
                             <button
                                 onClick={(e) => {
@@ -78,7 +90,7 @@ function Signuppage() {
                             <input
                                 type={checkshowpassword ? "text" : "password"}
                                 placeholder="Password"
-                                id="password"
+                                id="confirm-password"
                                 className=" border border-gray-300 rounded-md  py-1 w-80 text-center"
                                 value={password}
                                 onChange={(e)=>setpassword(e.target.value)}

@@ -7,7 +7,8 @@ function Loginpage() {
   const [password,setPassword] = useState<string>("")
   let [showpassword, setShowpassword] = useState<boolean>(false);
   const handleLogin  = async  (e:React.FormEvent)=>{
-    console.log({email,password})
+    e.preventDefault();
+    // console.log({email,password})
     try{
       const res = await fetch('http://localhost:2007/login',{
         method:"POST",
@@ -15,13 +16,19 @@ function Loginpage() {
         credentials: "include",
         body:JSON.stringify({email,password})
       })
-      const data = res.json()
-      console.log(data)
+      const data =await res.json()
+      // console.log(data)
+      console.log("login successfull")
+
+      if (data){
+            setEmail("")
+            setPassword("")}
     }
     catch(err){
       console.log(err)
     }
   }
+  // “That hydration warning is caused by a browser extension (like Grammarly or a password manager). Test in Incognito or disable the extension.”
   return (
     <>
       <div className="min-w-screen flex justify-center items-center px-5 py-5">
