@@ -30,6 +30,7 @@ app.post('/login',async (req, res) =>{
     }
 
     const user_details = await prisma.user.findUnique({where:{email}})
+
     if (!user_details){
       return res.status(404).json({Messgae:"user does not exist"})
     }
@@ -42,7 +43,7 @@ app.post('/login',async (req, res) =>{
     const token = jwt.sign({email},SECRET_KEY)
     return res
         .cookie("token",token,{ httpOnly: true , secure : true , sameSite : 'none' })
-        .status(200).json({ message:"User Logged in"});
+        .status(200).json({ message:"User Logged in",user:user_details.name});
   } catch (err) {
     console.log(err);
     return res.status(500).json({

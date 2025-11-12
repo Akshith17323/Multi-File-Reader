@@ -1,12 +1,15 @@
 "use client";
 import React, { useState } from "react";
 import { X, Eye, EyeClosed } from "lucide-react";
-
+import { toast } from 'react-toastify';
+import { useRouter } from "next/navigation";
 function Loginpage() {
   const [email,setEmail] = useState<string>("")
   const [password,setPassword] = useState<string>("")
   let [showpassword, setShowpassword] = useState<boolean>(false);
-  const url = process.env.BACKEND_URL
+  const url = process.env.NEXT_PUBLIC_BACKEND_URL
+
+  const router = useRouter();
   const handleLogin  = async  (e:React.FormEvent)=>{
     e.preventDefault();
     // console.log({email,password})
@@ -18,8 +21,11 @@ function Loginpage() {
         body:JSON.stringify({email,password})
       })
       const data =await res.json()
-      // console.log(data)
+      console.log(data)
       console.log("login successfull")
+
+      toast.success(`Welcome ${data.user}`)
+      router.push("/books")
 
       if (data){
             setEmail("")
@@ -28,6 +34,7 @@ function Loginpage() {
     catch(err){
       console.log(err)
     }
+
   }
   // “That hydration warning is caused by a browser extension (like Grammarly or a password manager). Test in Incognito or disable the extension.”
   return (
