@@ -30,15 +30,11 @@ app.post('/login',async (req, res) =>{
     }
 
     const user_details = await prisma.user.findUnique({where:{email}})
-    if (user_details){
-      const password_check = await bcrypt.compare(password,user_details.password)
-    }
-    
-    // console.log(user_details)
-
     if (!user_details){
       return res.status(404).json({Messgae:"user does not exist"})
     }
+
+    const password_check = await bcrypt.compare(password,user_details.password)
     if(!password_check){
         return res.status(401).json({Message:"password does not match"})
     }
@@ -46,16 +42,17 @@ app.post('/login',async (req, res) =>{
     const token = jwt.sign({email},SECRET_KEY)
     return res
         .cookie("token",token,{ httpOnly: true , secure : true , sameSite : 'none' })
-        .status(200).json({ message:"User Loogged in"});
-
-        // cookie parser
+        .status(200).json({ message:"User Logged in"});
   } catch (err) {
     console.log(err);
+    return res.status(500).json({
+      "error" : "Internal Server Error"
+    })
   }
 })
 
 
-app.post('/signup',async (req, res) =>{
+app.post('/signup', async (req, res) =>{
   try {
     const { name, email, password } = req.body;
     if (!name) {
