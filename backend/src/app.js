@@ -12,9 +12,9 @@ const app = express();
 const prisma = new PrismaClient();
 app.use(
   cors({
-    origin: ["http://localhost:1705", "http://localhost:5173"],
+    origin: "http://localhost:3000",
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
-    credentials:"true"
+    credentials: true
   })
 );
 app.use(express.json());
@@ -30,7 +30,10 @@ app.post('/login',async (req, res) =>{
     }
 
     const user_details = await prisma.user.findUnique({where:{email}})
-    const password_check = await bcrypt.compare(password,user_details.password)
+    if (user_details){
+      const password_check = await bcrypt.compare(password,user_details.password)
+    }
+    
     // console.log(user_details)
 
     if (!user_details){
@@ -44,6 +47,8 @@ app.post('/login',async (req, res) =>{
     return res
         .cookie("token",token,{ httpOnly: true })
         .status(200).json({ message:"User Loogged in"});
+
+        // cookie parser
   } catch (err) {
     console.log(err);
   }
@@ -60,7 +65,7 @@ app.post('/signup',async (req, res) =>{
       return res.status(403).json({ Mesaage: "Email required" });
     }
     if (!password) {
-      return req.status(403).json({ Message: "Paswrod required" });
+      return res.status(403).json({ Message: "Paswrod required" });
     }
 
     let existingemail = await prisma.user.findUnique({ where: { email } });
