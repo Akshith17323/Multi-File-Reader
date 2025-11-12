@@ -3,21 +3,29 @@ import React, { useState } from "react";
 import { X, Eye, EyeClosed } from "lucide-react";
 
 function Loginpage() {
-  let [showpassword, setShowpassword] = useState(false);
+  const [name,setUsername] = useState<string>("")
+  const [email,setEmail] = useState<string>("")
+  const [password,setPassword] = useState<string>("")
+  let [showpassword, setShowpassword] = useState<boolean>(false);
+  const handleLogin  = async  (e:React.FormEvent)=>{
+    console.log({name,email,password})
+  }
   return (
     <>
       <div className="min-w-screen flex justify-center items-center px-5 py-5">
-        <div className="border-amber-50 border p-6 rounded-lg shadow-lg">
+        <div className="border-amber-50 border p-6 rounded-lg shadow-lg flex flex-col justify-center">
           <div className="justify-center items-center flex flex-col">
             <h4 className="">Welcome Back</h4>
             <p className="">Connect your account</p>
           </div>
-          <div className="flex flex-col mt-4 gap-4">
+          <form className="flex flex-col mt-4 gap-4 ">
             <label htmlFor="name">Name</label>
             <input
               type="text"
               placeholder="Name"
               id="name"
+              value = {name}
+              onChange={(e)=>setUsername(e.target.value)}
               className="border border-gray-300 rounded-md p-2 mt-4 w-80"
             />
 
@@ -26,6 +34,8 @@ function Loginpage() {
               type="text"
               placeholder="Email"
               id="email"
+              value={email}
+              onChange={(e)=>setEmail(e.target.value)}
               className="border border-gray-300 rounded-md p-2 mt-4 w-80"
             />
 
@@ -35,6 +45,8 @@ function Loginpage() {
                 type={showpassword ? "text" : "password"}
                 placeholder="Password"
                 id="password"
+                value={password}
+                onChange={(e)=>setPassword(e.target.value)}
                 className=" border border-gray-300 rounded-md  py-1 w-80 text-center"
               />
               <button
@@ -47,7 +59,8 @@ function Loginpage() {
                 {showpassword ? <Eye /> : <EyeClosed />}
               </button>
             </div>
-          </div>
+          <button type="submit" onClick={handleLogin}className="border border-gray-300 rounded-md p-2 mt-4 w-80">Login</button>
+          </form>
         </div>
       </div>
     </>

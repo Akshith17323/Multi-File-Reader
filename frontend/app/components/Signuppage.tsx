@@ -2,13 +2,13 @@ import React, { useRef, useState } from "react";
 import { X, Eye, EyeClosed } from "lucide-react";
 
 function Signuppage() {
-    let [showpassword, setShowpassword] = useState(false);
-    let [checkshowpassword, setCheckhowpassword] = useState(false);
+    let [showpassword, setShowpassword] = useState<boolean>(false);
+    let [checkshowpassword, setCheckhowpassword] = useState<boolean>(false);
     let [name, setName] = useState<string>("")
     let [email, setemail] = useState<string>("")
     let [password, setpassword] = useState<string>("")
 
-    const handleLogin = () => {
+    const handleSignup = () => {
 
     }
 
@@ -27,6 +27,8 @@ function Signuppage() {
                             placeholder="Name"
                             id="name"
                             className="border border-gray-300 rounded-md p-2 mt-1 w-80"
+                            value={name}
+                            onChange={(e)=>setName(e.target.value)}
                         />
 
                         <label htmlFor="email">Email</label>
@@ -35,6 +37,8 @@ function Signuppage() {
                             placeholder="Email"
                             id="email"
                             className="border border-gray-300 rounded-md p-2 mt-1 w-80"
+                            value={email}
+                            onChange={(e)=>setemail(e.target.value)}
                         />
 
                         <label htmlFor="password">Password</label>
@@ -63,7 +67,8 @@ function Signuppage() {
                                 placeholder="Password"
                                 id="password"
                                 className=" border border-gray-300 rounded-md  py-1 w-80 text-center"
-
+                                value={password}
+                                onChange={(e)=>setpassword(e.target.value)}
                             />
                             <button
                                 onClick={(e) => {
@@ -75,7 +80,7 @@ function Signuppage() {
                                 {checkshowpassword ? <Eye /> : <EyeClosed />}
                             </button>
                         </div>
-                        <button type="submit" className="" onClick={handleLogin}>SignUp</button>
+                        <button type="submit" className="border border-gray-300 rounded-md p-2 mt-4 w-80" onClick={handleSignup}>SignUp</button>
                     </form>
                 </div>
             </div>
@@ -85,66 +90,3 @@ function Signuppage() {
 
 export default Signuppage;
 
-// import React ,{useRef, useState,useContext} from 'react'
-// import './input.css'
-// import RefreshContext from '../../context/refreshContext'
-
-// function Input() {
-//   let taskRef = useRef(null)
-//   let importanceRef = useRef(null)
-//   let urgencyRef = useRef(null)
-
-//   let {refresher,setRefresher}= useContext(RefreshContext)
-
-//   const add_input_to_tasks = async (e)=>{
-//     e.preventDefault()
-//     const task = taskRef.current.value
-//     const importance = importanceRef.current.value
-//     const urgency = urgencyRef.current.value
-//     try{
-//       const res = await fetch("http://localhost:1705/",{
-//         method:"POST",
-//         headers:{"content-type":"application/json"},
-//         body: JSON.stringify({
-//           task:task,
-//           importance:importance ,
-//           urgency:urgency
-//         })
-//       })
-//       const data =await res.json()
-//       console.log(data)
-//       taskRef.current.value = ""
-//       setRefresher(refresher+1)
-
-//     }
-//     catch(err){
-//       console.log(err)
-//     }
-//   }
-
-//   return (
-//     <>
-//     <form onSubmit={add_input_to_tasks} className='input_box'>
-//       <input ref={taskRef} placeholder='Add your task here' className='add_task'></input>
-
-//       <select ref={importanceRef}  name='priority' className='priority'>
-//         {/* if no priotrity it will be added to no timport ant and not urgent  */}
-//         <option disabled>Importance of the task</option>
-//         <option value="Important" >Important</option>
-//         <option value="Not Important">Not Important</option>
-//       </select>
-
-//       <select ref={urgencyRef} name='urgency' className='priority'>
-//         <option disabled>Urgency of the task </option>
-//         <option value="Urgent">Urgent</option>
-//         <option value="Not Urgent">Not Urgent</option>
-//       </select>
-
-//       <button type='submit' className='submit'>Add Task</button>
-//     </form>
-
-//     </>
-//   )
-// }
-
-// export default Input
