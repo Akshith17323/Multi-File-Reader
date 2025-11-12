@@ -45,7 +45,7 @@ app.post('/login',async (req, res) =>{
 
     const token = jwt.sign({email},SECRET_KEY)
     return res
-        .cookie("token",token,{ httpOnly: true })
+        .cookie("token",token,{ httpOnly: true , secure : true , sameSite : 'none' })
         .status(200).json({ message:"User Loogged in"});
 
         // cookie parser

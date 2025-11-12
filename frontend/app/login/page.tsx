@@ -32,7 +32,7 @@ function Loginpage() {
   // “That hydration warning is caused by a browser extension (like Grammarly or a password manager). Test in Incognito or disable the extension.”
   return (
     <>
-      <div className="min-w-screen flex justify-center items-center px-5 py-5">
+      <div className="min-w-screen flex justify-center items-center px-5 py-5 min-h-screen">
         <div className="border-amber-50 border p-6 rounded-lg shadow-lg flex flex-col justify-center">
           <div className="justify-center items-center flex flex-col">
             <h4 className="">Welcome Back</h4>

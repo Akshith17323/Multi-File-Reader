@@ -15,6 +15,14 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "frontend": "cd frontend && npm run dev",
+    "backend": "cd backend && npm start",
+    "project": "concurrently \"npm run backend\" \"npm run frontend\" --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "tree": "^0.1.3"
   }
 }
