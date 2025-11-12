@@ -8,12 +8,12 @@ function Signuppage() {
     let [email, setemail] = useState<string>("")
     let [password, setpassword] = useState<string>("")
     let [chackpassowrd,setcheckpassword] = useState<string>("")
-
+    const url = process.env.BACKEND_URL
     const handleSignup = async  (e:React.FormEvent)=>{
         e.preventDefault();
         // console.log({name,email,password})
         try{
-          const res = await fetch('http://localhost:2007/signup',{
+          const res = await fetch(`${url}/signup`,{
             method:"POST",
             headers:{"content-type":"application/json"},
             credentials: "include",

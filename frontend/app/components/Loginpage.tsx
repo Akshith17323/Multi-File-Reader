@@ -6,11 +6,12 @@ function Loginpage() {
   const [email,setEmail] = useState<string>("")
   const [password,setPassword] = useState<string>("")
   let [showpassword, setShowpassword] = useState<boolean>(false);
+  const url = process.env.BACKEND_URL
   const handleLogin  = async  (e:React.FormEvent)=>{
     e.preventDefault();
     // console.log({email,password})
     try{
-      const res = await fetch('http://localhost:2007/login',{
+      const res = await fetch(`${url}/login`,{
         method:"POST",
         headers:{"content-type":"application/json"},
         credentials: "include",
