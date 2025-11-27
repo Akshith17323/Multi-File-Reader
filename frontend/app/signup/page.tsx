@@ -1,40 +1,63 @@
 "use client"
 import React, { useRef, useState } from "react";
-import { X, Eye, EyeClosed } from "lucide-react";
-
+import { X, Eye, EyeClosed,Loader2} from "lucide-react";
+import { toast } from 'react-toastify';
+import { useRouter } from "next/navigation";
 function Signuppage() {
+    const router = useRouter();
     let [showpassword, setShowpassword] = useState<boolean>(false);
     let [checkshowpassword, setCheckhowpassword] = useState<boolean>(false);
     let [name, setName] = useState<string>("")
     let [email, setemail] = useState<string>("")
+    let [showError, setShowError] = useState<boolean>(false)
     let [password, setpassword] = useState<string>("")
-    let [chackpassowrd,setcheckpassword] = useState<string>("")
-    const url = process.env.BACKEND_URL
-    const handleSignup = async  (e:React.FormEvent)=>{
+    let [checkpassowrd, setcheckpassword] = useState<string>("")
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const url = process.env.NEXT_PUBLIC_BACKEND_URL
+    const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         // console.log({name,email,password})
-        try{
-          const res = await fetch(`${url}/signup`,{
-            method:"POST",
-            headers:{"content-type":"application/json"},
-            credentials: "include",
-            body:JSON.stringify({name,email,password})
-          })
-          const data =await  res.json()
-        //   console.log(data)
-        console.log("signup successfull")
-        if (data){
-            setName("") 
-            setemail("")
-            setpassword("")
-            setcheckpassword("")
-        }
-        }
-        catch(err){
-          console.log(err)
+
+        if (!name || !email || !password || !checkpassowrd) {
+            toast.error("Please fill in all fields");
+            return;
         }
 
-      }
+        if (password !== checkpassowrd) {
+            toast.error("Passwords do not match");
+            setShowError(true);
+            return;
+        }
+        else {
+            setShowError(false)
+        }
+        setIsLoading(true);
+        try {
+            const res = await fetch(`${url}/signup`, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ name, email, password })
+            })
+            const data = await res.json()
+            toast.success(`User ${name} created successfully`)
+            //   console.log(data)
+            console.log("signup successfull")
+            router.push('/fileupload')
+            if (data) {
+                setName("")
+                setemail("")
+                setpassword("")
+                setcheckpassword("")
+            }
+        }
+        catch (err) {
+            console.log(err)
+        } finally {
+            setIsLoading(false)
+        }
+
+    }
 
     return (
         <>
@@ -52,7 +75,7 @@ function Signuppage() {
                             id="name"
                             className="border border-gray-300 rounded-md p-2 mt-1 w-80"
                             value={name}
-                            onChange={(e)=>setName(e.target.value)}
+                            onChange={(e) => setName(e.target.value)}
                         />
 
                         <label htmlFor="email">Email</label>
@@ -62,7 +85,7 @@ function Signuppage() {
                             id="email"
                             className="border border-gray-300 rounded-md p-2 mt-1 w-80"
                             value={email}
-                            onChange={(e)=>setemail(e.target.value)}
+                            onChange={(e) => setemail(e.target.value)}
                         />
 
                         <label htmlFor="password">Password</label>
@@ -72,8 +95,8 @@ function Signuppage() {
                                 placeholder="Password"
                                 id="password"
                                 className=" border border-gray-300 rounded-md  py-1 w-80 text-center"
-                                value={chackpassowrd}
-                                onChange={(e)=>setcheckpassword(e.target.value)}
+                                value={checkpassowrd}
+                                onChange={(e) => setcheckpassword(e.target.value)}
                             />
                             <button
                                 onClick={(e) => {
@@ -94,7 +117,7 @@ function Signuppage() {
                                 id="confirm-password"
                                 className=" border border-gray-300 rounded-md  py-1 w-80 text-center"
                                 value={password}
-                                onChange={(e)=>setpassword(e.target.value)}
+                                onChange={(e) => setpassword(e.target.value)}
                             />
                             <button
                                 onClick={(e) => {
@@ -106,7 +129,21 @@ function Signuppage() {
                                 {checkshowpassword ? <Eye /> : <EyeClosed />}
                             </button>
                         </div>
-                        <button type="submit" className="border border-gray-300 rounded-md p-2 mt-4 w-80" onClick={handleSignup}>SignUp</button>
+                        {showError && <p style={{ color: "red" }}>Passwords do not match</p>}
+                        <button
+                            type="submit"
+                            onClick={handleSignup}
+                            className="border border-gray-300 rounded-md p-2 mt-4 w-80 flex justify-center items-baseline">
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="animate-spin" size={20} />
+                                    <span>Logging in...</span>
+                                </>
+                            ) : (
+                                "Login"
+                            )}
+
+                        </button>
                     </form>
                 </div>
             </div>

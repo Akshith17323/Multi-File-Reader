@@ -40,7 +40,7 @@ app.post('/login',async (req, res) =>{
         return res.status(401).json({Message:"password does not match"})
     }
 
-    const token = jwt.sign({email},SECRET_KEY)
+    const token = jwt.sign({userName:user_details.name ,userEmail: user_details.email},SECRET_KEY,{expiresIn:"14d"})
     return res
         .cookie("token",token,{ httpOnly: true , secure : true , sameSite : 'none' })
         .status(200).json({ message:"User Logged in",user:user_details.name});

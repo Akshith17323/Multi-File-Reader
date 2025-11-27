@@ -1,18 +1,26 @@
 "use client";
 import React, { useState } from "react";
-import { X, Eye, EyeClosed } from "lucide-react";
+import { X, Eye, EyeClosed,Loader2 } from "lucide-react";
 import { toast } from 'react-toastify';
 import { useRouter } from "next/navigation";
 function Loginpage() {
   const [email,setEmail] = useState<string>("")
   const [password,setPassword] = useState<string>("")
   let [showpassword, setShowpassword] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const url = process.env.NEXT_PUBLIC_BACKEND_URL
 
   const router = useRouter();
   const handleLogin  = async  (e:React.FormEvent)=>{
     e.preventDefault();
     // console.log({email,password})
+
+    if (!email || !password) {
+      toast.error("All fields are required");
+      return;
+    }
+
+    setIsLoading(true);
     try{
       const res = await fetch(`${url}/login`,{
         method:"POST",
@@ -25,7 +33,7 @@ function Loginpage() {
       console.log("login successfull")
 
       toast.success(`Welcome ${data.user}`)
-      router.push("/books")
+      router.push("/fileupload")
 
       if (data){
             setEmail("")
@@ -33,6 +41,9 @@ function Loginpage() {
     }
     catch(err){
       console.log(err)
+    }
+    finally {
+      setIsLoading(false);
     }
 
   }
@@ -77,7 +88,19 @@ function Loginpage() {
                 {showpassword ? <Eye /> : <EyeClosed />}
               </button>
             </div>
-          <button type="submit" onClick={handleLogin}className="border border-gray-300 rounded-md p-2 mt-4 w-80">Login</button>
+            <button 
+            type="submit" 
+            onClick={handleLogin} 
+            className="border border-gray-300 rounded-md p-2 mt-4 w-80 flex justify-center items-baseline">
+              {isLoading ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                <span>Logging in...</span>
+              </>
+              ) : (
+              "Login"
+              )}
+              </button>
           </form>
         </div>
       </div>
