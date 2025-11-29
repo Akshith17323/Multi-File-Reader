@@ -2,6 +2,7 @@
 const express = require("express");
 const cors = require("cors")
 const authRoutes = require('./router/authroutes')
+const fileUploadRouter = require('./router/fileUpload')
 
 const app = express();
 
@@ -14,7 +15,8 @@ app.use(
 );
 app.use(express.json());
 app.use('/api/auth', authRoutes)
-// app.use('/api/fileUpload')
+// mount upload router (it defines POST /fileUpload)
+app.use('/', fileUploadRouter)
 
 
 
