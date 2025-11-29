@@ -9,8 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.17.3",
     "fflate": "^0.8.2",
     "lucide-react": "^0.552.0",
+    "multer": "^2.0.2",
     "next": "16.0.1",
     "pdfjs-dist": "^5.4.394",
     "react": "19.2.0",
@@ -22,6 +24,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "baseline-browser-mapping": "^2.8.32",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
     "tailwindcss": "^4",

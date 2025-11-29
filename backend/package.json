@@ -10,11 +10,13 @@
     "start": "nodemon src/server.js"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.17.3",
     "@prisma/client": "^6.18.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
     "nodemon": "^3.1.11",
     "prisma": "^6.19.0",
     "studio": "^0.13.5"
