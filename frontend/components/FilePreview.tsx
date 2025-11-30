@@ -1,0 +1,115 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Document, Page, pdfjs } from "react-pdf";
+import ePub from "epubjs";
+import { FileText, Book } from "lucide-react";
+
+// Configure worker (reuse the same worker config as PDFViewer)
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+interface FilePreviewProps {
+    url: string;
+    type: string;
+}
+
+export default function FilePreview({ url, type }: FilePreviewProps) {
+    const [coverUrl, setCoverUrl] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        let mounted = true;
+
+        const fetchCover = async () => {
+            if (type === "application/epub+zip") {
+                try {
+                    const book = ePub(url);
+                    const cover = await book.coverUrl();
+                    if (mounted && cover) {
+                        setCoverUrl(cover);
+                    } else if (mounted) {
+                        setError(true); // No cover found
+                    }
+                } catch (err) {
+                    console.error("Error fetching EPUB cover:", err);
+                    if (mounted) setError(true);
+                } finally {
+                    if (mounted) setLoading(false);
+                }
+            } else if (type === "application/pdf") {
+                // PDF handling is done directly in render via react-pdf
+                setLoading(false);
+            } else {
+                setLoading(false);
+                setError(true);
+            }
+        };
+
+        fetchCover();
+
+        return () => {
+            mounted = false;
+        };
+    }, [url, type]);
+
+    if (type === "application/pdf") {
+        return (
+            <div className="w-full h-full bg-gray-800 flex items-center justify-center overflow-hidden relative">
+                <Document
+                    file={url}
+                    loading={
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+                            <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                    }
+                    error={
+                        <div className="flex flex-col items-center text-gray-500">
+                            <FileText size={32} />
+                        </div>
+                    }
+                    className="w-full h-full flex items-center justify-center"
+                >
+                    <Page
+                        pageNumber={1}
+                        width={200} // Render at a reasonable thumbnail width
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                        className="shadow-md !bg-transparent"
+                    />
+                </Document>
+            </div>
+        );
+    }
+
+    if (type === "application/epub+zip") {
+        if (loading) {
+            return (
+                <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                    <div className="w-6 h-6 border-2 border-fuchsia-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+            );
+        }
+
+        if (coverUrl) {
+            return (
+                <img
+                    src={coverUrl}
+                    alt="Book Cover"
+                    className="w-full h-full object-cover"
+                />
+            );
+        }
+    }
+
+    // Fallback for errors or other types
+    return (
+        <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+            {type === "application/epub+zip" ? (
+                <Book size={40} className="text-gray-500" />
+            ) : (
+                <FileText size={40} className="text-gray-500" />
+            )}
+        </div>
+    );
+}

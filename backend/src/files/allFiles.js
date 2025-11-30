@@ -35,10 +35,21 @@ const bucket = storage.bucket(bucketName)
 
 async function get_all_files(req, res) {
   try {
+    const { search, type } = req.query;
     const [files] = await bucket.getFiles();
 
+    let filteredFiles = files;
+
+    // Filter by search query (case-insensitive name match)
+    if (search) {
+      const query = search.toLowerCase();
+      filteredFiles = filteredFiles.filter(file => 
+        file.name.toLowerCase().includes(query)
+      );
+    }
+
     const fileInfos = await Promise.all(
-      files.map(async (file) => {
+      filteredFiles.map(async (file) => {
         // get metadata
         const [meta] = await file.getMetadata().catch(() => [ {} ]);
 
@@ -57,7 +68,23 @@ async function get_all_files(req, res) {
       })
     );
 
-    return res.status(200).json(fileInfos);
+    // Filter by type (after fetching metadata, as contentType is in metadata)
+    // Alternatively, we could filter before if we rely on extension, but metadata is safer.
+    // However, fetching metadata for ALL files just to filter might be slow.
+    // Optimization: Filter by extension first if possible, or filter the result array.
+    // Let's filter the result array 'fileInfos' to ensure accuracy with contentType.
+    
+    let finalFiles = fileInfos;
+
+    if (type) {
+       finalFiles = finalFiles.filter(file => {
+           if (type === 'pdf') return file.metadata.contentType === 'application/pdf';
+           if (type === 'epub') return file.metadata.contentType === 'application/epub+zip';
+           return true;
+       });
+    }
+
+    return res.status(200).json(finalFiles);
 
   } catch (err) {
     console.error('get_all_files error:', err);

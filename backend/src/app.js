@@ -27,6 +27,11 @@ app.use('/', fileUploadRouter)
 app.use('/api/auth', authRoutes)
 // mount files listing as GET handler
 app.get('/files', get_all_files)
+
+// mount delete file handler
+const { deleteFile } = require('./files/deleteFile')
+app.delete('/files/:filename', deleteFile)
+
 // mount upload router (it defines POST /fileUpload)
 
 
