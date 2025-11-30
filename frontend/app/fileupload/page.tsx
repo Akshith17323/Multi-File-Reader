@@ -81,7 +81,7 @@ function FileUpload() {
     };
 
     xhr.onerror = () => setError("Network/error during upload");
-    // xhr.send(fd);
+    xhr.send(fd);
   };
 
   const getFileIcon = () => {
