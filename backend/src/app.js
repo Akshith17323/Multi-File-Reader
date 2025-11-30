@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors")
 const authRoutes = require('./router/authroutes')
 const fileUploadRouter = require('./router/fileUpload')
+const proxyRouter = require('./router/proxy')
 const { get_all_files } = require('./files/allFiles')
 
 const app = express();
@@ -20,6 +21,8 @@ app.use(
   })
 );
 app.use(express.json());
+// proxy route to stream external resources (useful if GCS CORS can't be changed)
+app.use('/', proxyRouter)
 app.use('/', fileUploadRouter)
 app.use('/api/auth', authRoutes)
 // mount files listing as GET handler

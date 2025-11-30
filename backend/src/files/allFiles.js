@@ -19,16 +19,51 @@ const bucket = storage.bucket(bucketName)
 
 
 
-async function get_all_files (req,res){
-    try {
-        const [files] = await bucket.getFiles()
-        res.status(200).json(files)
-        console.log(files)
-    }
-    catch (err){
-        console.log(err)
-        res.status(500).json({Message:"Something wrong with the server"})
-    }
+// async function get_all_files (req,res){
+//     try {
+//         const [files] = await bucket.getFiles()
+//         res.status(200).json(files)
+//         console.log(files)
+//     }
+//     catch (err){
+//         console.log(err)
+//         res.status(500).json({Message:"Something wrong with the server"})
+//     }
+// }
+
+
+
+async function get_all_files(req, res) {
+  try {
+    const [files] = await bucket.getFiles();
+
+    const fileInfos = await Promise.all(
+      files.map(async (file) => {
+        // get metadata
+        const [meta] = await file.getMetadata().catch(() => [ {} ]);
+
+        // ALWAYS return public GCS URL (NO signed URL)
+        const publicUrl = `https://storage.googleapis.com/${bucketName}/${encodeURIComponent(file.name)}`;
+
+        return {
+          name: file.name,
+          metadata: {
+            size: meta.size || null,
+            updated: meta.updated || null,
+            contentType: meta.contentType || null
+          },
+          url: publicUrl
+        };
+      })
+    );
+
+    return res.status(200).json(fileInfos);
+
+  } catch (err) {
+    console.error('get_all_files error:', err);
+    return res.status(500).json({ message: 'Server error listing files' });
+  }
 }
 
 module.exports = {get_all_files}
+
