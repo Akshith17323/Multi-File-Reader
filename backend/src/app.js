@@ -22,9 +22,9 @@ app.get('/debug-env', (req, res) => {
 });
 
 
-// console.log('imported authRoutes:', authRoutes && typeof authRoutes)
-// console.log('imported fileUploadRouter:', fileUploadRouter && typeof fileUploadRouter)
-// console.log('imported get_all_files:', get_all_files && typeof get_all_files)
+console.log('imported authRoutes:', authRoutes && typeof authRoutes)
+console.log('imported fileUploadRouter:', fileUploadRouter && typeof fileUploadRouter)
+console.log('imported get_all_files:', get_all_files && typeof get_all_files)
 
 app.use(
   cors({

@@ -30,33 +30,51 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 async function uploadFile(req, res) {
+  console.log(">>> uploadFile handler called");
   try {
-    if (!req.file) return res.status(400).json({ message: "No file" });
+    if (!req.file) {
+      console.error("!!! No file found in req.file");
+      return res.status(400).json({ message: "No file" });
+    }
+    console.log("File received:", req.file.originalname, "Size:", req.file.size, "Mime:", req.file.mimetype);
 
     const fileName = Date.now() + "-" + req.file.originalname;
+    console.log("Generated filename:", fileName);
+    
     const file = bucket.file(fileName);
+    console.log("Created bucket file reference");
 
     const stream = file.createWriteStream({
       resumable: false,
       metadata: { contentType: req.file.mimetype },
     });
+    console.log("Created write stream");
 
     stream.on("error", (err) => {
-      console.error("Upload error:", err);
+      console.error("!!! Stream Error:", err);
       res.status(500).json({ error: err.message });
     });
 
     stream.on("finish", async () => {
-      await file.makePublic();
+      console.log("Stream finished. Making public...");
+      try {
+        await file.makePublic();
+        console.log("File made public.");
 
-      const url = `https://storage.googleapis.com/${bucketName}/${fileName}`;
+        const url = `https://storage.googleapis.com/${bucketName}/${fileName}`;
+        console.log("Upload success. URL:", url);
 
-      res.status(200).json({ message: "Uploaded", url });
+        res.status(200).json({ message: "Uploaded", url });
+      } catch (publicErr) {
+        console.error("!!! Error making public:", publicErr);
+        res.status(500).json({ error: "File uploaded but failed to make public: " + publicErr.message });
+      }
     });
 
+    console.log("Piping buffer to stream...");
     stream.end(req.file.buffer);
   } catch (err) {
-    console.error("Upload error:", err);
+    console.error("!!! uploadFile Catch Error:", err);
     res.status(500).json({ error: err.message });
   }
 }

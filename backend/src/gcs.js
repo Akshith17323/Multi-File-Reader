@@ -15,6 +15,16 @@ const storage = new Storage({
   }
 });
 
+console.log("--- GCS CONFIG ---");
+console.log("Project ID:", process.env.GCP_PROJECT_ID);
+console.log("Client Email:", process.env.GCP_CLIENT_EMAIL);
+const key = process.env.GCP_PRIVATE_KEY || "";
+console.log("Private Key Length:", key.length);
+console.log("Private Key Start:", key.substring(0, 20));
+console.log("Has escaped newlines:", key.includes("\\\\n"));
+console.log("Has real newlines:", key.includes("\n"));
+console.log("------------------");
+
 const bucketName = "multi-file-reader-storage";
 const bucket = storage.bucket(bucketName);
 

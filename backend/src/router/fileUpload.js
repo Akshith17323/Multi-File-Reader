@@ -14,7 +14,14 @@ const upload = multer({
 })
 
 
-router.post('/fileUpload', upload.single('UploadingFile'), uploadFile)
+router.post('/fileUpload', 
+  (req, res, next) => {
+    console.log(">>> POST /fileUpload hit");
+    next();
+  },
+  upload.single('UploadingFile'), 
+  uploadFile
+)
 
 module.exports = router
 
