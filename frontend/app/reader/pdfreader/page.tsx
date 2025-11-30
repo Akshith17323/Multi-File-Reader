@@ -12,8 +12,6 @@ function PDFReaderContent() {
   const url = rawUrl ? decodeURIComponent(rawUrl) : null;
 
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
-
-  // Fetch blob (GCS fix)
   useEffect(() => {
     if (!url) return;
 
