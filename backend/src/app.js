@@ -15,7 +15,12 @@ const app = express();
 
 app.use(
   cors({
-    origin: [`${process.env.FRONTEND_URL}`,`${process.env.FRONTEND_N_URL}`],
+    origin: [
+      `${process.env.FRONTEND_URL}`,
+      `${process.env.FRONTEND_N_URL}`,
+      "https://multi-file-reader.vercel.app",
+      "https://multi-file-reader-srue.vercel.app"
+    ],
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
     credentials: true
   })
