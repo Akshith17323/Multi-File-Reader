@@ -1,9 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from 'next/navigation';
-
-
 
 interface GCSFile {
   name: string;
@@ -19,7 +16,6 @@ export default function FilesPage() {
   const [files, setFiles] = useState<GCSFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
   useEffect(() => {
     async function fetchFiles() {
@@ -129,30 +125,6 @@ export default function FilesPage() {
                           bucket as string
                         )}/${encodeURIComponent(file.name)}`;
 
-                      // Determine appropriate reader route based on extension or content type
-                      const readerRoute = (() => {
-                        const ext = (file.name.split('.').pop() || '').toLowerCase()
-                        const ct = (file.metadata?.contentType || '').toLowerCase()
-
-                        if (ct.includes('pdf') || ext === 'pdf') {
-                          return `/pdfreader?url=${encodeURIComponent(publicUrl)}`
-                        }
-
-                        if (ct.includes('epub') || ext === 'epub' || ext === 'opf') {
-                          return `/epubreader?url=${encodeURIComponent(publicUrl)}`
-                        }
-
-                        if (
-                          ct.startsWith('text/') ||
-                          ['txt', 'md', 'markdown', 'json', 'csv'].includes(ext)
-                        ) {
-                          return `/reader/chatgpt?url=${encodeURIComponent(publicUrl)}`
-                        }
-
-                        // Fallback
-                        return `/reader/chatgpt?url=${encodeURIComponent(publicUrl)}`
-                      })()
-
                       return (
                         <tr key={file.name} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap max-w-xs">
@@ -186,20 +158,8 @@ export default function FilesPage() {
                             >
                               Download
                             </a>
-
-                            <button
-                              onClick={() => router.push(readerRoute)}
-                              className="inline-flex items-center px-3 py-1 bg-green-600 text-white rounded-md mr-2"
-                            >
-                              Read
-                            </button>
                           </td>
                         </tr>
-
-
-
-                        // inside map for each file:
-
                       );
                     })}
                   </tbody>

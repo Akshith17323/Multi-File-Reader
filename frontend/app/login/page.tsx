@@ -1,44 +1,111 @@
 "use client";
+import React, { useState } from "react";
+import { X, Eye, EyeClosed,Loader2 } from "lucide-react";
+import { toast } from 'react-toastify';
+import { useRouter } from "next/navigation";
+function Loginpage() {
+  const [email,setEmail] = useState<string>("")
+  const [password,setPassword] = useState<string>("")
+  let [showpassword, setShowpassword] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const url = process.env.NEXT_PUBLIC_BACKEND_URL
 
-import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
+  const router = useRouter();
+  const handleLogin  = async  (e:React.FormEvent)=>{
+    e.preventDefault();
+    // console.log({email,password})
 
-const PDFViewer = dynamic(() => import("../../components/PDFViewer"), { ssr: false });
+    if (!email || !password) {
+      toast.error("All fields are required");
+      return;
+    }
 
-function LoginPageContent() {
-  const searchParams = useSearchParams();
-  const rawUrl = searchParams.get("url");
-  const url = rawUrl ? decodeURIComponent(rawUrl) : null;
-
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-
-  // Fetch blob (GCS fix)
-  useEffect(() => {
-    if (!url) return;
-
-    fetch(url)
-      .then((res) => res.blob())
-      .then((blob) => {
-        const local = URL.createObjectURL(blob);
-        setBlobUrl(local);
+    setIsLoading(true);
+    try{
+      const res = await fetch(`${url}/login`,{
+        method:"POST",
+        headers:{"content-type":"application/json"},
+        credentials: "include",
+        body:JSON.stringify({email,password})
       })
-      .catch((err) => console.error("PDF fetch error:", err));
-  }, [url]);
+      const data =await res.json()
+      console.log(data)
+      console.log("login successfull")
 
-  if (!url) return <p>No URL provided</p>;
+      toast.success(`Welcome ${data.user}`)
+      router.push("/fileupload")
 
+      if (data){
+            setEmail("")
+            setPassword("")}
+    }
+    catch(err){
+      console.log(err)
+    }
+    finally {
+      setIsLoading(false);
+    }
+
+  }
+  // “That hydration warning is caused by a browser extension (like Grammarly or a password manager). Test in Incognito or disable the extension.”
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
-      {blobUrl && <PDFViewer blobUrl={blobUrl} title="PDF Reader (Login)" />}
-    </div>
+    <>
+      <div className="min-w-screen flex justify-center items-center px-5 py-5 min-h-screen">
+        <div className="border-amber-50 border p-6 rounded-lg shadow-lg flex flex-col justify-center">
+          <div className="justify-center items-center flex flex-col">
+            <h4 className="">Welcome Back</h4>
+            <p className="">Connect your account</p>
+          </div>
+          <form className="flex flex-col mt-4 gap-4 ">
+
+            <label htmlFor="email">Email</label>
+            <input
+              type="text"
+              placeholder="Email"
+              id="email"
+              value={email}
+              onChange={(e)=>setEmail(e.target.value)}
+              className="border border-gray-300 rounded-md p-2 mt-4 w-80"
+            />
+
+            <label htmlFor="password">Password</label>
+            <div className="flex relative">
+              <input
+                type={showpassword ? "text" : "password"}
+                placeholder="Password"
+                id="password"
+                value={password}
+                onChange={(e)=>setPassword(e.target.value)}
+                className=" border border-gray-300 rounded-md  py-1 w-80 text-center"
+              />
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowpassword(!showpassword);
+                }}
+                className="absolute left-72 top-2"
+              >
+                {showpassword ? <Eye /> : <EyeClosed />}
+              </button>
+            </div>
+            <button 
+            type="submit" 
+            onClick={handleLogin} 
+            className="border border-gray-300 rounded-md p-2 mt-4 w-80 flex justify-center items-baseline">
+              {isLoading ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                <span>Logging in...</span>
+              </>
+              ) : (
+              "Login"
+              )}
+              </button>
+          </form>
+        </div>
+      </div>
+    </>
   );
 }
 
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <LoginPageContent />
-    </Suspense>
-  );
-}
+export default Loginpage;
