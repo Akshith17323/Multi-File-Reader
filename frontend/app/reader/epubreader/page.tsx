@@ -13,6 +13,9 @@ function ReaderContent() {
   const renditionRef = useRef<Rendition | null>(null);
   const bookRef = useRef<Book | null>(null);
 
+  const [showControls, setShowControls] = useState(true);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [chapters, setChapters] = useState<{ label: string; href: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +24,13 @@ function ReaderContent() {
 
   // Touch handling
   const touchStartRef = useRef<number | null>(null);
+
+  // Hide controls after 3 seconds of inactivity (optional, but good for immersive)
+  const resetControlsTimeout = () => {
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    setShowControls(true);
+    // controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000); // Auto-hide disabled for now as per user preference in PDF
+  };
 
   useEffect(() => {
     if (!url) {
@@ -65,8 +75,17 @@ function ReaderContent() {
             rendition.next();
           } else if (distance < -50) {
             rendition.prev();
+          } else {
+            // Tap detection (minimal movement)
+            // Toggle controls on tap
+            setShowControls(prev => !prev);
           }
           touchStartRef.current = null;
+        });
+
+        // Click handling for desktop
+        rendition.on("click", () => {
+          setShowControls(prev => !prev);
         });
 
         const toc = await book.loaded.navigation;
@@ -105,8 +124,14 @@ function ReaderContent() {
     };
   }, [url]);
 
-  const goNext = () => renditionRef.current?.next();
-  const goPrev = () => renditionRef.current?.prev();
+  const goNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    renditionRef.current?.next();
+  };
+  const goPrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    renditionRef.current?.prev();
+  };
 
   const goToHref = (href: string) => {
     renditionRef.current?.display(href);
@@ -132,10 +157,12 @@ function ReaderContent() {
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-fuchsia-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
 
       {/* Header */}
-      <header className="bg-white/5 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between z-20">
+      <header
+        className={`absolute top-0 left-0 right-0 bg-black/80 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between z-50 transition-transform duration-300 ${showControls ? 'translate-y-0' : '-translate-y-full'}`}
+      >
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setIsSidebarOpen(true)}
+            onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(true); }}
             className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
           >
             <Menu size={24} />
@@ -151,7 +178,7 @@ function ReaderContent() {
 
       {/* Sidebar Drawer */}
       <div className={`
-        fixed inset-y-0 left-0 w-80 bg-gray-900/95 backdrop-blur-2xl border-r border-white/10 z-50 transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 w-80 bg-gray-900/95 backdrop-blur-2xl border-r border-white/10 z-[60] transform transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="p-4 border-b border-white/10 flex items-center justify-between">
@@ -186,13 +213,13 @@ function ReaderContent() {
       {/* Overlay for sidebar */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+          className="fixed inset-0 bg-black/50 z-[55] backdrop-blur-sm"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Main Reader Area */}
-      <main className="flex-1 relative z-10">
+      <main className="flex-1 relative z-10 w-full h-full" onClick={() => setShowControls(prev => !prev)}>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center text-white bg-gray-900 z-20">
             <div className="flex flex-col items-center gap-3">
@@ -211,11 +238,14 @@ function ReaderContent() {
           </div>
         )}
 
-        <div className="w-full h-full bg-white/5" ref={viewerRef} />
+        <div className="w-full h-full" ref={viewerRef} />
       </main>
 
       {/* Floating Controls */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-xl border border-white/10 rounded-full px-6 py-3 flex items-center gap-8 shadow-2xl z-20">
+      <div
+        className={`absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-xl border border-white/10 rounded-full px-6 py-3 flex items-center gap-8 shadow-2xl z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           onClick={goPrev}
           className="text-white hover:text-blue-400 transition-colors active:scale-95"

@@ -1,35 +1,24 @@
-const express = require('express')
-// const multer = require('multer')
-const { Storage } = require('@google-cloud/storage')
-const path = require('path')
+// const express = require('express')
+// // const multer = require('multer')
+// const { Storage } = require('@google-cloud/storage')
+// const path = require('path')
 
-const router = express.Router()
+// const router = express.Router()
 
-// multer in-memory storage
-
-
-// Resolve credentials file reliably relative to this file, but allow
-// overriding via GOOGLE_APPLICATION_CREDENTIALS environment variable.
-const defaultKeyFile = path.join(__dirname, '..', 'multi-file-reader-308b489c168b.json')
-const keyFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || defaultKeyFile
-const storage = new Storage({ keyFilename: keyFile })
-
-const bucketName = 'multi-file-reader-storage'
-const bucket = storage.bucket(bucketName)
+// // multer in-memory storage
 
 
+// // Resolve credentials file reliably relative to this file, but allow
+// // overriding via GOOGLE_APPLICATION_CREDENTIALS environment variable.
+// const defaultKeyFile = path.join(__dirname, '..', 'multi-file-reader-308b489c168b.json')
+// const keyFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || defaultKeyFile
+// const storage = new Storage({ keyFilename: keyFile })
 
-// async function get_all_files (req,res){
-//     try {
-//         const [files] = await bucket.getFiles()
-//         res.status(200).json(files)
-//         console.log(files)
-//     }
-//     catch (err){
-//         console.log(err)
-//         res.status(500).json({Message:"Something wrong with the server"})
-//     }
-// }
+// const bucketName = 'multi-file-reader-storage'
+// const bucket = storage.bucket(bucketName)
+
+
+
 
 
 
@@ -93,4 +82,54 @@ async function get_all_files(req, res) {
 }
 
 module.exports = {get_all_files}
+
+
+
+
+const { bucket, bucketName } = require("../gcs");
+
+async function get_all_files(req, res) {
+  try {
+    const { search, type } = req.query;
+    const [files] = await bucket.getFiles();
+
+    let filtered = files;
+
+    if (search) {
+      filtered = filtered.filter((f) =>
+        f.name.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    const data = await Promise.all(
+      filtered.map(async (file) => {
+        const [meta] = await file.getMetadata().catch(() => [{}]);
+
+        return {
+          name: file.name,
+          metadata: {
+            size: meta.size ?? null,
+            updated: meta.updated ?? null,
+            contentType: meta.contentType ?? null,
+          },
+          url: `https://storage.googleapis.com/${bucketName}/${encodeURIComponent(
+            file.name
+          )}`,
+        };
+      })
+    );
+
+    if (type === "pdf") {
+      return res.json(data.filter((f) => f.metadata.contentType === "application/pdf"));
+    }
+    if (type === "epub") {
+      return res.json(data.filter((f) => f.metadata.contentType === "application/epub+zip"));
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error("get_all_files error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+}
 
