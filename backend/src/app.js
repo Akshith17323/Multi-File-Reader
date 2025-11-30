@@ -1,5 +1,6 @@
 
 const express = require("express");
+require('dotenv').config(); // Ensure env vars are loaded
 const cors = require("cors")
 const authRoutes = require('./router/authroutes')
 const fileUploadRouter = require('./router/fileUpload')
@@ -7,6 +8,18 @@ const proxyRouter = require('./router/proxy')
 const { get_all_files } = require('./files/allFiles')
 
 const app = express();
+
+app.get('/debug-env', (req, res) => {
+  const key = process.env.GCP_PRIVATE_KEY || '';
+  res.json({
+    project_id: process.env.GCP_PROJECT_ID,
+    key_length: key.length,
+    key_start: key.substring(0, 20),
+    has_escaped_newlines: key.includes('\\n'),
+    has_real_newlines: key.includes('\n'),
+    bucket: process.env.GCP_BUCKET_NAME || 'hardcoded-in-file' // checking if they set it
+  });
+});
 
 
 // console.log('imported authRoutes:', authRoutes && typeof authRoutes)
