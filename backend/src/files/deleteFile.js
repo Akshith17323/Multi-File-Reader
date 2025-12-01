@@ -16,59 +16,21 @@ const prisma = new PrismaClient();
 async function deleteFile(req, res) {
   try {
     const { filename } = req.params;
-    const userId = req.user.userId; // From auth middleware
+    // const userId  = req.user.userId
 
-    // 1. Find the file in DB to verify ownership
-    const fileRecord = await prisma.file.findFirst({
-      where: {
-        fileName: filename,
-        userId: userId
-      }
-    });
+    if (!filename) return res.status(400).json({ message: "Filename required" });
 
-    if (!fileRecord) {
-      return res.status(404).json({ message: "File not found or access denied" });
-    }
+    const file = bucket.file(filename);
+    const [exists] = await file.exists();
 
-    // 2. Delete from GCS
-    // Note: If filename in DB matches GCS filename, use it.
-    // If you prefixed GCS files with timestamp, ensure 'fileName' in DB matches that.
-    // Based on upload.js, DB 'fileName' = req.file.originalname, but GCS file is timestamp-originalname.
-    // Wait! In upload.js:
-    // const fileName = Date.now() + "-" + req.file.originalname;
-    // const file = bucket.file(fileName);
-    // ...
-    // prisma.file.create({ data: { fileName: req.file.originalname ... } })
-    //
-    // PROBLEM: DB stores original name, GCS stores timestamped name.
-    // We can't delete from GCS if we don't know the timestamped name!
-    //
-    // FIX: We need to store the GCS filename in the DB too, or parse it from the URL.
-    // The URL is stored in DB: fileUrl.
-    // We can extract the GCS filename from the URL.
+    if (!exists) return res.status(404).json({ message: "File not found" });
 
-    const gcsFileName = fileRecord.fileUrl.split('/').pop();
-
-    try {
-      await bucket.file(gcsFileName).delete();
-      console.log(`Deleted from GCS: ${gcsFileName}`);
-    } catch (gcsErr) {
-      console.warn(`Failed to delete from GCS (might be already gone): ${gcsErr.message}`);
-      // Continue to delete from DB even if GCS fails (consistency)
-    }
-
-    // 3. Delete from DB
-    await prisma.file.delete({
-      where: {
-        id: fileRecord.id
-      }
-    });
-
-    res.status(200).json({ message: "File deleted successfully" });
+    await file.delete();
+    res.json({ message: "Deleted successfully" });
 
   } catch (err) {
-    console.error("deleteFile error:", err);
-    res.status(500).json({ message: "Server error deleting file" });
+    console.error("Delete error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 }
 

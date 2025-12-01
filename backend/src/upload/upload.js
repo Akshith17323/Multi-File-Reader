@@ -78,7 +78,7 @@ async function uploadFile(req, res) {
 
         const PrismaFile = await prisma.file.create({
           data: {
-            userId: req.user.userId,
+            userId: req.user.id,
             fileName: req.file.originalname,
             fileUrl: url,
             fileType: req.file.mimetype,

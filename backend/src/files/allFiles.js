@@ -85,58 +85,52 @@ module.exports = { get_all_files }
 
 
 
-
+const { bucket, bucketName } = require("../gcs");
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function get_all_files(req, res) {
   try {
     const { search, type } = req.query;
-    const userId = req.user.userId; // Extracted from token by middleware
+    const [files] = await bucket.getFiles();
 
-    // Build the where clause
-    const where = {
-      userId: userId,
-    };
+    let filtered = files;
 
     if (search) {
-      where.fileName = {
-        contains: search,
-        mode: 'insensitive', // Case-insensitive search
-      };
+      filtered = filtered.filter((f) =>
+        f.name.toLowerCase().includes(search.toLowerCase())
+      );
     }
 
-    if (type) {
-      if (type === 'pdf') {
-        where.fileType = 'application/pdf';
-      } else if (type === 'epub') {
-        where.fileType = 'application/epub+zip';
-      }
+    const data = await Promise.all(
+      filtered.map(async (file) => {
+        const [meta] = await file.getMetadata().catch(() => [{}]);
+
+        return {
+          name: file.name,
+          metadata: {
+            size: meta.size ?? null,
+            updated: meta.updated ?? null,
+            contentType: meta.contentType ?? null,
+          },
+          url: `https://storage.googleapis.com/${bucketName}/${encodeURIComponent(
+            file.name
+          )}`,
+        };
+      })
+    );
+
+    if (type === "pdf") {
+      return res.json(data.filter((f) => f.metadata.contentType === "application/pdf"));
+    }
+    if (type === "epub") {
+      return res.json(data.filter((f) => f.metadata.contentType === "application/epub+zip"));
     }
 
-    // Fetch from DB
-    const files = await prisma.file.findMany({
-      where,
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    // Format for frontend
-    const formattedFiles = files.map((file) => ({
-      name: file.fileName,
-      url: file.fileUrl,
-      metadata: {
-        size: file.fileSize,
-        updated: file.updatedAt,
-        contentType: file.fileType,
-      },
-    }));
-
-    res.status(200).json(formattedFiles);
+    res.json(data);
   } catch (err) {
     console.error("get_all_files error:", err);
-    res.status(500).json({ message: "Server error fetching files" });
+    res.status(500).json({ message: "Server error" });
   }
 }
 
