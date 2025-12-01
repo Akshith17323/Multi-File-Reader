@@ -14,10 +14,23 @@ datasource db {
 }
 
 model User {
-  id          String   @id  @default(uuid())
-  name        String
-  email       String   @unique
-  password    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  files     File[]
+}
+
+model File {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  fileName  String
+  fileUrl   String
+  gcsName   String @unique
+  fileSize String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

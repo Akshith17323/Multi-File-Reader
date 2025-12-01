@@ -238,7 +238,7 @@ function ReaderContent() {
           </div>
         )}
 
-        <div className="w-full h-full" ref={viewerRef} />
+        <div className="w-full h-full bg-white" ref={viewerRef} />
       </main>
 
       {/* Floating Controls */}

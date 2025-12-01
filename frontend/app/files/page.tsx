@@ -172,7 +172,7 @@ export default function FilesPage() {
                 </div>
 
                 {/* Right: Details & Actions */}
-                <div className="flex-1 p-4 flex flex-col justify-between relative">
+                <div className="flex-1 p-4 flex flex-col justify-between relative min-w-0">
                   {/* Top: Metadata */}
                   <div>
                     <h3 className="font-bold text-lg text-white line-clamp-2 mb-2 group-hover:text-violet-300 transition-colors">
