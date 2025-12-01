@@ -62,6 +62,7 @@ function FileUpload() {
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", uploadEndpoint);
+    xhr.withCredentials = true;
 
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100));

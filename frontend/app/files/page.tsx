@@ -41,7 +41,9 @@ export default function FilesPage() {
       if (search) params.append("search", search);
       if (typeFilter) params.append("type", typeFilter);
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/files?${params.toString()}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/files?${params.toString()}`, {
+        credentials: 'include'
+      });
       if (!res.ok) throw new Error("Failed to fetch files");
       const data = await res.json();
       setFiles(data);
@@ -59,6 +61,7 @@ export default function FilesPage() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/files/${filename}`, {
         method: "DELETE",
+        credentials: 'include'
       });
 
       if (!res.ok) throw new Error("Failed to delete file");

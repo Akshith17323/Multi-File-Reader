@@ -32,7 +32,7 @@ async function get_all_files(req, res) {
     // Filter by search query (case-insensitive name match)
     if (search) {
       const query = search.toLowerCase();
-      filteredFiles = filteredFiles.filter(file => 
+      filteredFiles = filteredFiles.filter(file =>
         file.name.toLowerCase().includes(query)
       );
     }
@@ -40,7 +40,7 @@ async function get_all_files(req, res) {
     const fileInfos = await Promise.all(
       filteredFiles.map(async (file) => {
         // get metadata
-        const [meta] = await file.getMetadata().catch(() => [ {} ]);
+        const [meta] = await file.getMetadata().catch(() => [{}]);
 
         // ALWAYS return public GCS URL (NO signed URL)
         const publicUrl = `https://storage.googleapis.com/${bucketName}/${encodeURIComponent(file.name)}`;
@@ -62,15 +62,15 @@ async function get_all_files(req, res) {
     // However, fetching metadata for ALL files just to filter might be slow.
     // Optimization: Filter by extension first if possible, or filter the result array.
     // Let's filter the result array 'fileInfos' to ensure accuracy with contentType.
-    
+
     let finalFiles = fileInfos;
 
     if (type) {
-       finalFiles = finalFiles.filter(file => {
-           if (type === 'pdf') return file.metadata.contentType === 'application/pdf';
-           if (type === 'epub') return file.metadata.contentType === 'application/epub+zip';
-           return true;
-       });
+      finalFiles = finalFiles.filter(file => {
+        if (type === 'pdf') return file.metadata.contentType === 'application/pdf';
+        if (type === 'epub') return file.metadata.contentType === 'application/epub+zip';
+        return true;
+      });
     }
 
     return res.status(200).json(finalFiles);
@@ -81,55 +81,62 @@ async function get_all_files(req, res) {
   }
 }
 
-module.exports = {get_all_files}
+module.exports = { get_all_files }
 
 
 
 
-const { bucket, bucketName } = require("../gcs");
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 async function get_all_files(req, res) {
   try {
     const { search, type } = req.query;
-    const [files] = await bucket.getFiles();
+    const userId = req.user.userId; // Extracted from token by middleware
 
-    let filtered = files;
+    // Build the where clause
+    const where = {
+      userId: userId,
+    };
 
     if (search) {
-      filtered = filtered.filter((f) =>
-        f.name.toLowerCase().includes(search.toLowerCase())
-      );
+      where.fileName = {
+        contains: search,
+        mode: 'insensitive', // Case-insensitive search
+      };
     }
 
-    const data = await Promise.all(
-      filtered.map(async (file) => {
-        const [meta] = await file.getMetadata().catch(() => [{}]);
-
-        return {
-          name: file.name,
-          metadata: {
-            size: meta.size ?? null,
-            updated: meta.updated ?? null,
-            contentType: meta.contentType ?? null,
-          },
-          url: `https://storage.googleapis.com/${bucketName}/${encodeURIComponent(
-            file.name
-          )}`,
-        };
-      })
-    );
-
-    if (type === "pdf") {
-      return res.json(data.filter((f) => f.metadata.contentType === "application/pdf"));
-    }
-    if (type === "epub") {
-      return res.json(data.filter((f) => f.metadata.contentType === "application/epub+zip"));
+    if (type) {
+      if (type === 'pdf') {
+        where.fileType = 'application/pdf';
+      } else if (type === 'epub') {
+        where.fileType = 'application/epub+zip';
+      }
     }
 
-    res.json(data);
+    // Fetch from DB
+    const files = await prisma.file.findMany({
+      where,
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // Format for frontend
+    const formattedFiles = files.map((file) => ({
+      name: file.fileName,
+      url: file.fileUrl,
+      metadata: {
+        size: file.fileSize,
+        updated: file.updatedAt,
+        contentType: file.fileType,
+      },
+    }));
+
+    res.status(200).json(formattedFiles);
   } catch (err) {
     console.error("get_all_files error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error fetching files" });
   }
 }
 

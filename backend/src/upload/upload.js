@@ -25,9 +25,21 @@
 const express = require("express");
 const multer = require("multer");
 const { bucket, bucketName } = require("../gcs");
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
+
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+
+function formatBytes(bytes, decimals = 2) {
+  if (!+bytes) return '0 Bytes';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
 
 async function uploadFile(req, res) {
   console.log(">>> uploadFile handler called");
@@ -40,7 +52,7 @@ async function uploadFile(req, res) {
 
     const fileName = Date.now() + "-" + req.file.originalname;
     console.log("Generated filename:", fileName);
-    
+
     const file = bucket.file(fileName);
     console.log("Created bucket file reference");
 
@@ -63,6 +75,16 @@ async function uploadFile(req, res) {
 
         const url = `https://storage.googleapis.com/${bucketName}/${fileName}`;
         console.log("Upload success. URL:", url);
+
+        const PrismaFile = await prisma.file.create({
+          data: {
+            userId: req.user.userId,
+            fileName: req.file.originalname,
+            fileUrl: url,
+            fileType: req.file.mimetype,
+            fileSize: formatBytes(req.file.size)
+          }
+        });
 
         res.status(200).json({ message: "Uploaded", url });
       } catch (publicErr) {

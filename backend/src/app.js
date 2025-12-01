@@ -39,16 +39,18 @@ app.use(
   })
 );
 app.use(express.json());
+const verifyToken = require('./middleware/authMiddleware');
+
 // proxy route to stream external resources (useful if GCS CORS can't be changed)
 app.use('/', proxyRouter)
-app.use('/', fileUploadRouter)
+app.use('/', verifyToken, fileUploadRouter)
 app.use('/api/auth', authRoutes)
 // mount files listing as GET handler
-app.get('/files', get_all_files)
+app.get('/files', verifyToken, get_all_files)
 
 // mount delete file handler
 const { deleteFile } = require('./files/deleteFile')
-app.delete('/files/:filename', deleteFile)
+app.delete('/files/:filename', verifyToken, deleteFile)
 
 // mount upload router (it defines POST /fileUpload)
 

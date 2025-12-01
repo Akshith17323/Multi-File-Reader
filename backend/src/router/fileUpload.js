@@ -5,7 +5,7 @@ const multer = require('multer')
 const { uploadFile } = require('../upload/upload')
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  // storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
     const allowed = ['text/plain', 'application/pdf', 'application/epub+zip']
     if (allowed.includes(file.mimetype)) cb(null, true)
@@ -24,5 +24,3 @@ router.post('/fileUpload',
 )
 
 module.exports = router
-
-
