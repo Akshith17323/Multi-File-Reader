@@ -14,12 +14,12 @@ const upload = multer({
 })
 
 
-router.post('/fileUpload', 
+router.post('/fileUpload',
   (req, res, next) => {
     console.log(">>> POST /fileUpload hit");
     next();
   },
-  upload.single('UploadingFile'), 
+  upload.single('UploadingFile'),
   uploadFile
 )
 

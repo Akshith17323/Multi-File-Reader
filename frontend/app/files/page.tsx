@@ -107,7 +107,7 @@ export default function FilesPage() {
 
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold bg-linear-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
             Your Library
           </h1>
 
@@ -163,7 +163,7 @@ export default function FilesPage() {
                 className="group relative bg-white/5 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden hover:bg-white/10 transition-all duration-300 flex flex-row h-48 shadow-lg hover:shadow-2xl hover:scale-[1.02]"
               >
                 {/* Left: Preview Image */}
-                <div className="w-32 sm:w-40 h-full relative flex-shrink-0 bg-gray-800 border-r border-white/10">
+                <div className="w-32 sm:w-40 h-full relative flex shrink-0 bg-gray-800 border-r border-white/10">
                   <FilePreview url={file.url} type={file.metadata.contentType} />
 
                   {/* Type Badge Overlay */}

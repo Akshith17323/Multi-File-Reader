@@ -106,7 +106,7 @@ function FileUpload() {
 
       <div className="w-full max-w-xl relative z-10">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400 mb-2">
+          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-linear-to-r from-violet-400 to-fuchsia-400 mb-2">
             Upload Your File
           </h1>
           <p className="text-gray-400">Supported formats: PDF, EPUB, TXT</p>
@@ -166,7 +166,7 @@ function FileUpload() {
                   </div>
                   <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-300"
+                      className="h-full bg-linear-to-r from-violet-500 to-fuchsia-500 transition-all duration-300"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -183,7 +183,7 @@ function FileUpload() {
               <button
                 type="submit"
                 disabled={!selectedFile || (progress > 0 && progress < 100)}
-                className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-violet-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                className="w-full py-4 bg-linear-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-violet-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
               >
                 {progress > 0 && progress < 100 ? (
                   <>
