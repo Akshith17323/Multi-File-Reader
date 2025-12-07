@@ -279,65 +279,69 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader" }: PDFViewerPr
                         </div>
                     }
                 >
-                    {/* Render Logic based on View Mode */}
-                    {viewMode === "single" && (
-                        <Page
-                            pageNumber={pageNumber}
-                            renderTextLayer={false}
-                            renderAnnotationLayer={false}
-                            {...pageProps}
-                            className="shadow-2xl mb-4 transition-all duration-300"
-                        />
-                    )}
-
-                    {viewMode === "continuous" && (
-                        Array.from(new Array(numPages), (el, index) => (
-                            <Page
-                                key={`page_${index + 1}`}
-                                pageNumber={index + 1}
-                                renderTextLayer={false}
-                                renderAnnotationLayer={false}
-                                {...pageProps}
-                                className="shadow-2xl mb-4"
-                            />
-                        ))
-                    )}
-
-                    {viewMode === "two-page" && (
-                        <div className="flex justify-center gap-4 flex-wrap">
-                            <Page
-                                pageNumber={pageNumber}
-                                renderTextLayer={false}
-                                renderAnnotationLayer={false}
-                                {...pageProps}
-                                className="shadow-2xl"
-                            />
-                            {pageNumber + 1 <= numPages && (
+                    {numPages > 0 && (
+                        <>
+                            {/* Render Logic based on View Mode */}
+                            {viewMode === "single" && (
                                 <Page
-                                    pageNumber={pageNumber + 1}
+                                    pageNumber={pageNumber}
                                     renderTextLayer={false}
                                     renderAnnotationLayer={false}
                                     {...pageProps}
-                                    className="shadow-2xl"
+                                    className="shadow-2xl mb-4 transition-all duration-300"
                                 />
                             )}
-                        </div>
-                    )}
 
-                    {viewMode === "two-page-continuous" && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-7xl mx-auto">
-                            {Array.from(new Array(numPages), (el, index) => (
-                                <div key={`page_container_${index + 1}`} className="flex justify-center">
+                            {viewMode === "continuous" && (
+                                Array.from(new Array(numPages), (el, index) => (
                                     <Page
+                                        key={`page_${index + 1}`}
                                         pageNumber={index + 1}
+                                        renderTextLayer={false}
+                                        renderAnnotationLayer={false}
+                                        {...pageProps}
+                                        className="shadow-2xl mb-4"
+                                    />
+                                ))
+                            )}
+
+                            {viewMode === "two-page" && (
+                                <div className="flex justify-center gap-4 flex-wrap">
+                                    <Page
+                                        pageNumber={pageNumber}
                                         renderTextLayer={false}
                                         renderAnnotationLayer={false}
                                         {...pageProps}
                                         className="shadow-2xl"
                                     />
+                                    {pageNumber + 1 <= numPages && (
+                                        <Page
+                                            pageNumber={pageNumber + 1}
+                                            renderTextLayer={false}
+                                            renderAnnotationLayer={false}
+                                            {...pageProps}
+                                            className="shadow-2xl"
+                                        />
+                                    )}
                                 </div>
-                            ))}
-                        </div>
+                            )}
+
+                            {viewMode === "two-page-continuous" && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-7xl mx-auto">
+                                    {Array.from(new Array(numPages), (el, index) => (
+                                        <div key={`page_container_${index + 1}`} className="flex justify-center">
+                                            <Page
+                                                pageNumber={index + 1}
+                                                renderTextLayer={false}
+                                                renderAnnotationLayer={false}
+                                                {...pageProps}
+                                                className="shadow-2xl"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
                     )}
                 </Document>
             </div>

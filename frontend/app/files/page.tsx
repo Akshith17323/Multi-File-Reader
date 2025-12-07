@@ -108,14 +108,6 @@ export default function FilesPage() {
     }
   };
 
-  const formatSize = (bytes: string) => {
-    const size = parseInt(bytes);
-    if (isNaN(size)) return "Unknown size";
-    if (size < 1024) return size + " B";
-    if (size < 1024 * 1024) return (size / 1024).toFixed(1) + " KB";
-    return (size / (1024 * 1024)).toFixed(1) + " MB";
-  };
-
   const getFileIcon = (type: string) => {
     if (type === "application/pdf") return "PDF";
     if (type === "application/epub+zip") return "EPUB";
@@ -201,17 +193,24 @@ export default function FilesPage() {
                 <div className="flex-1 p-4 flex flex-col justify-between relative min-w-0">
                   {/* Top: Metadata */}
                   <div>
-                    <h3 className="font-bold text-lg text-white line-clamp-2 mb-2 group-hover:text-violet-300 transition-colors">
-                      {file.name.split('-').slice(1).join('-')}
+                    <h3 className="font-bold text-lg text-white line-clamp-2 mb-2 group-hover:text-violet-300 transition-colors" title={file.name}>
+                      {file.name}
                     </h3>
-                    <div className="flex items-center gap-4 text-sm text-gray-400">
-                      <span className="flex items-center gap-1">
-                        <FileText size={14} />
-                        {formatSize(file.metadata.size)}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full bg-white/10 text-xs border border-white/5">
-                        {getFileIcon(file.metadata.contentType)}
-                      </span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <span className="flex items-center gap-1">
+                          <FileText size={14} />
+                          {file.metadata.size}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-white/10 text-xs border border-white/5">
+                          {getFileIcon(file.metadata.contentType)}
+                        </span>
+                      </div>
+                      {file.metadata.updated && (
+                        <span className="text-[10px] text-gray-500">
+                          {new Date(file.metadata.updated).toLocaleDateString()}
+                        </span>
+                      )}
                     </div>
                   </div>
 
