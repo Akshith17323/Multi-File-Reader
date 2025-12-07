@@ -67,4 +67,16 @@ async function signup(req, res) {
   }
 }
 
-module.exports = { login, signup }
+async function logout(req, res) {
+  try {
+    return res
+      .clearCookie("token", { httpOnly: true, secure: true, sameSite: 'none' })
+      .status(200)
+      .json({ message: "Logged out successfully" });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+}
+
+module.exports = { login, signup, logout }

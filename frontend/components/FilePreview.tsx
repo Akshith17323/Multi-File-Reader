@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import ePub from "epubjs";
 import { FileText, Book } from "lucide-react";
@@ -53,11 +53,29 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
         };
     }, [url, type]);
 
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [containerWidth, setContainerWidth] = useState<number>(0);
+
+    useEffect(() => {
+        const observer = new ResizeObserver((entries) => {
+            if (entries[0]) {
+                setContainerWidth(entries[0].contentRect.width);
+            }
+        });
+
+        if (containerRef.current) {
+            observer.observe(containerRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, []);
+
     if (type === "application/pdf") {
         return (
-            <div className="w-full h-full bg-gray-800 flex items-center justify-center overflow-hidden relative">
+            <div ref={containerRef} className="w-full h-full bg-gray-800 flex items-center justify-center overflow-hidden relative">
                 <Document
                     file={url}
+                    onLoadSuccess={() => setLoading(false)}
                     loading={
                         <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
                             <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
@@ -70,13 +88,15 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
                     }
                     className="w-full h-full flex items-center justify-center"
                 >
-                    <Page
-                        pageNumber={1}
-                        width={200} // Render at a reasonable thumbnail width
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                        className="shadow-md !bg-transparent"
-                    />
+                    {!loading && containerWidth > 0 && (
+                        <Page
+                            pageNumber={1}
+                            width={containerWidth}
+                            renderTextLayer={false}
+                            renderAnnotationLayer={false}
+                            className="shadow-md !bg-transparent"
+                        />
+                    )}
                 </Document>
             </div>
         );
