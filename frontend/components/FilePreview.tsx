@@ -39,7 +39,7 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
                 }
             } else if (type === "application/pdf") {
                 // PDF handling is done directly in render via react-pdf
-                setLoading(false);
+                // Wait for Document onLoadSuccess to set loading=false
             } else {
                 setLoading(false);
                 setError(true);
@@ -73,31 +73,41 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
     if (type === "application/pdf") {
         return (
             <div ref={containerRef} className="w-full h-full bg-gray-800 flex items-center justify-center overflow-hidden relative">
-                <Document
-                    file={url}
-                    onLoadSuccess={() => setLoading(false)}
-                    loading={
-                        <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-                            <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-                        </div>
-                    }
-                    error={
-                        <div className="flex flex-col items-center text-gray-500">
-                            <FileText size={32} />
-                        </div>
-                    }
-                    className="w-full h-full flex items-center justify-center"
-                >
-                    {!loading && containerWidth > 0 && (
-                        <Page
-                            pageNumber={1}
-                            width={containerWidth}
-                            renderTextLayer={false}
-                            renderAnnotationLayer={false}
-                            className="shadow-md !bg-transparent"
-                        />
-                    )}
-                </Document>
+                {error ? (
+                    <div className="flex flex-col items-center text-gray-500">
+                        <FileText size={32} />
+                        <span className="text-xs mt-2">Preview Error</span>
+                    </div>
+                ) : (
+                    <Document
+                        file={url}
+                        onLoadSuccess={() => {
+                            setLoading(false);
+                            console.log("PDF loaded successfully");
+                        }}
+                        onLoadError={(err) => {
+                            console.error("PDF Load Error:", err);
+                            setLoading(false);
+                            setError(true);
+                        }}
+                        loading={
+                            <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+                                <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                            </div>
+                        }
+                        className="w-full h-full flex items-center justify-center"
+                    >
+                        {!loading && containerWidth > 0 && (
+                            <Page
+                                pageNumber={1}
+                                width={containerWidth}
+                                renderTextLayer={false}
+                                renderAnnotationLayer={false}
+                                className="shadow-md !bg-transparent"
+                            />
+                        )}
+                    </Document>
+                )}
             </div>
         );
     }

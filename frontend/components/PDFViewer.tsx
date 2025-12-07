@@ -12,12 +12,13 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 interface PDFViewerProps {
     blobUrl: string;
     title?: string;
+    fileId?: string;
 }
 
 type FitMode = "width" | "height" | "both" | "none";
 type ViewMode = "single" | "continuous" | "two-page" | "two-page-continuous";
 
-export default function PDFViewer({ blobUrl, title = "PDF Reader" }: PDFViewerProps) {
+export default function PDFViewer({ blobUrl, title = "PDF Reader", fileId }: PDFViewerProps) {
     const [numPages, setNumPages] = useState<number>(0);
     const [pageNumber, setPageNumber] = useState<number>(1);
     const [scale, setScale] = useState<number>(1.0);
@@ -32,6 +33,59 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader" }: PDFViewerPr
     const [fitMode, setFitMode] = useState<FitMode>("width");
     const [viewMode, setViewMode] = useState<ViewMode>("single");
     const [showControls, setShowControls] = useState(true);
+
+    // Initial Bookmark Load
+    useEffect(() => {
+        if (!fileId) return;
+        const loadBookmark = async () => {
+            try {
+                const token = localStorage.getItem("token");
+                if (!token) return;
+
+                const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/bookmarks?fileId=${fileId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.progress > 1) {
+                        setPageNumber(data.progress);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load bookmark", err);
+            }
+        };
+        loadBookmark();
+    }, [fileId]);
+
+    // Save Bookmark Debouncing
+    useEffect(() => {
+        if (!fileId || !numPages) return;
+
+        const timeoutId = setTimeout(async () => {
+            try {
+                const token = localStorage.getItem("token");
+                if (!token) return;
+
+                await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/bookmarks`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        fileId,
+                        progress: pageNumber,
+                        total: numPages
+                    })
+                });
+            } catch (err) {
+                console.error("Failed to save bookmark", err);
+            }
+        }, 1000); // Debounce for 1 second
+
+        return () => clearTimeout(timeoutId);
+    }, [pageNumber, fileId, numPages]);
 
     // Responsive sizing
     useEffect(() => {
@@ -120,12 +174,10 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader" }: PDFViewerPr
             <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-violet-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
             <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-fuchsia-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
 
-            {/* Header Controls */}
-            <div className={`absolute top-0 left-0 right-0 bg-[#0f1014]/90 backdrop-blur-md border-b border-white/5 px-4 py-3 flex items-center justify-between z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
-                <h1 className="text-gray-200 font-medium truncate max-w-[200px] text-sm sm:text-base">{title}</h1>
-
+            {/* Header Controls Removed as per user request */}
+            <div className={`absolute top-0 right-0 p-4 z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
                 <div className="flex items-center gap-3 lg:hidden">
-                    {/* Controls Trigger */}
+                    {/* Controls Trigger for Sidebar */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(true); }}
                         className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold transition-colors"

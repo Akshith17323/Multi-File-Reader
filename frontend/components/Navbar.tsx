@@ -57,8 +57,8 @@ export default function Navbar() {
     // Safety check for pathname
     if (!pathname) return null;
 
-    // Hide Navbar on Login/Signup pages
-    if (pathname.includes("/auth/")) {
+    // Hide Navbar on Login/Signup and Reader pages
+    if (pathname.includes("/auth/") || pathname.includes("/reader/")) {
         return null;
     }
 

@@ -3,56 +3,89 @@ const prisma = new PrismaClient();
 
 async function get_all_files(req, res) {
     try {
-        const { search, type } = req.query;
-        const userId = req.user.userId; // Extracted from Auth Middleware
+        const { search, type, page = 1, limit = 12, sortBy = 'createdAt', order = 'desc' } = req.query;
+        const userId = req.user.userId;
 
         // 1. Setup the filter
         const where = {
-            userId: userId 
+            userId: userId
         };
 
-        // 2. Add Search logic
         if (search) {
             where.fileName = {
                 contains: search,
-                mode: 'insensitive' 
+                mode: 'insensitive'
             };
         }
 
-        // 3. Add Type logic
         if (type) {
-             // 'application/pdf' or 'application/epub+zip'
-             // If your frontend sends "pdf" (short), map it to the MIME type
-             const mimeMap = {
-                 'pdf': 'application/pdf',
-                 'epub': 'application/epub+zip'
-             };
-             if (mimeMap[type]) {
-                 where.fileType = mimeMap[type];
-             }
+            const mimeMap = {
+                'pdf': 'application/pdf',
+                'epub': 'application/epub+zip'
+            };
+            if (mimeMap[type]) {
+                where.fileType = mimeMap[type];
+            }
         }
 
-        // 4. Fetch from DB
-        const files = await prisma.file.findMany({
-            where: where,
-            orderBy: {
-                createdAt: 'desc' // Sort by newest first (Ensure 'createdAt' is in your schema!)
-            }
-        });
+        // 2. Pagination Setup
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        const skip = (pageNum - 1) * limitNum;
+
+        // 3. Sorting Setup
+        const orderBy = {};
+        // Allow sorting by fileName or createdAt
+        if (sortBy === 'name') orderBy.fileName = order;
+        else orderBy.createdAt = order;
+
+        // 4. Fetch Data & Count in Parallel
+        const [files, total] = await prisma.$transaction([
+            prisma.file.findMany({
+                where,
+                skip,
+                take: limitNum,
+                orderBy,
+                include: {
+                    bookmarks: {
+                        where: { userId: userId },
+                        select: { progress: true, total: true }
+                    }
+                }
+            }),
+            prisma.file.count({ where })
+        ]);
 
         // 5. Map for Frontend
-        const mappedFiles = files.map(file => ({
-            name: file.fileName,
-            url: file.fileUrl,
-            metadata: {
-                size: file.fileSize, 
-                contentType: file.fileType,
-                // Send the date back to the frontend
-                updated: file.createdAt 
+        const mappedFiles = files.map(file => {
+            const bookmark = file.bookmarks[0]; // Should be only one due to filter
+            let progressPct = 0;
+            if (bookmark && bookmark.total > 0) {
+                progressPct = Math.round((bookmark.progress / bookmark.total) * 100);
             }
-        }));
 
-        return res.status(200).json(mappedFiles);
+            return {
+                name: file.fileName,
+                id: file.id, // Ensure ID is passed for bookmark updates
+                url: file.fileUrl,
+                metadata: {
+                    size: file.fileSize,
+                    contentType: file.fileType,
+                    updated: file.createdAt,
+                    progress: progressPct
+                }
+            };
+        });
+
+        return res.status(200).json({
+            files: mappedFiles,
+            pagination: {
+                total,
+                page: pageNum,
+                totalPages: Math.ceil(total / limitNum),
+                limit: limitNum
+            }
+        });
 
     } catch (err) {
         console.error('❌ get_all_files error:', err);

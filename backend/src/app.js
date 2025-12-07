@@ -5,6 +5,7 @@ const cors = require("cors")
 const authRoutes = require('./router/authroutes')
 const fileUploadRouter = require('./router/fileUpload')
 const proxyRouter = require('./router/proxy')
+const bookmarkRoutes = require('./router/bookmarkRoutes');
 const { get_all_files } = require('./files/allFiles')
 const middleware = require('./middleware/authMiddleware')
 
@@ -44,6 +45,7 @@ app.use(express.json());
 app.use('/', proxyRouter)
 app.use('/', fileUploadRouter)
 app.use('/api/auth', authRoutes)
+app.use('/api/bookmarks', bookmarkRoutes);
 // mount files listing as GET handler
 // mount files listing as GET handler
 app.get('/files', middleware, get_all_files)

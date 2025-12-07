@@ -21,6 +21,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   files     File[]
+  bookmarks Bookmark[]
 }
 
 model File {
@@ -33,4 +34,19 @@ model File {
   fileType  String
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  bookmarks Bookmark[]
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  fileId    String
+  progress  Int      @default(0) // Page number for PDF
+  total     Int      @default(0) // Total pages for PDF
+  cfi       String? // EPUB location (CFI string)
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  file      File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fileId])
 }
