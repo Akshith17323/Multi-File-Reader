@@ -44,14 +44,19 @@ function formatBytes(bytes, decimals = 2) {
 async function uploadFile(req, res) {
   console.log("🚀 uploadFile handler called");
   try {
+    if (!req.user || !req.user.userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+    }
+
     if (!req.file) {
       console.error("❌ No file found in req.file");
       return res.status(400).json({ message: "No file" });
     }
     console.log("📂 File received:", req.file.originalname, "Size:", req.file.size, "Mime:", req.file.mimetype);
 
-    const fileName = Date.now() + "-" + req.file.originalname;
-    console.log("📝 Generated filename:", fileName);
+    const fileName = `${req.user.userId}/${Date.now()}-${req.file.originalname}`;
+    
+    console.log("📝 Generated filename with path:", fileName);
 
     const file = bucket.file(fileName);
     console.log("🔗 Created bucket file reference");
@@ -73,13 +78,15 @@ async function uploadFile(req, res) {
         await file.makePublic();
         console.log("🌍 File made public.");
 
+        // The URL will now include the folder structure automatically
         const url = `https://storage.googleapis.com/${bucketName}/${fileName}`;
         console.log("✅ Upload success. URL:", url);
 
         const PrismaFile = await prisma.file.create({
           data: {
             userId: req.user.userId,
-            fileName: req.file.originalname,
+            fileName: req.file.originalname, // You can keep original name for display
+            // OR save 'fileName' (the variable) if you want the full path in DB
             fileUrl: url,
             fileType: req.file.mimetype,
             fileSize: formatBytes(req.file.size)
