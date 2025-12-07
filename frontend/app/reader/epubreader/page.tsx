@@ -57,7 +57,7 @@ function ReaderContent() {
           );
         }
       } catch (err: unknown) {
-        console.error("Error initializing EPUB:", err);
+        console.error("❌ Error initializing EPUB:", err);
         if (!cancelled) {
           setError((err as Error).message || "Failed to load EPUB.");
           setLoading(false);

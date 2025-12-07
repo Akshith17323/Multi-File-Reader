@@ -41,14 +41,29 @@ export default function FilesPage() {
       if (search) params.append("search", search);
       if (typeFilter) params.append("type", typeFilter);
 
+      const token = localStorage.getItem("token");
+      if (!token) {
+        toast.error("Please login to view files");
+        router.push("/auth/login");
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/files?${params.toString()}`, {
-        credentials: 'include'
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
+      if (res.status === 401) {
+        toast.error("Session expired, please login again");
+        router.push("/auth/login");
+        return;
+      }
       if (!res.ok) throw new Error("Failed to fetch files");
       const data = await res.json();
       setFiles(data);
     } catch (error) {
-      console.error("Error fetching files:", error);
+      console.error("❌ Error fetching files:", error);
       toast.error("Failed to load files");
     } finally {
       setLoading(false);
@@ -59,9 +74,17 @@ export default function FilesPage() {
     if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
 
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        toast.error("Please login");
+        return;
+      }
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/files/${filename}`, {
         method: "DELETE",
-        credentials: 'include'
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
 
       if (!res.ok) throw new Error("Failed to delete file");
@@ -69,7 +92,7 @@ export default function FilesPage() {
       toast.success("File deleted successfully");
       setFiles(files.filter((f) => f.name !== filename));
     } catch (error) {
-      console.error("Error deleting file:", error);
+      console.error("❌ Error deleting file:", error);
       toast.error("Failed to delete file");
     }
   };

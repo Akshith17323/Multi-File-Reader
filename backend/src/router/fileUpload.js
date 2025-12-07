@@ -3,6 +3,7 @@ const express = require('express')
 const router = express.Router()
 const multer = require('multer')
 const { uploadFile } = require('../upload/upload')
+const middleware = require('../middleware/authMiddleware')
 
 const upload = multer({
   // storage: multer.memoryStorage(),
@@ -15,6 +16,7 @@ const upload = multer({
 
 
 router.post('/fileUpload',
+  middleware,
   (req, res, next) => {
     console.log(">>> POST /fileUpload hit");
     next();
