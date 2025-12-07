@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: black;
+  /* Modern Library Theme: Depth & Hierarchy */
+  --background: #0a0a0a;  /* Neutral 950 - Deep Charcoal */
+  --surface: #171717;     /* Neutral 900 - Dark Gray Surface */
+  --surface-hover: #262626; /* Neutral 800 - Lighter Surface for Hover */
+  
+  --foreground: #f5f5f5;  /* Neutral 100 - High Contrast Text */
+  --foreground-muted: #a3a3a3; /* Neutral 400 - Muted Text */
+  
+  --primary: #d97706;     /* Amber 600 - Warm Gold Accent */
+  --primary-hover: #b45309; /* Amber 700 - Darker Gold */
+  
+  --border-subtle: #404040; /* Neutral 700 */
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
   --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-border-subtle: var(--border-subtle);
+  
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: black;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }

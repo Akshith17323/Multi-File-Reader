@@ -112,34 +112,46 @@ function FileUpload() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-black relative overflow-hidden px-4">
-      {/* Background Gradients */}
-      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-violet-600/30 rounded-full blur-[120px] animate-pulse mix-blend-screen" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-fuchsia-600/30 rounded-full blur-[120px] animate-pulse delay-1000 mix-blend-screen" />
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#0a0a0a] relative px-6 py-20">
 
-      <div className="w-full max-w-xl relative z-10">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-linear-to-r from-violet-400 to-fuchsia-400 mb-2">
-            Upload Your File
+      {/* Background Decor (Subtle Glow) */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#d97706]/5 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div className="w-full max-w-2xl relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-500">
+        <button
+          onClick={() => router.push('/files')}
+          className="group mb-10 text-[#a3a3a3] hover:text-[#f5f5f5] flex items-center gap-2 transition-colors font-bold text-sm tracking-wide"
+        >
+          <div className="w-8 h-8 rounded-full border border-[#404040] flex items-center justify-center group-hover:border-[#f5f5f5] transition-colors">
+            ←
+          </div>
+          Back to Library
+        </button>
+
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-[#f5f5f5] mb-4 tracking-tight">
+            Add to Collection
           </h1>
-          <p className="text-gray-400">Supported formats: PDF, EPUB, TXT</p>
+          <p className="text-[#a3a3a3] text-lg">
+            Upload documents to your secure digital library
+          </p>
         </div>
 
-        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl">
+        <div className="bg-[#171717] rounded-3xl p-10 shadow-2xl border border-[#262626]">
           {!resultUrl ? (
-            <form onSubmit={uploadFile} className="space-y-6">
+            <form onSubmit={uploadFile} className="space-y-8">
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onClick={() => fileRef.current?.click()}
                 className={`
-                  relative border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-300
+                  relative border-2 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all duration-300
                   ${isDragging
-                    ? "border-blue-500 bg-blue-500/10 scale-105"
-                    : "border-gray-600 hover:border-gray-500 hover:bg-white/5"
+                    ? "border-[#d97706] bg-[#d97706]/10 scale-[1.02]"
+                    : "border-[#404040] hover:border-[#d97706] hover:bg-[#262626] bg-[#0f0f0f]"
                   }
-                  ${selectedFile ? "border-green-500/50 bg-green-500/5" : ""}
+                  ${selectedFile ? "border-[#d97706]/50 bg-[#d97706]/5" : ""}
                 `}
               >
                 <input
@@ -150,36 +162,36 @@ function FileUpload() {
                   onChange={(e) => e.target.files?.[0] && handleFileSelection(e.target.files[0])}
                 />
 
-                <div className="flex flex-col items-center gap-4">
-                  <div className={`p-4 rounded-full bg-white/5 transition-transform duration-300 ${isDragging ? "scale-110" : ""}`}>
+                <div className="flex flex-col items-center gap-6">
+                  <div className={`p-6 rounded-2xl bg-[#171717] border border-[#404040] shadow-xl transition-transform duration-300 ${isDragging ? "scale-110 rotate-3" : ""}`}>
                     {getFileIcon()}
                   </div>
 
                   <div>
                     {selectedFile ? (
-                      <>
-                        <p className="text-lg font-semibold text-white">{selectedFile.name}</p>
-                        <p className="text-sm text-gray-400">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                      </>
+                      <div className="animate-in fade-in zoom-in duration-300">
+                        <p className="text-2xl font-bold text-[#f5f5f5] mb-1">{selectedFile.name}</p>
+                        <p className="text-base text-[#d97706] font-medium">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                      </div>
                     ) : (
-                      <>
-                        <p className="text-lg font-semibold text-white">Drag & drop or click to upload</p>
-                        <p className="text-sm text-gray-400">Maximum file size: 50MB</p>
-                      </>
+                      <div className="space-y-2">
+                        <p className="text-xl font-bold text-[#f5f5f5]">Drop your file here</p>
+                        <p className="text-[#737373]">or click to browse supports PDF, EPUB, TXT</p>
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
 
               {progress > 0 && progress < 100 && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm text-gray-400">
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm font-medium text-[#a3a3a3]">
                     <span>Uploading...</span>
                     <span>{progress}%</span>
                   </div>
-                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <div className="h-3 bg-[#0f0f0f] rounded-full overflow-hidden border border-[#262626]">
                     <div
-                      className="h-full bg-linear-to-r from-violet-500 to-fuchsia-500 transition-all duration-300"
+                      className="h-full bg-[#d97706] transition-all duration-300 shadow-[0_0_10px_rgba(217,119,6,0.5)]"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -187,58 +199,66 @@ function FileUpload() {
               )}
 
               {error && (
-                <div className="p-4 bg-red-500/10 border border-red-500/50 rounded-xl flex items-center gap-3 text-red-400">
-                  <AlertCircle size={20} />
-                  <p className="text-sm">{error}</p>
+                <div className="p-5 bg-[#450a0a]/20 border border-[#ef4444]/30 rounded-xl flex items-center gap-4 text-[#ef4444]">
+                  <AlertCircle size={24} className="flex-shrink-0" />
+                  <p className="font-medium">{error}</p>
                 </div>
               )}
 
               <button
                 type="submit"
                 disabled={!selectedFile || (progress > 0 && progress < 100)}
-                className="w-full py-4 bg-linear-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-violet-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                className="w-full py-5 bg-[#f5f5f5] hover:bg-white text-[#0a0a0a] rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3"
               >
                 {progress > 0 && progress < 100 ? (
                   <>
-                    <Loader2 className="animate-spin" size={20} />
-                    <span>Uploading...</span>
+                    <Loader2 className="animate-spin" size={24} />
+                    <span>Processing...</span>
                   </>
                 ) : (
                   <>
-                    <Upload size={20} />
-                    <span>Upload File</span>
+                    <Upload size={24} />
+                    <span>Start Upload</span>
                   </>
                 )}
               </button>
             </form>
           ) : (
-            <div className="text-center space-y-6 py-8">
-              <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 size={40} className="text-green-500" />
+            <div className="text-center space-y-8 py-10 animate-in fade-in zoom-in duration-500">
+              <div className="w-24 h-24 bg-[#052e16] border-2 border-[#10b981] rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+                <CheckCircle2 size={48} className="text-[#10b981]" />
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold text-white mb-2">Upload Complete!</h2>
-                <p className="text-gray-400">Your file is ready to read</p>
+                <h2 className="text-3xl font-extrabold text-[#f5f5f5] mb-3">Upload Successful</h2>
+                <p className="text-[#a3a3a3] text-lg">"{selectedFile?.name}" has been added to your library.</p>
               </div>
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4 pt-4">
                 <button
-                  onClick={() => router.push(getReaderUrl(resultUrl))}
-                  className="w-full py-4 bg-white text-black rounded-xl font-bold text-lg shadow-lg hover:bg-gray-100 hover:scale-[1.02] transition-all duration-300"
+                  onClick={() => router.push('/files')}
+                  className="w-full py-4 bg-[#f5f5f5] hover:bg-white text-[#0a0a0a] rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
                 >
-                  Read Now
+                  Return to Library
                 </button>
-                <button
-                  onClick={() => {
-                    setResultUrl(null);
-                    setSelectedFile(null);
-                    setProgress(0);
-                  }}
-                  className="w-full py-4 bg-white/5 text-white border border-white/10 rounded-xl font-bold text-lg hover:bg-white/10 transition-all duration-300"
-                >
-                  Upload Another
-                </button>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => router.push(getReaderUrl(resultUrl))}
+                    className="w-full py-4 bg-[#0f0f0f] hover:bg-[#262626] text-[#f5f5f5] border border-[#404040] rounded-xl font-bold text-lg transition-all duration-300"
+                  >
+                    Read Now
+                  </button>
+                  <button
+                    onClick={() => {
+                      setResultUrl(null);
+                      setSelectedFile(null);
+                      setProgress(0);
+                    }}
+                    className="w-full py-4 bg-[#0f0f0f] hover:bg-[#262626] text-[#a3a3a3] hover:text-[#f5f5f5] border border-[#404040] rounded-xl font-bold text-lg transition-all duration-300"
+                  >
+                    Upload Another
+                  </button>
+                </div>
               </div>
             </div>
           )}

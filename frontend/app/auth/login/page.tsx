@@ -42,6 +42,11 @@ function Loginpage() {
 
       if (data.token) {
         localStorage.setItem("token", data.token);
+        // Store user and notify listeners
+        if (data.user) {
+          localStorage.setItem("user", data.user);
+          window.dispatchEvent(new Event("auth-change"));
+        }
       }
 
       router.push("/fileupload");
