@@ -68,7 +68,7 @@ function Loginpage() {
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
+          <h1 className="text-3xl font-bold text-white mb-2">
             Welcome Back
           </h1>
           <p className="text-gray-400">Sign in to continue to Multi File Reader</p>

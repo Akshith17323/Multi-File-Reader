@@ -119,11 +119,11 @@ export default function FilesPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
-          <div className="space-y-2">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-[#f5f5f5] tracking-tight">
+          <div className="space-y-1">
+            <h1 className="text-3xl md:text-4xl font-extrabold text-[#f5f5f5] tracking-tight">
               My Library
             </h1>
-            <p className="text-[#a3a3a3] text-lg font-medium">
+            <p className="text-[#a3a3a3] text-base font-medium">
               Manage your digital collection
             </p>
           </div>

@@ -128,11 +128,11 @@ function FileUpload() {
           Back to Library
         </button>
 
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-[#f5f5f5] mb-4 tracking-tight">
+        <div className="text-center mb-10">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-[#f5f5f5] mb-3 tracking-tight">
             Add to Collection
           </h1>
-          <p className="text-[#a3a3a3] text-lg">
+          <p className="text-[#a3a3a3] text-base">
             Upload documents to your secure digital library
           </p>
         </div>

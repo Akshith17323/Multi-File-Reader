@@ -71,7 +71,7 @@ export default function Navbar() {
                         <div className="bg-[#d97706] p-2 rounded-lg shadow-lg group-hover:shadow-[#d97706]/20 transition-all duration-300">
                             <Library size={24} className="text-white" />
                         </div>
-                        <span className="font-bold text-2xl tracking-tight text-[#f5f5f5]">
+                        <span className="font-bold text-xl tracking-tight text-[#f5f5f5]">
                             MultiReader
                         </span>
                     </Link>
