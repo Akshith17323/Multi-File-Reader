@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import ePub, { Book, Rendition } from "epubjs";
-import { ChevronLeft, ChevronRight, Menu, X, AlertCircle, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu, X, AlertCircle, Loader2, Globe, Bookmark, Info, ZoomIn, ZoomOut, Search, FileText, ScrollText, Columns } from "lucide-react";
 
 function ReaderContent() {
   const searchParams = useSearchParams();
@@ -14,23 +14,19 @@ function ReaderContent() {
   const bookRef = useRef<Book | null>(null);
 
   const [showControls, setShowControls] = useState(true);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Unused
 
   const [loading, setLoading] = useState(true);
   const [chapters, setChapters] = useState<{ label: string; href: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [currentLocation, setCurrentLocation] = useState<string>("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [fontSize, setFontSize] = useState(100);
+  const [viewMode, setViewMode] = useState<'single' | 'two-page' | 'continuous'>('two-page');
+  const [isBookReady, setIsBookReady] = useState(false);
 
   // Touch handling
   const touchStartRef = useRef<number | null>(null);
-
-  // Hide controls after 3 seconds of inactivity (optional, but good for immersive)
-  const resetControlsTimeout = () => {
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-    setShowControls(true);
-    // controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000); // Auto-hide disabled for now as per user preference in PDF
-  };
 
   useEffect(() => {
     if (!url) {
@@ -49,19 +45,84 @@ function ReaderContent() {
 
         const book = ePub(url);
         bookRef.current = book;
+        setIsBookReady(true);
 
-        const rendition = book.renderTo(viewerRef.current!, {
-          width: "100%",
-          height: "100%",
-          spread: "always",
-          flow: "paginated",
+        const toc = await book.loaded.navigation;
+        if (!cancelled && toc?.toc) {
+          setChapters(
+            toc.toc.map((item: { label: string; href: string }) => ({
+              label: item.label,
+              href: item.href,
+            }))
+          );
+        }
+      } catch (err: unknown) {
+        console.error("Error initializing EPUB:", err);
+        if (!cancelled) {
+          setError((err as Error).message || "Failed to load EPUB.");
+          setLoading(false);
+        }
+      }
+    };
+
+    initBook();
+
+    return () => {
+      cancelled = true;
+      setIsBookReady(false);
+      try {
+        renditionRef.current?.destroy();
+        bookRef.current?.destroy();
+      } catch { }
+    };
+  }, [url]);
+
+  // Re-render when viewMode changes or book is ready
+  useEffect(() => {
+    if (!isBookReady || !bookRef.current || !viewerRef.current) return;
+
+    const reRender = async () => {
+      setLoading(true);
+      try {
+        // Save current location if possible, else rely on state
+        const currentLoc = renditionRef.current?.location?.start?.cfi || currentLocation;
+
+        // Destroy previous rendition to cleanly switch modes
+        if (renditionRef.current) {
+          renditionRef.current.destroy();
+        }
+
+        const width = "100%";
+        const height = "100%";
+
+        let flow = "paginated";
+        let manager = "default";
+        let spread = "auto";
+
+        if (viewMode === "single") {
+          spread = "none";
+        } else if (viewMode === "two-page") {
+          spread = "always"; // Force two page
+        } else if (viewMode === "continuous") {
+          flow = "scrolled-doc";
+          manager = "continuous";
+          spread = "none";
+        }
+
+        const rendition = bookRef.current!.renderTo(viewerRef.current!, {
+          width,
+          height,
+          flow,
+          manager,
+          spread
         });
 
         renditionRef.current = rendition;
 
-        await rendition.display();
+        await rendition.display(currentLoc || undefined);
+        rendition.themes.fontSize(`${fontSize}%`);
 
-        // Swipe handling within iframe
+        // Re-attach listeners
         rendition.on("touchstart", (e: TouchEvent) => {
           touchStartRef.current = e.changedTouches[0].clientX;
         });
@@ -76,67 +137,78 @@ function ReaderContent() {
           } else if (distance < -50) {
             rendition.prev();
           } else {
-            // Tap detection (minimal movement)
-            // Toggle controls on tap
+            // Toggle controls on tap (if not scrolling significantly)
             setShowControls(prev => !prev);
           }
           touchStartRef.current = null;
         });
 
-        // Click handling for desktop
         rendition.on("click", () => {
           setShowControls(prev => !prev);
         });
 
-        const toc = await book.loaded.navigation;
-        if (!cancelled && toc?.toc) {
-          setChapters(
-            toc.toc.map((item: any) => ({
-              label: item.label,
-              href: item.href,
-            }))
-          );
-        }
-
-        rendition.on("relocated", (location: any) => {
-          if (!location?.start?.cfi || cancelled) return;
-          setCurrentLocation(location.start.cfi);
+        rendition.on("relocated", (location: { start: { cfi: string } }) => {
+          if (location?.start?.cfi) {
+            setCurrentLocation(location.start.cfi);
+          }
         });
 
-        if (!cancelled) setLoading(false);
-      } catch (err: any) {
-        console.error("Error initializing EPUB:", err);
-        if (!cancelled) {
-          setError(err.message || "Failed to load EPUB.");
-          setLoading(false);
-        }
+        // Apply initial font size again just in case
+        rendition.themes.fontSize(`${fontSize}%`);
+
+      } catch (error) {
+        console.error("Error changing view mode:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    initBook();
+    reRender();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, isBookReady]);
 
-    return () => {
-      cancelled = true;
-      try {
-        renditionRef.current?.destroy();
-        bookRef.current?.destroy();
-      } catch { }
-    };
-  }, [url]);
+  // Handle Resize for responsive reflow
+  useEffect(() => {
+    if (!renditionRef.current || !viewerRef.current) return;
 
-  const goNext = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    const resizeObserver = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      // Debounce or just call resize
+      requestAnimationFrame(() => {
+        renditionRef.current?.resize(width, height);
+      });
+    });
+
+    resizeObserver.observe(viewerRef.current);
+
+    return () => resizeObserver.disconnect();
+  }, [isBookReady]); // Re-bind if book reloads
+
+  useEffect(() => {
+    if (renditionRef.current) {
+      renditionRef.current.themes.fontSize(`${fontSize}%`);
+    }
+  }, [fontSize]);
+
+  const goNext = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     renditionRef.current?.next();
   };
-  const goPrev = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const goPrev = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     renditionRef.current?.prev();
   };
 
   const goToHref = (href: string) => {
     renditionRef.current?.display(href);
-    setIsSidebarOpen(false);
+    if (window.innerWidth < 1024) { // Close on mobile only preferably, but consistent with PDF behvaior
+      setIsSidebarOpen(false);
+    }
   };
+
+  const increaseFontSize = () => setFontSize(s => Math.min(s + 20, 200));
+  const decreaseFontSize = () => setFontSize(s => Math.max(s - 20, 50));
+
 
   if (!url) {
     return (
@@ -150,76 +222,165 @@ function ReaderContent() {
     );
   }
 
+  const title = decodeURIComponent(url).split('/').pop();
+
   return (
-    <div className="h-[100dvh] flex flex-col bg-gray-900 overflow-hidden relative">
+    <div className="h-dvh flex flex-col lg:flex-row bg-gray-900 overflow-hidden relative">
       {/* Background Gradients */}
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-violet-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-fuchsia-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
 
       {/* Header */}
-      <header
-        className={`absolute top-0 left-0 right-0 bg-black/80 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between z-50 transition-transform duration-300 ${showControls ? 'translate-y-0' : '-translate-y-full'}`}
-      >
-        <div className="flex items-center gap-3">
+      <div className={`absolute top-0 left-0 right-0 bg-[#0f1014]/90 backdrop-blur-md border-b border-white/5 px-4 py-3 flex items-center justify-between z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
+        <h1 className="text-gray-200 font-medium truncate max-w-[200px] text-sm sm:text-base">EPUB Reader</h1>
+
+        <div className="flex items-center gap-3 lg:hidden">
           <button
             onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(true); }}
-            className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold transition-colors"
           >
-            <Menu size={24} />
+            <Menu size={16} />
+            MENU
           </button>
-          <div>
-            <h1 className="text-white font-semibold text-sm sm:text-base">EPUB Reader</h1>
-            <p className="text-xs text-gray-400 truncate max-w-[150px] sm:max-w-md">
-              {decodeURIComponent(url).split('/').pop()}
-            </p>
-          </div>
         </div>
-      </header>
+      </div>
 
       {/* Sidebar Drawer */}
       <div className={`
-        fixed inset-y-0 left-0 w-80 bg-gray-900/95 backdrop-blur-2xl border-r border-white/10 z-[60] transform transition-transform duration-300 ease-in-out
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        fixed inset-y-0 right-0 w-80 bg-[#16171b] border-l border-[#2e2f36] z-[60] transform transition-transform duration-300 ease-in-out text-[#a2a2a2]
+        lg:static lg:transform-none lg:z-0 lg:shrink-0
+        ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0
       `}>
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
-          <h2 className="text-white font-bold">Table of Contents</h2>
+        <div className="p-4 border-b border-[#2e2f36] flex items-center justify-between">
+          <div>
+            <h2 className="text-white font-semibold text-sm">You are reading</h2>
+            <p className="text-xs truncate max-w-[200px] text-blue-400">{title}</p>
+          </div>
+
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white"
+            className="p-2 hover:bg-[#2e2f36] rounded-md text-[#a2a2a2] hover:text-white transition-colors lg:hidden"
           >
             <X size={20} />
           </button>
         </div>
-        <div className="overflow-y-auto h-full pb-20">
-          {chapters.length === 0 ? (
-            <p className="p-4 text-gray-500 text-sm">No chapters found.</p>
-          ) : (
-            <ul className="py-2">
-              {chapters.map((chapter, idx) => (
-                <li key={idx}>
-                  <button
-                    onClick={() => goToHref(chapter.href)}
-                    className="w-full text-left px-4 py-3 text-gray-300 hover:bg-white/5 hover:text-white transition-colors text-sm truncate"
-                  >
-                    {chapter.label || `Chapter ${idx + 1}`}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+
+        <div className="p-4 space-y-6 overflow-y-auto h-[calc(100vh-65px)]">
+          {/* Navigation */}
+          <div className="bg-[#1f2128] rounded-lg p-3 space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="flex items-center gap-2"><Globe size={14} /> Language</span>
+              <span className="text-white">English</span>
+            </div>
+            <div className="flex items-center gap-2 bg-[#2a2c34] p-2 rounded-md justify-between">
+              <button
+                onClick={goPrev}
+                className="p-1 hover:text-white"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <div className="text-center">
+                <span className="text-white text-sm font-medium">Navigate</span>
+              </div>
+              <button
+                onClick={goNext}
+                className="p-1 hover:text-white"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <button className="w-full flex items-center gap-3 px-3 py-3 rounded-md hover:bg-[#1f2128] text-sm transition-colors">
+              <Bookmark size={18} />
+              <span>Bookmark</span>
+            </button>
+            <button className="w-full flex items-center gap-3 px-3 py-3 rounded-md hover:bg-[#1f2128] text-sm transition-colors">
+              <Info size={18} />
+              <span>Detail</span>
+            </button>
+          </div>
+
+          {/* View Mode Controls */}
+          <div className="bg-[#1f2128] rounded-lg overflow-hidden">
+            {[
+              { id: 'single', label: 'Single Page', icon: FileText },
+              { id: 'two-page', label: 'Two Page', icon: Columns },
+              { id: 'continuous', label: 'Long Strip', icon: ScrollText },
+            ].map((mode) => (
+              <button
+                key={mode.id}
+                onClick={() => setViewMode(mode.id as 'single' | 'two-page' | 'continuous')}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b border-[#2e2f36] last:border-0 ${viewMode === mode.id ? "text-blue-400 bg-[#252830]" : "hover:bg-[#252830] hover:text-gray-200"
+                  }`}
+              >
+                <div className="flex items-center gap-3">
+                  <mode.icon size={18} />
+                  <span>{mode.label}</span>
+                </div>
+                {viewMode === mode.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />}
+              </button>
+            ))}
+          </div>
+
+          {/* Font Size Control */}
+          <div className="bg-[#1f2128] rounded-lg p-3 flex items-center justify-between">
+            <span className="text-sm font-medium text-white flex items-center gap-2">
+              <Search size={16} /> Font Size
+            </span>
+            <div className="flex items-center gap-3 bg-[#2a2c34] rounded px-2 py-1">
+              <button
+                onClick={decreaseFontSize}
+                className="p-1 hover:text-white"
+              >
+                <ZoomOut size={16} />
+              </button>
+              <span className="text-xs text-white min-w-[3ch] text-center">{fontSize}%</span>
+              <button
+                onClick={increaseFontSize}
+                className="p-1 hover:text-white"
+              >
+                <ZoomIn size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Chapters / Content */}
+          <div className="pt-4 border-t border-[#2e2f36]">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Table of Contents</h3>
+            {chapters.length === 0 ? (
+              <p className="text-gray-500 text-sm italic">No chapters found.</p>
+            ) : (
+              <ul className="space-y-1">
+                {chapters.map((chapter, idx) => (
+                  <li key={idx}>
+                    <button
+                      onClick={() => goToHref(chapter.href)}
+                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-[#252830] hover:text-gray-200 transition-colors truncate"
+                      title={chapter.label}
+                    >
+                      {chapter.label || `Chapter ${idx + 1}`}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
         </div>
       </div>
 
-      {/* Overlay for sidebar */}
+      {/* Overlay for sidebar (Mobile Only) */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-[55] backdrop-blur-sm"
+          className="fixed inset-0 bg-black/50 z-[55] backdrop-blur-[2px] transition-opacity lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Main Reader Area */}
-      <main className="flex-1 relative z-10 w-full h-full" onClick={() => setShowControls(prev => !prev)}>
+      <main className="flex-1 relative z-10 w-full h-full min-w-0 transition-all duration-300">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center text-white bg-gray-900 z-20">
             <div className="flex flex-col items-center gap-3">
@@ -238,12 +399,13 @@ function ReaderContent() {
           </div>
         )}
 
-        <div className="w-full h-full bg-white" ref={viewerRef} />
+        {/* EPub Viewer Container */}
+        <div style={{ background: '#fff' }} className="w-full h-full pb-20" ref={viewerRef} />
       </main>
 
-      {/* Floating Controls */}
+      {/* Floating Controls (Mobile/Tablet primarily, or bottom nav) */}
       <div
-        className={`absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-xl border border-white/10 rounded-full px-6 py-3 flex items-center gap-8 shadow-2xl z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
+        className={`absolute bottom-6 left-1/2 -translate-x-1/2 lg:left-[calc(50%-10rem)] bg-black/80 backdrop-blur-xl border border-white/10 rounded-full px-6 py-3 flex items-center gap-8 shadow-2xl z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
