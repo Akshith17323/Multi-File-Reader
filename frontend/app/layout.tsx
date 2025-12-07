@@ -29,16 +29,16 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
         {children}
         <ToastContainer
-          position="top-center"
+          position="bottom-right"
           autoClose={5000}
           hideProgressBar={false}
           newestOnTop={false}
-          closeOnClick={false}
+          closeOnClick
           rtl={false}
           pauseOnFocusLoss
           draggable
           pauseOnHover
-          theme="light"
+          theme="dark"
         />
       </body>
     </html>

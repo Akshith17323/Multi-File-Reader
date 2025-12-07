@@ -21,7 +21,7 @@ function PDFReaderContent() {
         const local = URL.createObjectURL(blob);
         setBlobUrl(local);
       })
-      .catch((err) => console.error("PDF fetch error:", err));
+      .catch((err) => console.error("❌ PDF fetch error:", err));
   }, [url]);
 
   if (!url) return <p>No URL provided</p>;

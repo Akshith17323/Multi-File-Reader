@@ -39,6 +39,11 @@ function Loginpage() {
       }
 
       toast.success(`Welcome back, ${data.user}!`);
+
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
+
       router.push("/fileupload");
 
       if (data) {

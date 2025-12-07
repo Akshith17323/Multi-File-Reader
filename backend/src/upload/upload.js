@@ -42,43 +42,43 @@ function formatBytes(bytes, decimals = 2) {
 }
 
 async function uploadFile(req, res) {
-  console.log(">>> uploadFile handler called");
+  console.log("🚀 uploadFile handler called");
   try {
     if (!req.file) {
-      console.error("!!! No file found in req.file");
+      console.error("❌ No file found in req.file");
       return res.status(400).json({ message: "No file" });
     }
-    console.log("File received:", req.file.originalname, "Size:", req.file.size, "Mime:", req.file.mimetype);
+    console.log("📂 File received:", req.file.originalname, "Size:", req.file.size, "Mime:", req.file.mimetype);
 
     const fileName = Date.now() + "-" + req.file.originalname;
-    console.log("Generated filename:", fileName);
+    console.log("📝 Generated filename:", fileName);
 
     const file = bucket.file(fileName);
-    console.log("Created bucket file reference");
+    console.log("🔗 Created bucket file reference");
 
     const stream = file.createWriteStream({
       resumable: false,
       metadata: { contentType: req.file.mimetype },
     });
-    console.log("Created write stream");
+    console.log("🌊 Created write stream");
 
     stream.on("error", (err) => {
-      console.error("!!! Stream Error:", err);
+      console.error("❌ Stream Error:", err);
       res.status(500).json({ error: err.message });
     });
 
     stream.on("finish", async () => {
-      console.log("Stream finished. Making public...");
+      console.log("✅ Stream finished. Making public...");
       try {
         await file.makePublic();
-        console.log("File made public.");
+        console.log("🌍 File made public.");
 
         const url = `https://storage.googleapis.com/${bucketName}/${fileName}`;
-        console.log("Upload success. URL:", url);
+        console.log("✅ Upload success. URL:", url);
 
         const PrismaFile = await prisma.file.create({
           data: {
-            userId: req.user.id,
+            userId: req.user.userId,
             fileName: req.file.originalname,
             fileUrl: url,
             fileType: req.file.mimetype,
@@ -88,15 +88,15 @@ async function uploadFile(req, res) {
 
         res.status(200).json({ message: "Uploaded", url });
       } catch (publicErr) {
-        console.error("!!! Error making public:", publicErr);
+        console.error("❌ Error making public:", publicErr);
         res.status(500).json({ error: "File uploaded but failed to make public: " + publicErr.message });
       }
     });
 
-    console.log("Piping buffer to stream...");
+    console.log("Process: Piping buffer to stream...");
     stream.end(req.file.buffer);
   } catch (err) {
-    console.error("!!! uploadFile Catch Error:", err);
+    console.error("❌ uploadFile Catch Error:", err);
     res.status(500).json({ error: err.message });
   }
 }

@@ -63,6 +63,14 @@ function FileUpload() {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", uploadEndpoint);
 
+    const token = localStorage.getItem("token");
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    } else {
+      setError("Please login to upload files");
+      return;
+    }
+
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100));
     };
@@ -76,7 +84,12 @@ function FileUpload() {
           setError("Upload succeeded but response parsing failed");
         }
       } else {
-        setError(`Upload failed: ${xhr.status} ${xhr.statusText}`);
+        try {
+          const errBody = JSON.parse(xhr.responseText);
+          setError(errBody.error || errBody.message || `Upload failed: ${xhr.status}`);
+        } catch (e) {
+          setError(`Upload failed: ${xhr.status} ${xhr.statusText}`);
+        }
       }
     };
 

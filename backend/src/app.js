@@ -6,6 +6,7 @@ const authRoutes = require('./router/authroutes')
 const fileUploadRouter = require('./router/fileUpload')
 const proxyRouter = require('./router/proxy')
 const { get_all_files } = require('./files/allFiles')
+const middleware = require('./middleware/authMiddleware')
 
 const app = express();
 
@@ -44,11 +45,12 @@ app.use('/', proxyRouter)
 app.use('/', fileUploadRouter)
 app.use('/api/auth', authRoutes)
 // mount files listing as GET handler
-app.get('/files', get_all_files)
+// mount files listing as GET handler
+app.get('/files', middleware, get_all_files)
 
 // mount delete file handler
 const { deleteFile } = require('./files/deleteFile')
-app.delete('/files/:filename', deleteFile)
+app.delete('/files/:filename', middleware, deleteFile)
 
 // mount upload router (it defines POST /fileUpload)
 
