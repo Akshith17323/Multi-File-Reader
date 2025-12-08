@@ -81,13 +81,12 @@ function ReaderContent() {
   // Load Bookmark on Init
   useEffect(() => {
     const loadBookmark = async () => {
-      const id = searchParams.get("id");
-      if (!id) return;
+      if (!url) return;
       try {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/bookmarks?fileId=${id}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/bookmarks?fileUrl=${encodeURIComponent(url)}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
@@ -101,12 +100,11 @@ function ReaderContent() {
       }
     };
     loadBookmark();
-  }, [url, searchParams]); // Added searchParams dep
+  }, [url]);
 
   // Save Bookmark Handler
   const saveProgress = async (cfi: string) => {
-    const id = searchParams.get("id");
-    if (!id) return;
+    if (!url) return;
     try {
       const token = localStorage.getItem("token");
       if (!token) return;
@@ -120,6 +118,8 @@ function ReaderContent() {
         }
       }
 
+      const fileName = decodeURIComponent(url).split('/').pop() || 'Unknown';
+
       await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/bookmarks`, {
         method: 'POST',
         headers: {
@@ -127,10 +127,10 @@ function ReaderContent() {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          fileId: id,
-          cfi: cfi,
-          progress: progress,
-          total: 100
+          fileUrl: url,
+          fileName,
+          cfi,
+          progress
         })
       });
     } catch (err) {
@@ -245,8 +245,10 @@ function ReaderContent() {
       const { width, height } = entries[0].contentRect;
       // Debounce or just call resize
       requestAnimationFrame(() => {
-        // @ts-ignore
-        renditionRef.current?.resize(width, height);
+        if (renditionRef.current && typeof renditionRef.current.resize === 'function') {
+          // @ts-ignore
+          renditionRef.current.resize(width, height);
+        }
       });
     });
 

@@ -88,6 +88,16 @@ export default function Navbar() {
                             MY LIBRARY
                         </Link>
 
+                        <Link
+                            href="/bookmarks"
+                            className={`text-sm font-bold tracking-wide transition-all duration-200 ${pathname === '/bookmarks'
+                                ? 'text-[#d97706]'
+                                : 'text-[#a3a3a3] hover:text-[#f5f5f5]'
+                                }`}
+                        >
+                            MY BOOKMARKS
+                        </Link>
+
                         {/* Divider */}
                         <div className="h-6 w-px bg-[#404040]"></div>
 
@@ -141,6 +151,13 @@ export default function Navbar() {
                             className="block px-4 py-3 text-[#f5f5f5] font-medium bg-[#262626] rounded-xl border border-[#404040]"
                         >
                             My Library
+                        </Link>
+                        <Link
+                            href="/bookmarks"
+                            onClick={() => setIsOpen(false)}
+                            className="block px-4 py-3 text-[#f5f5f5] font-medium bg-[#262626] rounded-xl border border-[#404040]"
+                        >
+                            My Bookmarks
                         </Link>
                         {user ? (
                             <div className="space-y-2">

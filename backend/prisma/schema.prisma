@@ -14,12 +14,12 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
+  id        String     @id @default(uuid())
   name      String
-  email     String   @unique
+  email     String     @unique
   password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   files     File[]
   bookmarks Bookmark[]
 }
@@ -34,19 +34,33 @@ model File {
   fileType  String
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  // bookmarks Bookmark[]
   bookmarks Bookmark[]
 }
 
 model Bookmark {
-  id        String   @id @default(cuid())
-  userId    String
-  fileId    String
-  progress  Int      @default(0) // Page number for PDF
-  total     Int      @default(0) // Total pages for PDF
-  cfi       String? // EPUB location (CFI string)
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id])
-  file      File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  id       String  @id @default(uuid())
+  userId   String
+  fileUrl  String
+  fileName String?
 
-  @@unique([userId, fileId])
+  // For PDFs
+  pageNumber Int?
+  totalPages Int?
+
+  // For EPUBs
+  cfi String?
+
+  progress Float?
+  lastRead DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id])
+  file   File?   @relation(fields: [fileId], references: [id])
+  fileId String?
+
+  @@unique([userId, fileUrl])
+  @@index([userId])
 }

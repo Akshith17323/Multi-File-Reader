@@ -12,13 +12,13 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 interface PDFViewerProps {
     blobUrl: string;
     title?: string;
-    fileId?: string;
+    fileUrl?: string;
 }
 
 type FitMode = "width" | "height" | "both" | "none";
 type ViewMode = "single" | "continuous" | "two-page" | "two-page-continuous";
 
-export default function PDFViewer({ blobUrl, title = "PDF Reader", fileId }: PDFViewerProps) {
+export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PDFViewerProps) {
     const [numPages, setNumPages] = useState<number>(0);
     const [pageNumber, setPageNumber] = useState<number>(1);
     const [scale, setScale] = useState<number>(1.0);
@@ -36,19 +36,19 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileId }: PDF
 
     // Initial Bookmark Load
     useEffect(() => {
-        if (!fileId) return;
+        if (!fileUrl) return;
         const loadBookmark = async () => {
             try {
                 const token = localStorage.getItem("token");
                 if (!token) return;
 
-                const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/bookmarks?fileId=${fileId}`, {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/bookmarks?fileUrl=${encodeURIComponent(fileUrl)}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.progress > 1) {
-                        setPageNumber(data.progress);
+                    if (data.pageNumber && data.pageNumber > 1) {
+                        setPageNumber(data.pageNumber);
                     }
                 }
             } catch (err) {
@@ -56,16 +56,18 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileId }: PDF
             }
         };
         loadBookmark();
-    }, [fileId]);
+    }, [fileUrl]);
 
     // Save Bookmark Debouncing
     useEffect(() => {
-        if (!fileId || !numPages) return;
+        if (!fileUrl || !numPages) return;
 
         const timeoutId = setTimeout(async () => {
             try {
                 const token = localStorage.getItem("token");
                 if (!token) return;
+
+                const progressPct = Math.round((pageNumber / numPages) * 100);
 
                 await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/bookmarks`, {
                     method: 'POST',
@@ -74,9 +76,11 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileId }: PDF
                         Authorization: `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        fileId,
-                        progress: pageNumber,
-                        total: numPages
+                        fileUrl,
+                        fileName: title,
+                        pageNumber,
+                        totalPages: numPages,
+                        progress: progressPct
                     })
                 });
             } catch (err) {
@@ -85,7 +89,7 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileId }: PDF
         }, 1000); // Debounce for 1 second
 
         return () => clearTimeout(timeoutId);
-    }, [pageNumber, fileId, numPages]);
+    }, [pageNumber, fileUrl, numPages, title]);
 
     // Responsive sizing
     useEffect(() => {

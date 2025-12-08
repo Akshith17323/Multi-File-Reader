@@ -47,8 +47,11 @@ app.use('/', fileUploadRouter)
 app.use('/api/auth', authRoutes)
 app.use('/api/bookmarks', bookmarkRoutes);
 // mount files listing as GET handler
-// mount files listing as GET handler
 app.get('/files', middleware, get_all_files)
+
+// mount update file handler
+const { updateFile } = require('./files/updateFile')
+app.patch('/files/:id', middleware, updateFile)
 
 // mount delete file handler
 const { deleteFile } = require('./files/deleteFile')

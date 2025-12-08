@@ -30,7 +30,7 @@ function PDFReaderContent() {
 
   return (
     <div className="h-[100dvh] flex flex-col bg-gray-100">
-      {blobUrl && <PDFViewer blobUrl={blobUrl} fileId={id || undefined} />}
+      {blobUrl && <PDFViewer blobUrl={blobUrl} fileUrl={url || undefined} />}
     </div>
   );
 }
