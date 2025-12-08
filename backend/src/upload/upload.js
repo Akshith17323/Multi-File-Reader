@@ -45,7 +45,7 @@ async function uploadFile(req, res) {
   console.log("🚀 uploadFile handler called");
   try {
     if (!req.user || !req.user.userId) {
-        return res.status(401).json({ message: "User not authenticated" });
+      return res.status(401).json({ message: "User not authenticated" });
     }
 
     if (!req.file) {
@@ -55,7 +55,7 @@ async function uploadFile(req, res) {
     console.log("📂 File received:", req.file.originalname, "Size:", req.file.size, "Mime:", req.file.mimetype);
 
     const fileName = `${req.user.userId}/${Date.now()}-${req.file.originalname}`;
-    
+
     console.log("📝 Generated filename with path:", fileName);
 
     const file = bucket.file(fileName);

@@ -42,7 +42,7 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileId }: PDF
                 const token = localStorage.getItem("token");
                 if (!token) return;
 
-                const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/bookmarks?fileId=${fileId}`, {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/bookmarks?fileId=${fileId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -67,7 +67,7 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileId }: PDF
                 const token = localStorage.getItem("token");
                 if (!token) return;
 
-                await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/bookmarks`, {
+                await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/bookmarks`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

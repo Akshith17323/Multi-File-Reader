@@ -14,6 +14,7 @@ interface FilePreviewProps {
 }
 
 export default function FilePreview({ url, type }: FilePreviewProps) {
+    const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
     const [coverUrl, setCoverUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -24,7 +25,7 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
         const fetchCover = async () => {
             if (type === "application/epub+zip") {
                 try {
-                    const book = ePub(url);
+                    const book = ePub(proxiedUrl);
                     const cover = await book.coverUrl();
                     if (mounted && cover) {
                         setCoverUrl(cover);
@@ -80,7 +81,7 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
                     </div>
                 ) : (
                     <Document
-                        file={url}
+                        file={proxiedUrl}
                         onLoadSuccess={() => {
                             setLoading(false);
                             console.log("PDF loaded successfully");

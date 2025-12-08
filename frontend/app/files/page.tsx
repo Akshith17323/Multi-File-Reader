@@ -54,7 +54,7 @@ export default function FilesPage() {
       if (typeFilter) params.append("type", typeFilter);
 
       params.append("page", page.toString());
-      params.append("limit", "12");
+      params.append("limit", "4");
       params.append("sortBy", sortBy);
       params.append("order", sortOrder);
 
@@ -245,7 +245,7 @@ export default function FilesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 pb-12">
               {files.map((file) => (
                 <div
-                  key={file.name}
+                  key={file.id}
                   className="group relative bg-[#171717] rounded-2xl overflow-hidden flex flex-col shadow-xl hover:shadow-2xl hover:shadow-black/50 hover:-translate-y-2 transition-all duration-300 border border-[#262626] hover:border-[#404040]"
                 >
                   {/* Preview Section - Maximized Size */}

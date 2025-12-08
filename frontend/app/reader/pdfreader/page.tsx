@@ -16,7 +16,8 @@ function PDFReaderContent() {
   useEffect(() => {
     if (!url) return;
 
-    fetch(url)
+    const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
+    fetch(proxiedUrl)
       .then((res) => res.blob())
       .then((blob) => {
         const local = URL.createObjectURL(blob);

@@ -43,7 +43,8 @@ function ReaderContent() {
       try {
         setLoading(true);
 
-        const book = ePub(url);
+        const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
+        const book = ePub(proxiedUrl);
         bookRef.current = book;
         setIsBookReady(true);
 
@@ -86,7 +87,7 @@ function ReaderContent() {
         const token = localStorage.getItem("token");
         if (!token) return;
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/bookmarks?fileId=${id}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/bookmarks?fileId=${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
@@ -119,7 +120,7 @@ function ReaderContent() {
         }
       }
 
-      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/bookmarks`, {
+      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/bookmarks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

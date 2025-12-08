@@ -3,7 +3,7 @@ const prisma = new PrismaClient();
 
 async function get_all_files(req, res) {
     try {
-        const { search, type, page = 1, limit = 12, sortBy = 'createdAt', order = 'desc' } = req.query;
+        const { search, type, page = 1, limit = 4, sortBy = 'createdAt', order = 'desc' } = req.query;
         const userId = req.user.userId;
 
         // 1. Setup the filter
@@ -29,8 +29,8 @@ async function get_all_files(req, res) {
         }
 
         // 2. Pagination Setup
-        const pageNum = parseInt(page);
-        const limitNum = parseInt(limit);
+        const pageNum = parseInt(page) || 1;
+        const limitNum = parseInt(limit) || 4;
         const skip = (pageNum - 1) * limitNum;
 
         // 3. Sorting Setup
