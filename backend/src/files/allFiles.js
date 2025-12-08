@@ -3,60 +3,83 @@ const prisma = new PrismaClient();
 
 async function get_all_files(req, res) {
     try {
-        const { search, type } = req.query;
-        const userId = req.user.userId; // Extracted from Auth Middleware
+        const userId = req.user.userId;
+        const { search, type, page = '1', limit = '10', sortBy = 'createdAt', order = 'desc' } = req.query;
 
-        // 1. Setup the filter
+        // Build where clause
         const where = {
-            userId: userId 
+            userId: userId,
         };
 
-        // 2. Add Search logic
+        // Add search filter
         if (search) {
             where.fileName = {
                 contains: search,
-                mode: 'insensitive' 
+                mode: 'insensitive'
             };
         }
 
-        // 3. Add Type logic
+        // Add type filter
         if (type) {
-             // 'application/pdf' or 'application/epub+zip'
-             // If your frontend sends "pdf" (short), map it to the MIME type
-             const mimeMap = {
-                 'pdf': 'application/pdf',
-                 'epub': 'application/epub+zip'
-             };
-             if (mimeMap[type]) {
-                 where.fileType = mimeMap[type];
-             }
+            const typeMap = {
+                'pdf': 'application/pdf',
+                'epub': 'application/epub+zip'
+            };
+            if (typeMap[type]) {
+                where.fileType = typeMap[type];
+            }
         }
 
-        // 4. Fetch from DB
+        // Calculate pagination
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        const skip = (pageNum - 1) * limitNum;
+
+        // Determine sort field
+        const orderBy = {};
+        if (sortBy === 'name') {
+            orderBy.fileName = order;
+        } else {
+            orderBy.createdAt = order;
+        }
+
+        // Get total count for pagination
+        const totalCount = await prisma.file.count({ where });
+
+        // Fetch files
         const files = await prisma.file.findMany({
-            where: where,
-            orderBy: {
-                createdAt: 'desc' // Sort by newest first (Ensure 'createdAt' is in your schema!)
-            }
+            where,
+            orderBy,
+            skip,
+            take: limitNum,
         });
 
-        // 5. Map for Frontend
-        const mappedFiles = files.map(file => ({
+        // Transform to match frontend expectations
+        const transformedFiles = files.map(file => ({
+            id: file.id,
             name: file.fileName,
             url: file.fileUrl,
             metadata: {
-                size: file.fileSize, 
-                contentType: file.fileType,
-                // Send the date back to the frontend
-                updated: file.createdAt 
+                size: file.fileSize,
+                updated: file.createdAt,
+                contentType: file.fileType
             }
         }));
 
-        return res.status(200).json(mappedFiles);
+        // Return paginated response
+        res.json({
+            files: transformedFiles,
+            pagination: {
+                currentPage: pageNum,
+                totalPages: Math.ceil(totalCount / limitNum),
+                totalCount: totalCount,
+                limit: limitNum
+            }
+        });
 
-    } catch (err) {
-        console.error('❌ get_all_files error:', err);
-        return res.status(500).json({ message: 'Server error listing files' });
+    } catch (error) {
+        console.error('❌ Error fetching files:', error);
+        res.status(500).json({ error: 'Failed to fetch files' });
     }
 }
 

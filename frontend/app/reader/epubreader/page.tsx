@@ -43,7 +43,8 @@ function ReaderContent() {
       try {
         setLoading(true);
 
-        const book = ePub(url);
+        const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
+        const book = ePub(proxiedUrl);
         bookRef.current = book;
         setIsBookReady(true);
 
@@ -76,6 +77,66 @@ function ReaderContent() {
       } catch { }
     };
   }, [url]);
+
+  // Load Bookmark on Init
+  useEffect(() => {
+    const loadBookmark = async () => {
+      if (!url) return;
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/bookmarks?fileUrl=${encodeURIComponent(url)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.cfi) {
+            setCurrentLocation(data.cfi);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load bookmark", err);
+      }
+    };
+    loadBookmark();
+  }, [url]);
+
+  // Save Bookmark Handler
+  const saveProgress = async (cfi: string) => {
+    if (!url) return;
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      let progress = 0;
+      if (bookRef.current) {
+        const locations = bookRef.current.locations;
+        // @ts-ignore - locations.length is sometimes a function or property context dependent, safe check
+        if (locations.length() > 0) {
+          progress = Math.round(locations.percentageFromCfi(cfi) * 100);
+        }
+      }
+
+      const fileName = decodeURIComponent(url).split('/').pop() || 'Unknown';
+
+      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/bookmarks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          fileUrl: url,
+          fileName,
+          cfi,
+          progress
+        })
+      });
+    } catch (err) {
+      console.error("Failed to save progress", err);
+    }
+  };
 
   // Re-render when viewMode changes or book is ready
   useEffect(() => {
@@ -150,11 +211,20 @@ function ReaderContent() {
         rendition.on("relocated", (location: { start: { cfi: string } }) => {
           if (location?.start?.cfi) {
             setCurrentLocation(location.start.cfi);
+            // Save Progress (Debounce handled by natural reading speed + minimal request weight)
+            // But let's verify we don't spam. Relocated fires on every page turn.
+            saveProgress(location.start.cfi);
           }
         });
 
         // Apply initial font size again just in case
         rendition.themes.fontSize(`${fontSize}%`);
+
+        // Generate locations for percentage calculation if not already
+        if (bookRef.current && bookRef.current.locations.length() === 0) {
+          // This is heavy, maybe run in background
+          bookRef.current.locations.generate(1000);
+        }
 
       } catch (error) {
         console.error("Error changing view mode:", error);
@@ -175,7 +245,10 @@ function ReaderContent() {
       const { width, height } = entries[0].contentRect;
       // Debounce or just call resize
       requestAnimationFrame(() => {
-        renditionRef.current?.resize(width, height);
+        if (renditionRef.current && typeof renditionRef.current.resize === 'function') {
+          // @ts-ignore
+          renditionRef.current.resize(width, height);
+        }
       });
     });
 
@@ -230,10 +303,8 @@ function ReaderContent() {
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-violet-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-fuchsia-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
 
-      {/* Header */}
-      <div className={`absolute top-0 left-0 right-0 bg-[#0f1014]/90 backdrop-blur-md border-b border-white/5 px-4 py-3 flex items-center justify-between z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
-        <h1 className="text-gray-200 font-medium truncate max-w-[200px] text-sm sm:text-base">EPUB Reader</h1>
-
+      {/* Header Removed as per user request */}
+      <div className={`absolute top-0 right-0 p-4 z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
         <div className="flex items-center gap-3 lg:hidden">
           <button
             onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(true); }}

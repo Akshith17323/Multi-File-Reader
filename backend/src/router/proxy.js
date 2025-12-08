@@ -22,42 +22,92 @@ router.options('/proxy', (req, res) => {
   return res.sendStatus(204)
 })
 
-router.get('/proxy', async (req, res) => {
-  const url = req.query.url
-  if (!url) return res.status(400).send('missing url parameter')
+const { bucket, bucketName } = require('../gcs');
 
-  if (!fetchFn) {
-    return res.status(500).send('fetch is not available on this Node runtime; please install node-fetch or upgrade Node')
-  }
+router.get('/proxy', async (req, res) => {
+  const url = req.query.url;
+  if (!url) return res.status(400).send('missing url parameter');
 
   try {
-    const r = await fetchFn(url)
-    if (!r.ok) {
-      const text = await r.text().catch(() => '')
-      return res.status(r.status).send(text || `Upstream responded ${r.status}`)
-    }
+    // Robustly extract object path by finding the bucket name segment
+    // URL pattern: .../BUCKET_NAME/OBJECT_PATH
+    const bucketSegment = `/${bucketName}/`;
+    let objectPath = '';
 
-    const origin = process.env.FRONTEND_URL || 'http://localhost:3000'
-    res.setHeader('Access-Control-Allow-Origin', origin)
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS')
-
-    const contentType = r.headers && (r.headers.get ? r.headers.get('content-type') : r.headers['content-type'])
-    if (contentType) res.setHeader('Content-Type', contentType)
-
-    // Stream the response body to the client
-    if (r.body && typeof r.body.pipe === 'function') {
-      r.body.pipe(res)
-    } else if (r.arrayBuffer) {
-      // node-fetch v3 returns a Body with arrayBuffer
-      const buf = Buffer.from(await r.arrayBuffer())
-      res.send(buf)
+    // Check in raw URL (decoded by Express)
+    const idx = url.indexOf(bucketSegment);
+    if (idx !== -1) {
+      objectPath = url.substring(idx + bucketSegment.length);
     } else {
-      const txt = await r.text()
-      res.send(txt)
+      // Try decoding again just in case of double encoding
+      const decoded = decodeURIComponent(url);
+      const idxDecoded = decoded.indexOf(bucketSegment);
+      if (idxDecoded !== -1) {
+        objectPath = decoded.substring(idxDecoded + bucketSegment.length);
+      }
     }
+
+    if (!objectPath) {
+      console.warn('Proxy: Could not extract path from URL:', url);
+      return res.status(400).send(`Invalid URL format. Could not find bucket segment '${bucketSegment}' in URL.`);
+    }
+
+    // Trim any leading slashes just in case
+    if (objectPath.startsWith('/')) objectPath = objectPath.slice(1);
+
+    console.log(`Proxy: Stream requested for '${objectPath}'`);
+
+    const file = bucket.file(objectPath);
+
+    // Skip exists() check to reduce latency and permission complexity.
+    // Directly stream. GCS will error if not found.
+
+    // We can't easily get metadata if file doesn't exist, so we might miss Content-Type 
+    // if we don't do getMetadata. But getMetadata checks existence too.
+    // Let's try getMetadata first, if it fails with 404, we know.
+
+    try {
+      const [metadata] = await file.getMetadata();
+
+      const origin = process.env.FRONTEND_URL || 'http://localhost:3000';
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+
+      if (metadata.contentType) {
+        res.setHeader('Content-Type', metadata.contentType);
+      }
+      if (metadata.size) {
+        res.setHeader('Content-Length', metadata.size);
+      }
+
+      const readStream = file.createReadStream();
+
+      readStream.on('error', (err) => {
+        console.error('Proxy Stream Error:', err);
+        if (!res.headersSent) {
+          if (err.code === 404) {
+            res.status(404).send('File not found in storage');
+          } else {
+            res.status(500).send('Stream error: ' + err.message);
+          }
+        }
+      });
+
+      readStream.pipe(res);
+
+    } catch (metaErr) {
+      console.error('Proxy Metadata Error:', metaErr);
+      if (metaErr.code === 404) {
+        return res.status(404).send(`File not found: ${objectPath}`);
+      }
+      // Proceed to try streaming anyway? No, metadata error usually means no access or no file.
+      return res.status(500).send('Storage error: ' + metaErr.message);
+    }
+
   } catch (err) {
-    res.status(500).send(String(err))
+    console.error('Proxy Critical Error:', err);
+    if (!res.headersSent) res.status(500).send('Proxy critical error: ' + err.message);
   }
-})
+});
 
 module.exports = router

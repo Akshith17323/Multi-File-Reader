@@ -57,8 +57,8 @@ export default function Navbar() {
     // Safety check for pathname
     if (!pathname) return null;
 
-    // Hide Navbar on Login/Signup pages
-    if (pathname.includes("/auth/")) {
+    // Hide Navbar on Login/Signup and Reader pages
+    if (pathname.includes("/auth/") || pathname.includes("/reader/")) {
         return null;
     }
 
@@ -71,7 +71,7 @@ export default function Navbar() {
                         <div className="bg-[#d97706] p-2 rounded-lg shadow-lg group-hover:shadow-[#d97706]/20 transition-all duration-300">
                             <Library size={24} className="text-white" />
                         </div>
-                        <span className="font-bold text-2xl tracking-tight text-[#f5f5f5]">
+                        <span className="font-bold text-xl tracking-tight text-[#f5f5f5]">
                             MultiReader
                         </span>
                     </Link>
@@ -86,6 +86,16 @@ export default function Navbar() {
                                 }`}
                         >
                             MY LIBRARY
+                        </Link>
+
+                        <Link
+                            href="/bookmarks"
+                            className={`text-sm font-bold tracking-wide transition-all duration-200 ${pathname === '/bookmarks'
+                                ? 'text-[#d97706]'
+                                : 'text-[#a3a3a3] hover:text-[#f5f5f5]'
+                                }`}
+                        >
+                            MY BOOKMARKS
                         </Link>
 
                         {/* Divider */}
@@ -141,6 +151,13 @@ export default function Navbar() {
                             className="block px-4 py-3 text-[#f5f5f5] font-medium bg-[#262626] rounded-xl border border-[#404040]"
                         >
                             My Library
+                        </Link>
+                        <Link
+                            href="/bookmarks"
+                            onClick={() => setIsOpen(false)}
+                            className="block px-4 py-3 text-[#f5f5f5] font-medium bg-[#262626] rounded-xl border border-[#404040]"
+                        >
+                            My Bookmarks
                         </Link>
                         {user ? (
                             <div className="space-y-2">

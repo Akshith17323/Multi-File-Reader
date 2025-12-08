@@ -10,12 +10,14 @@ function PDFReaderContent() {
   const searchParams = useSearchParams();
   const rawUrl = searchParams.get("url");
   const url = rawUrl ? decodeURIComponent(rawUrl) : null;
+  const id = searchParams.get("id");
 
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!url) return;
 
-    fetch(url)
+    const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
+    fetch(proxiedUrl)
       .then((res) => res.blob())
       .then((blob) => {
         const local = URL.createObjectURL(blob);
@@ -28,7 +30,7 @@ function PDFReaderContent() {
 
   return (
     <div className="h-[100dvh] flex flex-col bg-gray-100">
-      {blobUrl && <PDFViewer blobUrl={blobUrl} title="PDF Reader" />}
+      {blobUrl && <PDFViewer blobUrl={blobUrl} fileUrl={url || undefined} />}
     </div>
   );
 }
