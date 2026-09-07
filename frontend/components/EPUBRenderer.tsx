@@ -54,6 +54,11 @@ export default function EPUBRenderer({
                     }));
                     onLoadSuccess(chapters);
                 }
+
+                await book.ready;
+                if (!cancelled && book.locations.length() === 0) {
+                    book.locations.generate(1000);
+                }
             } catch (err: unknown) {
                 console.error("❌ Error initializing EPUB:", err);
                 if (!cancelled) {
@@ -143,10 +148,7 @@ export default function EPUBRenderer({
                     }
                 });
 
-                // Generate locations for percentage calculation
-                if (bookRef.current && bookRef.current.locations.length() === 0) {
-                    bookRef.current.locations.generate(1000);
-                }
+
             } catch (error) {
                 console.error("Error changing view mode:", error);
             } finally {
@@ -155,7 +157,14 @@ export default function EPUBRenderer({
         };
 
         reRender();
-    }, [viewMode, isBookReady, fontSize, currentLocation, onLocationChange]);
+    }, [viewMode, isBookReady, onLocationChange]);
+
+    // Handle font size dynamically without full re-render
+    useEffect(() => {
+        if (renditionRef.current && isBookReady) {
+            renditionRef.current.themes.fontSize(`${fontSize}%`);
+        }
+    }, [fontSize, isBookReady]);
 
     // Handle Resize
     useEffect(() => {
@@ -165,7 +174,6 @@ export default function EPUBRenderer({
             const { width, height } = entries[0].contentRect;
             requestAnimationFrame(() => {
                 if (renditionRef.current && typeof renditionRef.current.resize === "function") {
-                    // @ts-expect-error epubjs resize type mismatch
                     renditionRef.current.resize(width, height);
                 }
             });
