@@ -58,7 +58,7 @@ export default function Navbar() {
     if (!pathname) return null;
 
     // Hide Navbar on Login/Signup and all Reader pages
-    if (pathname.includes("/auth/") || pathname.includes("/reader")) {
+    if (pathname.includes("/auth/") || pathname === "/reader" || pathname.startsWith("/reader/")) {
         return null;
     }
 
