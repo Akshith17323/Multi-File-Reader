@@ -192,15 +192,39 @@ export default function FilesPage() {
   };
 
   const handleRead = (file: FileData) => {
-    const type = file.metadata.contentType;
-    if (type === "application/pdf") {
-      router.push(`/reader/pdfreader?url=${encodeURIComponent(file.url)}&id=${file.id}`);
-    } else if (type === "application/epub+zip") {
-      router.push(`/reader/epubreader?url=${encodeURIComponent(file.url)}&id=${file.id}`);
+    // Route to unified reader with file URL
+    router.push(`/reader?files=${encodeURIComponent(file.url)}&active=0`);
+  };
+
+  const handleOpenInNewTab = (file: FileData) => {
+    // Check if reader is already open by trying to access sessionStorage
+    const currentReaderFiles = sessionStorage.getItem("readerFiles");
+
+    if (currentReaderFiles) {
+      // Reader is open, append the new file
+      const existingUrls = currentReaderFiles.split(",");
+
+      // Check if file is already open
+      if (existingUrls.includes(file.url)) {
+        toast.info("File is already open");
+        // Navigate to reader and set this as active
+        const activeIndex = existingUrls.indexOf(file.url);
+        const encodedFiles = existingUrls.map(encodeURIComponent).join(",");
+        router.push(`/reader?files=${encodedFiles}&active=${activeIndex}`);
+        return;
+      }
+
+      // Add new file to the list
+      const newFilesList = [...existingUrls, file.url].map(encodeURIComponent).join(",");
+      const newActiveIndex = existingUrls.length; // New file will be last
+
+      router.push(`/reader?files=${newFilesList}&active=${newActiveIndex}`);
     } else {
-      toast.info("This file type is not supported for reading yet.");
+      // No reader open, just open this file
+      handleRead(file);
     }
   };
+
 
   const getFileIcon = (type: string) => {
     if (type === "application/pdf") return "PDF";
@@ -344,12 +368,18 @@ export default function FilesPage() {
                       </span>
                     </div>
 
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
                       <button
                         onClick={() => handleRead(file)}
-                        className="bg-[#d97706] text-white p-4 rounded-full shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300"
+                        className="bg-[#d97706] text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 font-medium text-sm"
                       >
-                        <BookOpen size={24} />
+                        Open
+                      </button>
+                      <button
+                        onClick={() => handleOpenInNewTab(file)}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 font-medium text-sm"
+                      >
+                        + New Tab
                       </button>
                     </div>
                   </div>

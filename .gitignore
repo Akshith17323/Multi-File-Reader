@@ -1,2 +1,4 @@
 node_modules
 backend/src/multi-file-reader-308b489c168b.json
+.DS_Store
+PROJECT_DOCS.md

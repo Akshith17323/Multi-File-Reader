@@ -5,3 +5,4 @@ node_modules
 /generated/prisma
 
 src/multi-file-reader-308b489c168b.json
+.DS_Store

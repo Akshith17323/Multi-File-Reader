@@ -155,7 +155,7 @@ export default function BookmarksPage() {
                 {/* Error State */}
                 {error && !loading && (
                     <div className="bg-red-500/10 border border-red-500/50 rounded-2xl p-6 mb-8 flex items-center gap-4">
-                        <AlertCircle className="text-red-500 flex-shrink-0" size={24} />
+                        <AlertCircle className="text-red-500 shrink-0" size={24} />
                         <div>
                             <h3 className="text-red-500 font-bold mb-1">Error Loading Bookmarks</h3>
                             <p className="text-red-400 text-sm">{error}</p>
