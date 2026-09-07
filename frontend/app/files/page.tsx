@@ -209,7 +209,8 @@ export default function FilesPage() {
         toast.info("File is already open");
         // Navigate to reader and set this as active
         const activeIndex = existingUrls.indexOf(file.url);
-        router.push(`/reader?files=${currentReaderFiles}&active=${activeIndex}`);
+        const encodedFiles = existingUrls.map(encodeURIComponent).join(",");
+        router.push(`/reader?files=${encodedFiles}&active=${activeIndex}`);
         return;
       }
 
