@@ -197,12 +197,20 @@ function ReaderContent() {
 
     const handleNextPage = () => {
         const increment = viewMode === "two-page" ? 2 : 1;
-        setPdfPage((prev) => Math.min(prev + increment, pdfTotalPages));
+        setPdfPage((prev) => {
+            const next = Math.min(prev + increment, pdfTotalPages);
+            saveBookmark(next);
+            return next;
+        });
     };
 
     const handlePrevPage = () => {
         const increment = viewMode === "two-page" ? 2 : 1;
-        setPdfPage((prev) => Math.max(prev - increment, 1));
+        setPdfPage((prev) => {
+            const next = Math.max(prev - increment, 1);
+            saveBookmark(next);
+            return next;
+        });
     };
 
     if (!isInitialized || openFiles.length === 0) {
