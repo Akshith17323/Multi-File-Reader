@@ -104,7 +104,7 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
                                 width={containerWidth}
                                 renderTextLayer={false}
                                 renderAnnotationLayer={false}
-                                className="shadow-md !bg-transparent"
+                                className="shadow-md bg-transparent"
                             />
                         )}
                     </Document>
@@ -135,7 +135,7 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
 
     // Fallback for errors or other types
     return (
-        <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+        <div className="w-full h-full bg-linear-to-br from-gray-700 to-gray-800 flex items-center justify-center">
             {type === "application/epub+zip" ? (
                 <Book size={40} className="text-gray-500" />
             ) : (
