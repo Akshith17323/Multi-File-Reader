@@ -200,7 +200,7 @@ function FileUpload() {
 
               {error && (
                 <div className="p-5 bg-[#450a0a]/20 border border-[#ef4444]/30 rounded-xl flex items-center gap-4 text-[#ef4444]">
-                  <AlertCircle size={24} className="flex-shrink-0" />
+                  <AlertCircle size={24} className="shrink-0" />
                   <p className="font-medium">{error}</p>
                 </div>
               )}
@@ -231,7 +231,7 @@ function FileUpload() {
 
               <div>
                 <h2 className="text-3xl font-extrabold text-[#f5f5f5] mb-3">Upload Successful</h2>
-                <p className="text-[#a3a3a3] text-lg">"{selectedFile?.name}" has been added to your library.</p>
+                <p className="text-[#a3a3a3] text-lg">&quot;{selectedFile?.name}&quot; has been added to your library.</p>
               </div>
 
               <div className="flex flex-col gap-4 pt-4">

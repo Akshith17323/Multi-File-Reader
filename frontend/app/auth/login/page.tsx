@@ -55,9 +55,10 @@ function Loginpage() {
         setEmail("");
         setPassword("");
       }
-    } catch (err: any) {
-      setError(err.message || "Something went wrong. Please try again.");
-      toast.error(err.message || "Login failed");
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || "Something went wrong. Please try again.");
+      toast.error(error.message || "Login failed");
     } finally {
       setIsLoading(false);
     }
@@ -147,7 +148,7 @@ function Loginpage() {
           {/* Sign Up Link */}
           <div className="mt-6 text-center">
             <p className="text-gray-400 text-sm">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link
                 href="/auth/signup"
                 className="text-violet-400 hover:text-violet-300 font-semibold transition-colors"
