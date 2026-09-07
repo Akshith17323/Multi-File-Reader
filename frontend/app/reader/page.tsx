@@ -42,7 +42,7 @@ function ReaderContent() {
         }
 
         try {
-            // Decode the files parameter (format: url1,url2,url3 or JSON)
+            // Decode the files parameter (format: encodedUrl1,encodedUrl2,encodedUrl3)
             const fileUrls = filesParam.split(",").map((url) => decodeURIComponent(url));
 
             const files: FileTabData[] = fileUrls.map((url, index) => {
