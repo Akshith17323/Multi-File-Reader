@@ -87,7 +87,7 @@ export default function PDFRenderer({
 
     // Calculate Page Dimensions based on Fit Mode
     const getPageDimensions = () => {
-        if (!containerWidth) return {};
+        if (!containerWidth || (fitMode === "height" && !containerHeight)) return {};
 
         let availableWidth = containerWidth - 40; // padding
         if (viewMode === "two-page") {
