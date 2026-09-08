@@ -1,9 +1,8 @@
 require('dotenv').config();
-const { PrismaClient } = require("@prisma/client");
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
 const SECRET_KEY = process.env.JWT_SECRET
-const prisma = new PrismaClient();
+const prisma = require("../prisma");
 
 
 async function login(req, res) {

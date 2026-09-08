@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient(); // Use singleton pattern in production
+const prisma = require("../prisma");
 
 async function upsertBookmark(req, res) {
     try {
