@@ -1,24 +1,29 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import ePub, { Book, Rendition } from "epubjs";
 import { Loader2, AlertCircle } from "lucide-react";
 
+export interface EPUBRendererRef {
+    next: () => void;
+    prev: () => void;
+}
+
 interface EPUBRendererProps {
     url: string;
-    onLoadSuccess: (chapters: { label: string; href: string }[]) => void;
     onLocationChange: (cfi: string) => void;
+    onProgressChange?: (percentage: number) => void;
     viewMode: "single" | "continuous" | "two-page";
     fontSize: number;
 }
 
-export default function EPUBRenderer({
+const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
     url,
-    onLoadSuccess,
     onLocationChange,
+    onProgressChange,
     viewMode,
     fontSize,
-}: EPUBRendererProps) {
+}, ref) => {
     const viewerRef = useRef<HTMLDivElement | null>(null);
     const renditionRef = useRef<Rendition | null>(null);
     const bookRef = useRef<Book | null>(null);
@@ -29,6 +34,15 @@ export default function EPUBRenderer({
     const [isBookReady, setIsBookReady] = useState(false);
 
     const touchStartRef = useRef<number | null>(null);
+
+    useImperativeHandle(ref, () => ({
+        next: () => {
+            if (renditionRef.current) renditionRef.current.next();
+        },
+        prev: () => {
+            if (renditionRef.current) renditionRef.current.prev();
+        }
+    }));
 
     // Initialize Book
     useEffect(() => {
@@ -46,18 +60,9 @@ export default function EPUBRenderer({
                 bookRef.current = book;
                 setIsBookReady(true);
 
-                const toc = await book.loaded.navigation;
-                if (!cancelled && toc?.toc) {
-                    const chapters = toc.toc.map((item: { label: string; href: string }) => ({
-                        label: item.label,
-                        href: item.href,
-                    }));
-                    onLoadSuccess(chapters);
-                }
-
                 await book.ready;
                 if (!cancelled && book.locations.length() === 0) {
-                    book.locations.generate(1000);
+                    await book.locations.generate(1000);
                 }
             } catch (err: unknown) {
                 console.error("❌ Error initializing EPUB:", err);
@@ -78,7 +83,7 @@ export default function EPUBRenderer({
                 bookRef.current?.destroy();
             } catch { }
         };
-    }, [url, onLoadSuccess]);
+    }, [url]);
 
     // Re-render when viewMode changes or book is ready
     useEffect(() => {
@@ -118,6 +123,30 @@ export default function EPUBRenderer({
                     spread,
                 });
 
+                rendition.themes.register("dark", {
+                    "body": {
+                        "background": "transparent",
+                        "color": "#e5e5e5"
+                    },
+                    "a": {
+                        "color": "#a78bfa"
+                    },
+                    "p": {
+                        "color": "#e5e5e5"
+                    },
+                    "h1": {
+                        "color": "#ffffff"
+                    },
+                    "h2": {
+                        "color": "#ffffff"
+                    },
+                    "h3": {
+                        "color": "#ffffff"
+                    }
+                });
+
+                rendition.themes.select("dark");
+
                 renditionRef.current = rendition;
 
                 await rendition.display(currentLoc || undefined);
@@ -145,6 +174,11 @@ export default function EPUBRenderer({
                     if (location?.start?.cfi) {
                         setCurrentLocation(location.start.cfi);
                         onLocationChange(location.start.cfi);
+
+                        if (onProgressChange && bookRef.current) {
+                            const percentage = bookRef.current.locations.percentageFromCfi(location.start.cfi);
+                            onProgressChange(percentage);
+                        }
                     }
                 });
 
@@ -157,6 +191,7 @@ export default function EPUBRenderer({
         };
 
         reRender();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [viewMode, isBookReady, onLocationChange]);
 
     // Handle font size dynamically without full re-render
@@ -206,7 +241,11 @@ export default function EPUBRenderer({
                 </div>
             )}
 
-            <div style={{ background: "#fff" }} className="w-full h-full" ref={viewerRef} />
+            <div className="w-full h-full text-white" ref={viewerRef} />
         </div>
     );
-}
+});
+
+EPUBRenderer.displayName = "EPUBRenderer";
+
+export default EPUBRenderer;

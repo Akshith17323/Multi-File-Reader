@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import ePub from "epubjs";
 import { FileText, Book } from "lucide-react";
+import Image from "next/image";
 
 // Configure worker (reuse the same worker config as PDFViewer)
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -52,7 +53,7 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
         return () => {
             mounted = false;
         };
-    }, [url, type]);
+    }, [proxiedUrl, type]);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(0);
@@ -124,11 +125,15 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
 
         if (coverUrl) {
             return (
-                <img
-                    src={coverUrl}
-                    alt="Book Cover"
-                    className="w-full h-full object-cover"
-                />
+                <div className="relative w-full h-full">
+                    <Image
+                        src={coverUrl}
+                        alt="Book Cover"
+                        fill
+                        className="object-cover"
+                        unoptimized
+                    />
+                </div>
             );
         }
     }
