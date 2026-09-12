@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, Trash2, Clock, FileText, Loader2, AlertCircle } from "lucide-react";
+import { BookOpen, Trash2, Clock, AlertCircle } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -25,6 +25,7 @@ export default function BookmarksPage() {
 
     useEffect(() => {
         fetchBookmarks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const fetchBookmarks = async () => {
@@ -49,6 +50,8 @@ export default function BookmarksPage() {
             if (res.status === 401) {
                 toast.error("Session expired, please login again");
                 localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                window.dispatchEvent(new Event("auth-change"));
                 router.push("/auth/login");
                 setLoading(false);
                 return;
@@ -62,10 +65,11 @@ export default function BookmarksPage() {
             const data = await res.json();
             setBookmarks(data.bookmarks || []);
 
-        } catch (error: any) {
-            console.error("❌ Error fetching bookmarks:", error);
-            setError(error.message || "Failed to load bookmarks");
-            toast.error(error.message || "Failed to load bookmarks");
+        } catch (error: unknown) {
+            const err = error as Error;
+            console.error("❌ Error fetching bookmarks:", err);
+            setError(err.message || "Failed to load bookmarks");
+            toast.error(err.message || "Failed to load bookmarks");
         } finally {
             setLoading(false);
         }
@@ -98,9 +102,10 @@ export default function BookmarksPage() {
             toast.success("Progress cleared successfully");
             setBookmarks(prev => prev.filter(b => b.id !== bookmark.id));
 
-        } catch (error: any) {
-            console.error("❌ Error deleting bookmark:", error);
-            toast.error(error.message || "Failed to delete bookmark");
+        } catch (error: unknown) {
+            const err = error as Error;
+            console.error("❌ Error deleting bookmark:", err);
+            toast.error(err.message || "Failed to delete bookmark");
         }
     };
 
@@ -218,7 +223,7 @@ export default function BookmarksPage() {
                                             e.stopPropagation();
                                             handleDelete(bookmark);
                                         }}
-                                        className="text-[#525252] hover:text-[#ef4444] transition-colors p-2 flex-shrink-0"
+                                        className="text-[#525252] hover:text-[#ef4444] transition-colors p-2 shrink-0"
                                         title="Clear Progress"
                                     >
                                         <Trash2 size={18} />
@@ -235,7 +240,7 @@ export default function BookmarksPage() {
                                     </div>
                                     <div className="w-full h-2 bg-[#262626] rounded-full overflow-hidden">
                                         <div
-                                            className="h-full bg-gradient-to-r from-[#d97706] to-[#f59e0b] transition-all duration-300"
+                                            className="h-full bg-linear-to-r from-[#d97706] to-[#f59e0b] transition-all duration-300"
                                             style={{ width: `${bookmark.progress || 0}%` }}
                                         />
                                     </div>
