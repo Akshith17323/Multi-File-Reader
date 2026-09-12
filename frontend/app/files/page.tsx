@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Trash2, BookOpen, Loader2, AlertCircle, Edit2 } from "lucide-react";
+import { Trash2, BookOpen, AlertCircle, Edit2 } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import dynamic from "next/dynamic";
@@ -45,6 +45,7 @@ export default function FilesPage() {
       fetchFiles();
     }, 500);
     return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, typeFilter, page, sortBy, sortOrder]);
 
   const fetchFiles = async () => {
@@ -77,6 +78,9 @@ export default function FilesPage() {
 
       if (res.status === 401) {
         toast.error("Session expired, please login again");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.dispatchEvent(new Event("auth-change"));
         router.push("/auth/login");
         return;
       }
@@ -102,10 +106,11 @@ export default function FilesPage() {
         throw new Error('Invalid response format from server');
       }
 
-    } catch (error: any) {
-      console.error("❌ Error fetching files:", error);
-      setError(error.message || "Failed to load files");
-      toast.error(error.message || "Failed to load files");
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("❌ Error fetching files:", err);
+      setError(err.message || "Failed to load files");
+      toast.error(err.message || "Failed to load files");
     } finally {
       setLoading(false);
     }
@@ -141,9 +146,10 @@ export default function FilesPage() {
       // Re-fetch to update pagination
       setTimeout(() => fetchFiles(), 500);
 
-    } catch (error: any) {
-      console.error("❌ Error deleting file:", error);
-      toast.error(error.message || "Failed to delete file");
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("❌ Error deleting file:", err);
+      toast.error(err.message || "Failed to delete file");
     }
   };
 
@@ -185,9 +191,10 @@ export default function FilesPage() {
       setEditingFileId(null);
       setNewFileName("");
 
-    } catch (error: any) {
-      console.error("❌ Error renaming file:", error);
-      toast.error(error.message || "Failed to rename file");
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("❌ Error renaming file:", err);
+      toast.error(err.message || "Failed to rename file");
     }
   };
 
@@ -280,7 +287,7 @@ export default function FilesPage() {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="h-full px-8 py-4 bg-[#0a0a0a] border border-[#404040] rounded-xl focus:outline-none focus:border-[#d97706] transition-colors text-[#f5f5f5] cursor-pointer appearance-none min-w-[160px]"
+                className="h-full px-8 py-4 bg-[#0a0a0a] border border-[#404040] rounded-xl focus:outline-none focus:border-[#d97706] transition-colors text-[#f5f5f5] cursor-pointer appearance-none min-w-40"
               >
                 <option value="">All Types</option>
                 <option value="pdf">PDF</option>
@@ -292,7 +299,7 @@ export default function FilesPage() {
             <div className="relative">
               <select
                 onChange={handleSortChange}
-                className="h-full px-8 py-4 bg-[#0a0a0a] border border-[#404040] rounded-xl focus:outline-none focus:border-[#d97706] transition-colors text-[#f5f5f5] cursor-pointer appearance-none min-w-[160px]"
+                className="h-full px-8 py-4 bg-[#0a0a0a] border border-[#404040] rounded-xl focus:outline-none focus:border-[#d97706] transition-colors text-[#f5f5f5] cursor-pointer appearance-none min-w-40"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -307,7 +314,7 @@ export default function FilesPage() {
         {/* Error State */}
         {error && !loading && (
           <div className="bg-red-500/10 border border-red-500/50 rounded-2xl p-6 mb-8 flex items-center gap-4">
-            <AlertCircle className="text-red-500 flex-shrink-0" size={24} />
+            <AlertCircle className="text-red-500 shrink-0" size={24} />
             <div>
               <h3 className="text-red-500 font-bold mb-1">Error Loading Files</h3>
               <p className="text-red-400 text-sm">{error}</p>
@@ -357,7 +364,7 @@ export default function FilesPage() {
                   key={file.id}
                   className="group relative bg-[#171717] rounded-2xl overflow-hidden flex flex-col shadow-xl hover:shadow-2xl hover:shadow-black/50 hover:-translate-y-2 transition-all duration-300 border border-[#262626] hover:border-[#404040]"
                 >
-                  <div className="aspect-[3/4] relative bg-[#0f0f0f] overflow-hidden group-hover:scale-105 transition-transform duration-500">
+                  <div className="aspect-3/4 relative bg-[#0f0f0f] overflow-hidden group-hover:scale-105 transition-transform duration-500">
                     <div className="w-full h-full">
                       <FilePreview url={file.url} type={file.metadata.contentType} />
                     </div>
@@ -441,7 +448,7 @@ export default function FilesPage() {
                               setEditingFileId(file.id);
                               setNewFileName(file.name);
                             }}
-                            className="text-[#525252] hover:text-[#d97706] transition-colors p-1 flex-shrink-0"
+                            className="text-[#525252] hover:text-[#d97706] transition-colors p-1 shrink-0"
                             title="Rename File"
                           >
                             <Edit2 size={18} />
@@ -451,7 +458,7 @@ export default function FilesPage() {
                               e.stopPropagation();
                               handleDelete(file.name, file.id);
                             }}
-                            className="text-[#525252] hover:text-[#ef4444] transition-colors p-1 flex-shrink-0"
+                            className="text-[#525252] hover:text-[#ef4444] transition-colors p-1 shrink-0"
                             title="Delete File"
                           >
                             <Trash2 size={18} />

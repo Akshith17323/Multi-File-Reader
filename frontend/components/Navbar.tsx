@@ -16,7 +16,15 @@ export default function Navbar() {
         // Function to update user from storage
         const checkUser = () => {
             const storedUser = localStorage.getItem("user");
-            setUser(storedUser);
+            const token = localStorage.getItem("token");
+            if (storedUser && token) {
+                setUser(storedUser);
+            } else {
+                setUser(null);
+                if (storedUser) {
+                    localStorage.removeItem("user");
+                }
+            }
         };
 
         // Initial check
@@ -104,7 +112,7 @@ export default function Navbar() {
                         {user ? (
                             <div className="relative group">
                                 <button className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full hover:bg-[#262626] transition-colors">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#d97706] to-[#b45309] flex items-center justify-center text-white font-bold shadow-md">
+                                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-[#d97706] to-[#b45309] flex items-center justify-center text-white font-bold shadow-md">
                                         {user.charAt(0).toUpperCase()}
                                     </div>
                                     <span className="text-sm font-medium text-[#f5f5f5]">{user}</span>
