@@ -73,7 +73,7 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
 
     if (type === "application/pdf") {
         return (
-            <div ref={containerRef} className="w-full h-full bg-gray-800 flex items-center justify-center overflow-hidden relative">
+            <div ref={containerRef} className="w-full h-full bg-surface-hover flex items-center justify-center overflow-hidden relative">
                 {error ? (
                     <div className="flex flex-col items-center text-gray-500">
                         <FileText size={32} />
@@ -92,8 +92,8 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
                             setError(true);
                         }}
                         loading={
-                            <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-                                <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                            <div className="absolute inset-0 flex items-center justify-center bg-surface-hover">
+                                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                             </div>
                         }
                         className="w-full h-full flex items-center justify-center"
@@ -104,7 +104,7 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
                                 width={containerWidth}
                                 renderTextLayer={false}
                                 renderAnnotationLayer={false}
-                                className="shadow-md !bg-transparent"
+                                className="shadow-md bg-transparent!"
                             />
                         )}
                     </Document>
@@ -116,8 +116,8 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
     if (type === "application/epub+zip") {
         if (loading) {
             return (
-                <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                    <div className="w-6 h-6 border-2 border-fuchsia-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-full h-full bg-surface-hover flex items-center justify-center">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                 </div>
             );
         }
@@ -135,11 +135,11 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
 
     // Fallback for errors or other types
     return (
-        <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center">
+        <div className="w-full h-full bg-surface-hover flex items-center justify-center">
             {type === "application/epub+zip" ? (
-                <Book size={40} className="text-gray-500" />
+                <Book size={40} className="text-foreground-muted" />
             ) : (
-                <FileText size={40} className="text-gray-500" />
+                <FileText size={40} className="text-foreground-muted" />
             )}
         </div>
     );

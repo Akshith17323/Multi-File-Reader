@@ -1,6 +1,6 @@
 const { bucket } = require("../gcs");
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const path = require("path");
+const prisma = require('../prisma');
 
 async function deleteFile(req, res) {
     console.log("🚀 deleteFile handler called");

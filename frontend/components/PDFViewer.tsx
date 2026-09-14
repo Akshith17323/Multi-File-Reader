@@ -173,10 +173,10 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
     const pageProps = getPageDimensions();
 
     return (
-        <div className="h-full flex flex-col bg-gray-900 relative overflow-hidden">
+        <div className="h-full flex flex-col bg-background relative overflow-hidden">
             {/* Background Gradients */}
-            <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-violet-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
-            <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-fuchsia-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
+            <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-violet-600/10 rounded-full blur-[120px] pointer-events-none mix-blend-multiply" />
+            <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none mix-blend-multiply" />
 
             {/* Header Controls Removed as per user request */}
             <div className={`absolute top-0 right-0 p-4 z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
@@ -184,7 +184,7 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
                     {/* Controls Trigger for Sidebar */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(true); }}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold transition-colors"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded text-xs font-semibold transition-colors shadow-sm"
                     >
                         <Menu size={16} />
                         MENU
@@ -194,18 +194,18 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
 
             {/* Sidebar Drawer */}
             <div className={`
-                fixed inset-y-0 right-0 w-80 bg-[#16171b] border-l border-[#2e2f36] z-[60] transform transition-transform duration-300 ease-in-out text-[#a2a2a2]
+                fixed inset-y-0 right-0 w-80 bg-surface/95 backdrop-blur-xl border-l border-border-subtle z-60 transform transition-transform duration-300 ease-in-out text-foreground-muted
                 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0
             `}>
-                <div className="p-4 border-b border-[#2e2f36] flex items-center justify-between">
+                <div className="p-4 border-b border-border-subtle flex items-center justify-between">
                     <div>
-                        <h2 className="text-white font-semibold text-sm">You are reading</h2>
-                        <p className="text-xs truncate max-w-[200px] text-blue-400">{title}</p>
+                        <h2 className="text-foreground font-semibold text-sm">You are reading</h2>
+                        <p className="text-xs truncate max-w-[200px] text-primary">{title}</p>
                     </div>
                     {/* Only show close button on mobile or if user explicitly wants to close on desktop (optional, keeping it for flexibility) */}
                     <button
                         onClick={() => setIsSidebarOpen(false)}
-                        className="p-2 hover:bg-[#2e2f36] rounded-md text-[#a2a2a2] hover:text-white transition-colors lg:hidden"
+                        className="p-2 hover:bg-surface-hover rounded-md text-foreground-muted hover:text-foreground transition-colors lg:hidden"
                     >
                         <X size={20} />
                     </button>
@@ -213,27 +213,27 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
 
                 <div className="p-4 space-y-6 overflow-y-auto h-[calc(100vh-65px)]">
                     {/* Navigation */}
-                    <div className="bg-[#1f2128] rounded-lg p-3 space-y-3">
+                    <div className="bg-surface-hover rounded-lg p-3 space-y-3">
                         <div className="flex items-center justify-between text-sm">
                             <span className="flex items-center gap-2"><Globe size={14} /> Language</span>
-                            <span className="text-white">English</span>
+                            <span className="text-foreground">English</span>
                         </div>
-                        <div className="flex items-center gap-2 bg-[#2a2c34] p-2 rounded-md justify-between">
+                        <div className="flex items-center gap-2 bg-background p-2 rounded-md justify-between">
                             <button
                                 onClick={() => changePage(-1)}
                                 disabled={pageNumber <= 1}
-                                className="p-1 hover:text-white disabled:opacity-30"
+                                className="p-1 hover:text-foreground disabled:opacity-30"
                             >
                                 <ChevronLeft size={16} />
                             </button>
                             <div className="text-center">
-                                <span className="text-white text-sm font-medium">Page {pageNumber}</span>
-                                <span className="text-xs text-gray-500 ml-1">/ {numPages}</span>
+                                <span className="text-foreground text-sm font-medium">Page {pageNumber}</span>
+                                <span className="text-xs text-foreground-muted ml-1">/ {numPages}</span>
                             </div>
                             <button
                                 onClick={() => changePage(1)}
                                 disabled={pageNumber >= numPages}
-                                className="p-1 hover:text-white disabled:opacity-30"
+                                className="p-1 hover:text-foreground disabled:opacity-30"
                             >
                                 <ChevronRight size={16} />
                             </button>
@@ -241,18 +241,18 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
                     </div>
 
                     <div className="space-y-1">
-                        <button className="w-full flex items-center gap-3 px-3 py-3 rounded-md hover:bg-[#1f2128] text-sm transition-colors">
+                        <button className="w-full flex items-center gap-3 px-3 py-3 rounded-md hover:bg-surface-hover text-sm transition-colors">
                             <Bookmark size={18} />
                             <span>Bookmark</span>
                         </button>
-                        <button className="w-full flex items-center gap-3 px-3 py-3 rounded-md hover:bg-[#1f2128] text-sm transition-colors">
+                        <button className="w-full flex items-center gap-3 px-3 py-3 rounded-md hover:bg-surface-hover text-sm transition-colors">
                             <Info size={18} />
                             <span>Detail</span>
                         </button>
                     </div>
 
                     {/* View Metrics */}
-                    <div className="bg-[#1f2128] rounded-lg overflow-hidden">
+                    <div className="bg-surface-hover rounded-lg overflow-hidden border border-border-subtle">
                         {[
                             { id: "single", label: "Single Page", icon: FileText, type: 'view' },
                             { id: "continuous", label: "Long Strip", icon: ScrollText, type: 'view' },
@@ -268,14 +268,14 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
                                         if (item.type === 'view') setViewMode(item.id as ViewMode);
                                         else setFitMode(item.id as FitMode);
                                     }}
-                                    className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b border-[#2e2f36] last:border-0 ${isActive ? "text-blue-400 bg-[#252830]" : "hover:bg-[#252830] hover:text-gray-200"
+                                    className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b border-border-subtle last:border-0 ${isActive ? "text-primary bg-surface" : "hover:bg-surface hover:text-foreground"
                                         }`}
                                 >
                                     <div className="flex items-center gap-3">
                                         <item.icon size={18} />
                                         <span>{item.label}</span>
                                     </div>
-                                    {isActive && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />}
+                                    {isActive && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
                                 </button>
                             );
                         })}
@@ -283,21 +283,21 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
 
                     {/* Zoom Controls (Visible only in Free Zoom) */}
                     {fitMode === 'none' && (
-                        <div className="bg-[#1f2128] rounded-lg p-3 flex items-center justify-between">
-                            <span className="text-sm font-medium text-white flex items-center gap-2">
+                        <div className="bg-surface-hover rounded-lg p-3 flex items-center justify-between border border-border-subtle">
+                            <span className="text-sm font-medium text-foreground flex items-center gap-2">
                                 <Search size={16} /> Zoom
                             </span>
-                            <div className="flex items-center gap-3 bg-[#2a2c34] rounded px-2 py-1">
+                            <div className="flex items-center gap-3 bg-background rounded px-2 py-1 border border-border-subtle">
                                 <button
                                     onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
-                                    className="p-1 hover:text-white"
+                                    className="p-1 hover:text-foreground"
                                 >
                                     <ZoomOut size={16} />
                                 </button>
-                                <span className="text-xs text-white min-w-[3ch] text-center">{Math.round(scale * 100)}%</span>
+                                <span className="text-xs text-foreground min-w-[3ch] text-center">{Math.round(scale * 100)}%</span>
                                 <button
                                     onClick={() => setScale(s => Math.min(2.0, s + 0.1))}
-                                    className="p-1 hover:text-white"
+                                    className="p-1 hover:text-foreground"
                                 >
                                     <ZoomIn size={16} />
                                 </button>
@@ -315,11 +315,14 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
                 />
             )}
 
+            {/* Mobile Controls Trigger Overlay (Invisible touch area) */}
+            <div className={`lg:hidden fixed top-0 inset-x-0 h-16 z-55`} onClick={() => setShowControls(prev => !prev)} />
+
             {/* PDF Container */}
             <div
                 ref={containerRef}
                 onClick={() => setShowControls(prev => !prev)}
-                className={`flex-1 overflow-auto bg-black/20 p-4 touch-pan-y relative z-10 transition-all duration-300 lg:mr-80`}
+                className={`flex-1 overflow-auto bg-black/5 p-4 touch-pan-y relative z-10 transition-all duration-300 lg:mr-80`}
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
@@ -329,9 +332,9 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
                     onLoadSuccess={onDocumentLoadSuccess}
                     className="flex flex-col items-center min-h-full"
                     loading={
-                        <div className="flex flex-col items-center justify-center h-40 text-white gap-3">
-                            <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-                            <span className="text-sm text-gray-400">Loading document...</span>
+                        <div className="flex flex-col items-center justify-center h-40 text-foreground gap-3">
+                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <span className="text-sm text-foreground-muted">Loading document...</span>
                         </div>
                     }
                 >
@@ -404,23 +407,23 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
 
             {/* Floating Navigation Bar (Only for Single/Two-Page modes) */}
             {(viewMode === "single" || viewMode === "two-page") && (
-                <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-xl border border-white/10 rounded-full px-6 py-3 flex items-center gap-6 shadow-2xl z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
+                <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 bg-surface/90 backdrop-blur-xl border border-border-subtle rounded-full px-6 py-3 flex items-center gap-6 shadow-xl z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
                     <button
                         onClick={(e) => { e.stopPropagation(); changePage(-1); }}
                         disabled={pageNumber <= 1}
-                        className="text-white hover:text-blue-400 disabled:opacity-30 disabled:hover:text-white transition-colors"
+                        className="text-foreground-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-foreground-muted transition-colors"
                     >
                         <ChevronLeft size={24} />
                     </button>
 
-                    <span className="text-white font-medium min-w-[80px] text-center">
+                    <span className="text-foreground font-medium min-w-20 text-center">
                         {pageNumber} / {numPages || "--"}
                     </span>
 
                     <button
                         onClick={(e) => { e.stopPropagation(); changePage(1); }}
                         disabled={pageNumber >= numPages}
-                        className="text-white hover:text-blue-400 disabled:opacity-30 disabled:hover:text-white transition-colors"
+                        className="text-foreground-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-foreground-muted transition-colors"
                     >
                         <ChevronRight size={24} />
                     </button>
