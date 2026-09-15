@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, ReactNode } from "react";
+import { useState, ReactNode } from "react";
 import { ChevronLeft, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import FileTab, { FileTabData } from "./FileTab";
@@ -18,6 +18,7 @@ interface UnifiedReaderLayoutProps {
     // Reader controls
     currentPage?: number;
     totalPages?: number;
+    epubProgress?: number;
     onNextPage?: () => void;
     onPrevPage?: () => void;
 
@@ -46,6 +47,7 @@ export default function UnifiedReaderLayout({
     onTabClose,
     currentPage,
     totalPages,
+    epubProgress,
     onNextPage,
     onPrevPage,
     viewMode,
@@ -117,21 +119,23 @@ export default function UnifiedReaderLayout({
                     </div>
 
                     {/* Center: Page Navigation (for paginated modes) */}
-                    {(viewMode === "single" || viewMode === "two-page") && currentPage && totalPages && (
+                    {(viewMode === "single" || viewMode === "two-page") && (isEpub || (currentPage && totalPages)) && (
                         <div className="flex items-center gap-3 bg-surface rounded-lg px-4 py-2 border border-border-subtle">
                             <button
                                 onClick={onPrevPage}
-                                disabled={currentPage <= 1}
+                                disabled={!isEpub && !!currentPage && currentPage <= 1}
                                 className="p-1 text-foreground-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-foreground-muted transition-colors"
                             >
                                 <ChevronLeft size={18} />
                             </button>
                             <span className="text-sm font-medium text-foreground min-w-20 text-center">
-                                {currentPage} / {totalPages}
+                                {isEpub && epubProgress !== undefined 
+                                    ? `${Math.round(epubProgress * 100)}%` 
+                                    : `${currentPage} / ${totalPages}`}
                             </span>
                             <button
                                 onClick={onNextPage}
-                                disabled={currentPage >= totalPages}
+                                disabled={!isEpub && !!currentPage && !!totalPages && currentPage >= totalPages}
                                 className="p-1 text-foreground-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-foreground-muted transition-colors"
                             >
                                 <ChevronLeft size={18} className="rotate-180" />
@@ -294,14 +298,16 @@ export default function UnifiedReaderLayout({
                             {activeFile && (
                                 <div className="p-4 border-t border-border-subtle bg-surface-hover/50">
                                     <div className="text-xs text-foreground-muted min-w-20">
-                                        {currentPage && totalPages && (
+                                        {((currentPage && totalPages) || (isEpub && epubProgress !== undefined)) ? (
                                             <div className="flex justify-between">
                                                 <span>Progress</span>
                                                 <span className="text-foreground font-medium">
-                                                    {Math.round((currentPage / totalPages) * 100)}%
+                                                    {isEpub && epubProgress !== undefined
+                                                        ? `${Math.round(epubProgress * 100)}%`
+                                                        : Math.round(((currentPage || 0) / (totalPages || 1)) * 100) + "%"}
                                                 </span>
                                             </div>
-                                        )}
+                                        ) : null}
                                     </div>
                                 </div>
                             )}

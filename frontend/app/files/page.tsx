@@ -78,6 +78,9 @@ export default function FilesPage() {
 
       if (res.status === 401) {
         toast.error("Session expired, please login again");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.dispatchEvent(new Event("auth-change"));
         router.push("/auth/login");
         return;
       }

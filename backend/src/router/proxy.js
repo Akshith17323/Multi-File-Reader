@@ -55,6 +55,9 @@ router.get('/proxy', async (req, res) => {
     // Trim any leading slashes just in case
     if (objectPath.startsWith('/')) objectPath = objectPath.slice(1);
 
+    // Decode the object path so spaces and special characters match GCS exactly
+    objectPath = decodeURIComponent(objectPath);
+
     console.log(`Proxy: Stream requested for '${objectPath}'`);
 
     const file = bucket.file(objectPath);

@@ -1,13 +1,64 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef, RefObject } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import UnifiedReaderLayout, { ViewMode, FitMode } from "@/components/UnifiedReaderLayout";
 import { FileTabData } from "@/components/FileTab";
 import dynamic from "next/dynamic";
 
+import { EPUBRendererRef } from "@/components/EPUBRenderer";
+
 const PDFRenderer = dynamic(() => import("@/components/PDFRenderer"), { ssr: false });
 const EPUBRenderer = dynamic(() => import("@/components/EPUBRenderer"), { ssr: false });
+
+interface ReaderFactoryProps {
+    pdfPage: number;
+    handlePdfPageChange: (page: number) => void;
+    handlePdfLoadSuccess: (pages: number) => void;
+    viewMode: ViewMode;
+    fitMode: FitMode;
+    zoom: number;
+    epubRef: RefObject<EPUBRendererRef | null>;
+    handleEpubLocationChange: (cfi: string) => void;
+    setEpubProgress: (progress: number) => void;
+    fontSize: number;
+}
+
+class ReaderFactory {
+    static createReader(activeFile: FileTabData | undefined, props: ReaderFactoryProps) {
+        if (!activeFile) return null;
+
+        switch (activeFile.type) {
+            case "pdf":
+                return (
+                    <PDFRenderer
+                        key={activeFile.id}
+                        blobUrl={`${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(activeFile.url)}`}
+                        pageNumber={props.pdfPage}
+                        onPageChange={props.handlePdfPageChange}
+                        onLoadSuccess={props.handlePdfLoadSuccess}
+                        viewMode={props.viewMode}
+                        fitMode={props.fitMode}
+                        scale={props.zoom}
+                    />
+                );
+            case "epub":
+                return (
+                    <EPUBRenderer
+                        key={activeFile.id}
+                        ref={props.epubRef}
+                        url={activeFile.url}
+                        onLocationChange={props.handleEpubLocationChange}
+                        onProgressChange={props.setEpubProgress}
+                        viewMode={props.viewMode}
+                        fontSize={props.fontSize}
+                    />
+                );
+            default:
+                return <div className="text-white">Unsupported file type</div>;
+        }
+    }
+}
 
 function ReaderContent() {
     const searchParams = useSearchParams();
@@ -32,7 +83,8 @@ function ReaderContent() {
     const [pdfTotalPages, setPdfTotalPages] = useState(0);
 
     // EPUB-specific state
-    const [epubChapters, setEpubChapters] = useState<{ label: string; href: string }[]>([]);
+    const epubRef = useRef<EPUBRendererRef>(null);
+    const [epubProgress, setEpubProgress] = useState<number>(0);
 
     // Initialize files from URL params
     useEffect(() => {
@@ -57,11 +109,13 @@ function ReaderContent() {
                 };
             });
 
-            if (files.length > 0) {
-                setOpenFiles(files);
-                setActiveFileIndex(activeParam ? parseInt(activeParam, 10) : 0);
-            }
-            setIsInitialized(true);
+            setTimeout(() => {
+                if (files.length > 0) {
+                    setOpenFiles(files);
+                    setActiveFileIndex(activeParam ? parseInt(activeParam, 10) : 0);
+                }
+                setIsInitialized(true);
+            }, 0);
         } catch (error) {
             console.error("Error parsing files:", error);
             router.push("/files");
@@ -151,6 +205,8 @@ function ReaderContent() {
         }
     };
 
+    const activeFile = openFiles[activeFileIndex];
+
     // Handlers
     const handleTabChange = (index: number) => {
         setActiveFileIndex(index);
@@ -187,31 +243,50 @@ function ReaderContent() {
         setPdfTotalPages(pages);
     };
 
-    const handleEpubLoadSuccess = (chapters: { label: string; href: string }[]) => {
-        setEpubChapters(chapters);
-    };
-
     const handleEpubLocationChange = (cfi: string) => {
         saveBookmark(undefined, cfi);
     };
 
     const handleNextPage = () => {
-        const increment = viewMode === "two-page" ? 2 : 1;
-        setPdfPage((prev) => {
-            const next = Math.min(prev + increment, pdfTotalPages);
-            saveBookmark(next);
-            return next;
-        });
+        if (activeFile?.type === "epub") {
+            epubRef.current?.next();
+        } else {
+            const increment = viewMode === "two-page" ? 2 : 1;
+            setPdfPage((prev) => {
+                const next = Math.min(prev + increment, pdfTotalPages);
+                saveBookmark(next);
+                return next;
+            });
+        }
     };
 
     const handlePrevPage = () => {
-        const increment = viewMode === "two-page" ? 2 : 1;
-        setPdfPage((prev) => {
-            const next = Math.max(prev - increment, 1);
-            saveBookmark(next);
-            return next;
-        });
+        if (activeFile?.type === "epub") {
+            epubRef.current?.prev();
+        } else {
+            const increment = viewMode === "two-page" ? 2 : 1;
+            setPdfPage((prev) => {
+                const next = Math.max(prev - increment, 1);
+                saveBookmark(next);
+                return next;
+            });
+        }
     };
+
+    // Keyboard navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "ArrowRight") {
+                handleNextPage();
+            } else if (e.key === "ArrowLeft") {
+                handlePrevPage();
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeFile, viewMode, pdfTotalPages]); // Re-bind when dependencies change
 
     if (!isInitialized || openFiles.length === 0) {
         return (
@@ -221,8 +296,6 @@ function ReaderContent() {
         );
     }
 
-    const activeFile = openFiles[activeFileIndex];
-
     return (
         <UnifiedReaderLayout
             openFiles={openFiles}
@@ -231,6 +304,7 @@ function ReaderContent() {
             onTabClose={handleTabClose}
             currentPage={activeFile?.type === "pdf" ? pdfPage : undefined}
             totalPages={activeFile?.type === "pdf" ? pdfTotalPages : undefined}
+            epubProgress={activeFile?.type === "epub" ? epubProgress : undefined}
             onNextPage={handleNextPage}
             onPrevPage={handlePrevPage}
             viewMode={viewMode}
@@ -244,29 +318,18 @@ function ReaderContent() {
             onFontSizeIncrease={() => setFontSize((s) => Math.min(200, s + 20))}
             onFontSizeDecrease={() => setFontSize((s) => Math.max(50, s - 20))}
         >
-            {activeFile?.type === "pdf" && (
-                <PDFRenderer
-                    key={activeFile.id}
-                    blobUrl={`${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(activeFile.url)}`}
-                    pageNumber={pdfPage}
-                    onPageChange={handlePdfPageChange}
-                    onLoadSuccess={handlePdfLoadSuccess}
-                    viewMode={viewMode}
-                    fitMode={fitMode}
-                    scale={zoom}
-                />
-            )}
-
-            {activeFile?.type === "epub" && (
-                <EPUBRenderer
-                    key={activeFile.id}
-                    url={activeFile.url}
-                    onLoadSuccess={handleEpubLoadSuccess}
-                    onLocationChange={handleEpubLocationChange}
-                    viewMode={viewMode}
-                    fontSize={fontSize}
-                />
-            )}
+            {ReaderFactory.createReader(activeFile, {
+                pdfPage,
+                handlePdfPageChange,
+                handlePdfLoadSuccess,
+                viewMode,
+                fitMode,
+                zoom,
+                epubRef,
+                handleEpubLocationChange,
+                setEpubProgress,
+                fontSize,
+            })}
         </UnifiedReaderLayout>
     );
 }

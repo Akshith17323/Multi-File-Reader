@@ -6,7 +6,6 @@ Modern users work with a variety of file types — PDF, EPUB, TXT, and more.
 Each format requires a different application to read, manage, or edit, which increases **RAM usage**, **storage consumption**, and complicates the user workflow.  
 
 **Multi-File-Reader** solves this by allowing users to view and manage multiple file types inside a **single unified interface**, powered by distinctive file readers for each file format.  
- [oai_citation:1‡Multi-File-Reader- AP Capstone Project.pdf](sediment://file_000000002fb47207aac126cd3deb93dd)
 
 ---
 
@@ -16,7 +15,6 @@ Each format requires a different application to read, manage, or edit, which inc
 - There is no centralized solution to read, organize, and manage files of multiple formats.  
 
 **This project creates a unified, efficient, modern file-reading platform.**  
- [oai_citation:2‡Multi-File-Reader- AP Capstone Project.pdf](sediment://file_000000002fb47207aac126cd3deb93dd)
 
 ---
 
@@ -33,7 +31,6 @@ Each format requires a different application to read, manage, or edit, which inc
   - Frontend → Vercel  
   - Backend → Vercel  
   - Database → Neon.Tech  
- [oai_citation:3‡Multi-File-Reader- AP Capstone Project.pdf](sediment://file_000000002fb47207aac126cd3deb93dd)
 
 ---
 
@@ -43,14 +40,12 @@ Each format requires a different application to read, manage, or edit, which inc
 - User registration & login  
 - Role-based access control (Admin/User)  
 - JWT-secured session handling  
- [oai_citation:4‡Multi-File-Reader- AP Capstone Project.pdf](sediment://file_000000002fb47207aac126cd3deb93dd)
 
 ### 📂 File Management (CRUD)
 - Upload files  
 - Read files within integrated readers  
 - Update or modify file metadata  
 - Delete files  
- [oai_citation:5‡Multi-File-Reader- AP Capstone Project.pdf](sediment://file_000000002fb47207aac126cd3deb93dd)
 
 ### 🧭 User Interface Features
 - Homepage, Profile, Files page, Auth pages  
@@ -58,7 +53,6 @@ Each format requires a different application to read, manage, or edit, which inc
 - **Search** for specific files  
 - **Sort** files by type or alphabetical order  
 - **Filter** files by type (PDF, EPUB, TXT, etc.)  
- [oai_citation:6‡Multi-File-Reader- AP Capstone Project.pdf](sediment://file_000000002fb47207aac126cd3deb93dd)
 
 ### ☁️ Hosting
 - Fully deployed frontend and backend on Vercel  
@@ -74,7 +68,6 @@ Each format requires a different application to read, manage, or edit, which inc
 | **Database** | PostgreSQL |
 | **Authentication** | JWT / OAuth |
 | **Hosting** | Vercel |
- [oai_citation:7‡Multi-File-Reader- AP Capstone Project.pdf](sediment://file_000000002fb47207aac126cd3deb93dd)
 
 ---
 
@@ -89,7 +82,6 @@ Each format requires a different application to read, manage, or edit, which inc
 | `/api/files/user_id` | PUT | Update a file | Authenticated |
 | `/api/files/user_id` | DELETE | Delete a file | Authenticated |
 | `/api/file_type_reader` | GET | Render a file in correct reader | Authenticated |
- [oai_citation:8‡Multi-File-Reader- AP Capstone Project.pdf](sediment://file_000000002fb47207aac126cd3deb93dd)
 
 ---
 

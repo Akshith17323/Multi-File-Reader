@@ -7,12 +7,13 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon src/server.js"
+    "start": "nodemon src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 0"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.17.3",
     "@prisma/adapter-pg": "^7.10.0",
-    "@prisma/client": "^6.18.0",
+    "@prisma/client": "^7.10.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -22,7 +23,7 @@
     "multer": "^2.0.2",
     "nodemon": "^3.1.11",
     "pg": "^8.23.0",
-    "prisma": "^6.19.0",
+    "prisma": "^7.10.0",
     "studio": "^0.13.5"
   }
 }

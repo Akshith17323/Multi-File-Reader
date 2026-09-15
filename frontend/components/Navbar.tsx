@@ -16,7 +16,15 @@ export default function Navbar() {
         // Function to update user from storage
         const checkUser = () => {
             const storedUser = localStorage.getItem("user");
-            setUser(storedUser);
+            const token = localStorage.getItem("token");
+            if (storedUser && token) {
+                setUser(storedUser);
+            } else {
+                setUser(null);
+                if (storedUser) {
+                    localStorage.removeItem("user");
+                }
+            }
         };
 
         // Initial check
