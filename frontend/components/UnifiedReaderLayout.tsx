@@ -126,7 +126,7 @@ export default function UnifiedReaderLayout({
                             >
                                 <ChevronLeft size={18} />
                             </button>
-                            <span className="text-sm font-medium text-foreground min-w-[80px] text-center">
+                            <span className="text-sm font-medium text-foreground min-w-20 text-center">
                                 {currentPage} / {totalPages}
                             </span>
                             <button

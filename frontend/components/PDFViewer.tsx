@@ -310,7 +310,7 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
             {/* Overlay for sidebar (Mobile Only) */}
             {isSidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 z-[55] backdrop-blur-[2px] transition-opacity lg:hidden"
+                    className="fixed inset-0 bg-black/50 z-55 backdrop-blur-[2px] transition-opacity lg:hidden"
                     onClick={() => setIsSidebarOpen(false)}
                 />
             )}

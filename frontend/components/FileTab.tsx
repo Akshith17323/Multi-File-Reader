@@ -39,7 +39,7 @@ export default function FileTab({ file, isActive, onClick, onClose }: FileTabPro
             {/* File Type Icon */}
             <div
                 className={`
-        flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
+        shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
         ${isActive ? "bg-primary/20" : "bg-surface"}
       `}
             >

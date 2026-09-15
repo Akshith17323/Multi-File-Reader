@@ -218,7 +218,7 @@ export default function BookmarksPage() {
                                             e.stopPropagation();
                                             handleDelete(bookmark);
                                         }}
-                                        className="text-[#525252] hover:text-[#ef4444] transition-colors p-2 flex-shrink-0"
+                                        className="text-[#525252] hover:text-[#ef4444] transition-colors p-2 shrink-0"
                                         title="Clear Progress"
                                     >
                                         <Trash2 size={18} />
@@ -235,7 +235,7 @@ export default function BookmarksPage() {
                                     </div>
                                     <div className="w-full h-2 bg-[#262626] rounded-full overflow-hidden">
                                         <div
-                                            className="h-full bg-gradient-to-r from-[#d97706] to-[#f59e0b] transition-all duration-300"
+                                            className="h-full bg-linear-to-r from-[#d97706] to-[#f59e0b] transition-all duration-300"
                                             style={{ width: `${bookmark.progress || 0}%` }}
                                         />
                                     </div>
