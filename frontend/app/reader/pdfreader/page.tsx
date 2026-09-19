@@ -10,7 +10,6 @@ function PDFReaderContent() {
   const searchParams = useSearchParams();
   const rawUrl = searchParams.get("url");
   const url = rawUrl ? decodeURIComponent(rawUrl) : null;
-  const id = searchParams.get("id");
 
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -29,7 +28,7 @@ function PDFReaderContent() {
   if (!url) return <p>No URL provided</p>;
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-gray-100">
+    <div className="h-dvh flex flex-col bg-background">
       {blobUrl && <PDFViewer blobUrl={blobUrl} fileUrl={url || undefined} />}
     </div>
   );

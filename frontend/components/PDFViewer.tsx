@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Settings, Check, X, Menu, Grid, Columns, FileText, ScrollText, ArrowUpDown, ArrowLeftRight, Bookmark, Info, Globe, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X, Menu, Columns, FileText, ScrollText, ArrowUpDown, ArrowLeftRight, Bookmark, Info, Globe, Search } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 

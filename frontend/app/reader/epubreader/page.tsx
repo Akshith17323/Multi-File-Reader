@@ -112,7 +112,7 @@ function ReaderContent() {
       let progress = 0;
       if (bookRef.current) {
         const locations = bookRef.current.locations;
-        // @ts-ignore - locations.length is sometimes a function or property context dependent, safe check
+        // locations.length is sometimes a function or property context dependent, safe check
         if (locations.length() > 0) {
           progress = Math.round(locations.percentageFromCfi(cfi) * 100);
         }
@@ -246,7 +246,7 @@ function ReaderContent() {
       // Debounce or just call resize
       requestAnimationFrame(() => {
         if (renditionRef.current && typeof renditionRef.current.resize === 'function') {
-          // @ts-ignore
+          // type definitions for resize might be incomplete
           renditionRef.current.resize(width, height);
         }
       });
@@ -285,11 +285,11 @@ function ReaderContent() {
 
   if (!url) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black text-white">
-        <div className="bg-white/5 p-8 rounded-2xl border border-white/10 text-center">
+      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
+        <div className="bg-surface p-8 rounded-2xl border border-border-subtle text-center">
           <AlertCircle className="mx-auto mb-4 text-red-500" size={48} />
           <p className="text-xl font-bold mb-2">No File Selected</p>
-          <p className="text-gray-400">Please open this page via the Files list.</p>
+          <p className="text-foreground-muted">Please open this page via the Files list.</p>
         </div>
       </div>
     );
@@ -298,7 +298,7 @@ function ReaderContent() {
   const title = decodeURIComponent(url).split('/').pop();
 
   return (
-    <div className="h-dvh flex flex-col lg:flex-row bg-gray-900 overflow-hidden relative">
+    <div className="h-dvh flex flex-col lg:flex-row bg-background overflow-hidden relative">
       {/* Background Gradients */}
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-violet-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-fuchsia-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
@@ -308,7 +308,7 @@ function ReaderContent() {
         <div className="flex items-center gap-3 lg:hidden">
           <button
             onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(true); }}
-            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded text-xs font-semibold transition-colors"
           >
             <Menu size={16} />
             MENU
@@ -318,19 +318,19 @@ function ReaderContent() {
 
       {/* Sidebar Drawer */}
       <div className={`
-        fixed inset-y-0 right-0 w-80 bg-[#16171b] border-l border-[#2e2f36] z-[60] transform transition-transform duration-300 ease-in-out text-[#a2a2a2]
+        fixed inset-y-0 right-0 w-80 bg-surface border-l border-border-subtle z-60 transform transition-transform duration-300 ease-in-out text-foreground-muted
         lg:static lg:transform-none lg:z-0 lg:shrink-0
         ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0
       `}>
-        <div className="p-4 border-b border-[#2e2f36] flex items-center justify-between">
+        <div className="p-4 border-b border-border-subtle flex items-center justify-between">
           <div>
-            <h2 className="text-white font-semibold text-sm">You are reading</h2>
-            <p className="text-xs truncate max-w-[200px] text-blue-400">{title}</p>
+            <h2 className="text-foreground font-semibold text-sm">You are reading</h2>
+            <p className="text-xs truncate max-w-[200px] text-primary">{title}</p>
           </div>
 
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="p-2 hover:bg-[#2e2f36] rounded-md text-[#a2a2a2] hover:text-white transition-colors lg:hidden"
+            className="p-2 hover:bg-surface-hover rounded-md text-foreground-muted hover:text-foreground transition-colors lg:hidden"
           >
             <X size={20} />
           </button>
@@ -338,24 +338,24 @@ function ReaderContent() {
 
         <div className="p-4 space-y-6 overflow-y-auto h-[calc(100vh-65px)]">
           {/* Navigation */}
-          <div className="bg-[#1f2128] rounded-lg p-3 space-y-3">
+          <div className="bg-background rounded-lg p-3 space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2"><Globe size={14} /> Language</span>
-              <span className="text-white">English</span>
+              <span className="text-foreground">English</span>
             </div>
-            <div className="flex items-center gap-2 bg-[#2a2c34] p-2 rounded-md justify-between">
+            <div className="flex items-center gap-2 bg-surface-hover p-2 rounded-md justify-between">
               <button
                 onClick={goPrev}
-                className="p-1 hover:text-white"
+                className="p-1 hover:text-foreground"
               >
                 <ChevronLeft size={16} />
               </button>
               <div className="text-center">
-                <span className="text-white text-sm font-medium">Navigate</span>
+                <span className="text-foreground text-sm font-medium">Navigate</span>
               </div>
               <button
                 onClick={goNext}
-                className="p-1 hover:text-white"
+                className="p-1 hover:text-foreground"
               >
                 <ChevronRight size={16} />
               </button>
@@ -363,18 +363,18 @@ function ReaderContent() {
           </div>
 
           <div className="space-y-1">
-            <button className="w-full flex items-center gap-3 px-3 py-3 rounded-md hover:bg-[#1f2128] text-sm transition-colors">
+            <button className="w-full flex items-center gap-3 px-3 py-3 rounded-md hover:bg-background text-sm transition-colors">
               <Bookmark size={18} />
               <span>Bookmark</span>
             </button>
-            <button className="w-full flex items-center gap-3 px-3 py-3 rounded-md hover:bg-[#1f2128] text-sm transition-colors">
+            <button className="w-full flex items-center gap-3 px-3 py-3 rounded-md hover:bg-background text-sm transition-colors">
               <Info size={18} />
               <span>Detail</span>
             </button>
           </div>
 
           {/* View Mode Controls */}
-          <div className="bg-[#1f2128] rounded-lg overflow-hidden">
+          <div className="bg-background rounded-lg overflow-hidden">
             {[
               { id: 'single', label: 'Single Page', icon: FileText },
               { id: 'two-page', label: 'Two Page', icon: Columns },
@@ -383,34 +383,34 @@ function ReaderContent() {
               <button
                 key={mode.id}
                 onClick={() => setViewMode(mode.id as 'single' | 'two-page' | 'continuous')}
-                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b border-[#2e2f36] last:border-0 ${viewMode === mode.id ? "text-blue-400 bg-[#252830]" : "hover:bg-[#252830] hover:text-gray-200"
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b border-border-subtle last:border-0 ${viewMode === mode.id ? "text-primary bg-surface-hover" : "hover:bg-surface-hover hover:text-foreground"
                   }`}
               >
                 <div className="flex items-center gap-3">
                   <mode.icon size={18} />
                   <span>{mode.label}</span>
                 </div>
-                {viewMode === mode.id && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />}
+                {viewMode === mode.id && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
               </button>
             ))}
           </div>
 
           {/* Font Size Control */}
-          <div className="bg-[#1f2128] rounded-lg p-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-white flex items-center gap-2">
+          <div className="bg-background rounded-lg p-3 flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground flex items-center gap-2">
               <Search size={16} /> Font Size
             </span>
-            <div className="flex items-center gap-3 bg-[#2a2c34] rounded px-2 py-1">
+            <div className="flex items-center gap-3 bg-surface-hover rounded px-2 py-1">
               <button
                 onClick={decreaseFontSize}
-                className="p-1 hover:text-white"
+                className="p-1 hover:text-foreground"
               >
                 <ZoomOut size={16} />
               </button>
-              <span className="text-xs text-white min-w-[3ch] text-center">{fontSize}%</span>
+              <span className="text-xs text-foreground min-w-[3ch] text-center">{fontSize}%</span>
               <button
                 onClick={increaseFontSize}
-                className="p-1 hover:text-white"
+                className="p-1 hover:text-foreground"
               >
                 <ZoomIn size={16} />
               </button>
@@ -418,17 +418,17 @@ function ReaderContent() {
           </div>
 
           {/* Chapters / Content */}
-          <div className="pt-4 border-t border-[#2e2f36]">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Table of Contents</h3>
+          <div className="pt-4 border-t border-border-subtle">
+            <h3 className="text-xs font-semibold text-foreground-muted uppercase tracking-wider mb-3">Table of Contents</h3>
             {chapters.length === 0 ? (
-              <p className="text-gray-500 text-sm italic">No chapters found.</p>
+              <p className="text-foreground-muted text-sm italic">No chapters found.</p>
             ) : (
               <ul className="space-y-1">
                 {chapters.map((chapter, idx) => (
                   <li key={idx}>
                     <button
                       onClick={() => goToHref(chapter.href)}
-                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-[#252830] hover:text-gray-200 transition-colors truncate"
+                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-surface-hover hover:text-foreground transition-colors truncate"
                       title={chapter.label}
                     >
                       {chapter.label || `Chapter ${idx + 1}`}
@@ -445,7 +445,7 @@ function ReaderContent() {
       {/* Overlay for sidebar (Mobile Only) */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-[55] backdrop-blur-[2px] transition-opacity lg:hidden"
+          className="fixed inset-0 bg-background/50 z-55 backdrop-blur-[2px] transition-opacity lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -453,9 +453,9 @@ function ReaderContent() {
       {/* Main Reader Area */}
       <main className="flex-1 relative z-10 w-full h-full min-w-0 transition-all duration-300">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center text-white bg-gray-900 z-20">
+          <div className="absolute inset-0 flex items-center justify-center text-foreground bg-background z-20">
             <div className="flex flex-col items-center gap-3">
-              <Loader2 className="animate-spin text-blue-500" size={40} />
+              <Loader2 className="animate-spin text-primary" size={40} />
               <p>Loading Book...</p>
             </div>
           </div>
@@ -476,21 +476,21 @@ function ReaderContent() {
 
       {/* Floating Controls (Mobile/Tablet primarily, or bottom nav) */}
       <div
-        className={`absolute bottom-6 left-1/2 -translate-x-1/2 lg:left-[calc(50%-10rem)] bg-black/80 backdrop-blur-xl border border-white/10 rounded-full px-6 py-3 flex items-center gap-8 shadow-2xl z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
+        className={`absolute bottom-6 left-1/2 -translate-x-1/2 lg:left-[calc(50%-10rem)] bg-surface/80 backdrop-blur-xl border border-border-subtle rounded-full px-6 py-3 flex items-center gap-8 shadow-2xl z-50 transition-all duration-300 ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={goPrev}
-          className="text-white hover:text-blue-400 transition-colors active:scale-95"
+          className="text-foreground hover:text-primary transition-colors active:scale-95"
         >
           <ChevronLeft size={28} />
         </button>
 
-        <div className="w-px h-6 bg-white/20" />
+        <div className="w-px h-6 bg-border-subtle" />
 
         <button
           onClick={goNext}
-          className="text-white hover:text-blue-400 transition-colors active:scale-95"
+          className="text-foreground hover:text-primary transition-colors active:scale-95"
         >
           <ChevronRight size={28} />
         </button>
@@ -501,7 +501,7 @@ function ReaderContent() {
 
 export default function ReaderPage() {
   return (
-    <Suspense fallback={<div className="h-screen bg-black flex items-center justify-center text-white">Loading...</div>}>
+    <Suspense fallback={<div className="h-screen bg-background flex items-center justify-center text-foreground">Loading...</div>}>
       <ReaderContent />
     </Suspense>
   );

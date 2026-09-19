@@ -76,7 +76,7 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
         return (
             <div ref={containerRef} className="w-full h-full bg-surface-hover flex items-center justify-center overflow-hidden relative">
                 {error ? (
-                    <div className="flex flex-col items-center text-gray-500">
+                    <div className="flex flex-col items-center text-foreground-muted">
                         <FileText size={32} />
                         <span className="text-xs mt-2">Preview Error</span>
                     </div>
