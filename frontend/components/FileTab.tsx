@@ -31,27 +31,28 @@ export default function FileTab({ file, isActive, onClick, onClose }: FileTabPro
         group relative w-full flex items-center gap-3 px-4 py-3 rounded-xl
         transition-all duration-200 text-left
         ${isActive
-                    ? "bg-[#252830] text-white border border-blue-500/30 shadow-lg shadow-blue-500/10"
-                    : "bg-[#1a1a1a]/50 text-[#a2a2a2] hover:bg-[#1f2128] hover:text-white border border-transparent"
+                    ? "bg-surface text-foreground border border-primary/50 shadow-md shadow-primary/20"
+                    : "bg-background text-foreground-muted hover:bg-surface-hover hover:text-foreground border border-transparent"
                 }
       `}
         >
             {/* File Type Icon */}
             <div
                 className={`
-        flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
-        ${isActive ? "bg-blue-500/20" : "bg-[#2a2c34]"}
+        shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
+        ${isActive ? "bg-primary/20" : "bg-surface"}
       `}
             >
-                <Icon size={16} className={isActive ? "text-blue-400" : "text-[#737373]"} />
+                <Icon size={16} className={isActive ? "text-primary" : "text-foreground-muted"} />
             </div>
 
             {/* File Name */}
             <div className="flex-1 min-w-0 flex flex-col">
                 <span className="text-sm font-medium truncate">{file.name}</span>
                 <span
-                    className={`text-xs ${isActive ? "text-blue-400" : "text-[#525252]"
-                        }`}
+                    className={`text-xs transition-colors ${
+                        isActive ? "text-primary" : "text-foreground-muted"
+                    }`}
                 >
                     {getTypeBadge()}
                 </span>
@@ -59,12 +60,16 @@ export default function FileTab({ file, isActive, onClick, onClose }: FileTabPro
 
             {/* Close Button */}
             <button
-                onClick={onClose}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClose(e);
+                }}
                 className={`
-          flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center
-          opacity-0 group-hover:opacity-100 transition-opacity
-          hover:bg-red-500/20 hover:text-red-400
-          ${isActive ? "text-[#a2a2a2]" : "text-[#525252]"}
+          p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-all shrink-0
+          ${isActive
+                        ? "hover:bg-primary-hover text-primary hover:text-white"
+                        : "hover:bg-border-subtle text-foreground-muted hover:text-foreground"
+                    }
         `}
             >
                 <X size={14} />

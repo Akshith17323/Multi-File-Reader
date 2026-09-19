@@ -72,14 +72,14 @@ export default function Navbar() {
 
     return (
         <nav className="sticky top-4 z-50 mx-4 md:mx-auto max-w-7xl">
-            <div className="bg-[#171717]/80 backdrop-blur-xl border border-[#404040] rounded-2xl shadow-2xl px-6 py-4 transition-all duration-300">
+            <div className="bg-surface/80 backdrop-blur-xl border border-border-subtle rounded-2xl shadow-lg px-6 py-4 transition-all duration-300">
                 <div className="flex items-center justify-between">
                     {/* Logo */}
                     <Link href="/files" className="flex items-center gap-3 group">
-                        <div className="bg-[#d97706] p-2 rounded-lg shadow-lg group-hover:shadow-[#d97706]/20 transition-all duration-300">
+                        <div className="bg-primary p-2 rounded-lg shadow-md group-hover:shadow-primary/20 transition-all duration-300">
                             <Library size={24} className="text-white" />
                         </div>
-                        <span className="font-bold text-xl tracking-tight text-[#f5f5f5]">
+                        <span className="font-bold text-xl tracking-tight text-foreground">
                             MultiReader
                         </span>
                     </Link>
@@ -89,8 +89,8 @@ export default function Navbar() {
                         <Link
                             href="/files"
                             className={`text-sm font-bold tracking-wide transition-all duration-200 ${pathname === '/files'
-                                ? 'text-[#d97706]'
-                                : 'text-[#a3a3a3] hover:text-[#f5f5f5]'
+                                ? 'text-primary'
+                                : 'text-foreground-muted hover:text-foreground'
                                 }`}
                         >
                             MY LIBRARY
@@ -99,30 +99,30 @@ export default function Navbar() {
                         <Link
                             href="/bookmarks"
                             className={`text-sm font-bold tracking-wide transition-all duration-200 ${pathname === '/bookmarks'
-                                ? 'text-[#d97706]'
-                                : 'text-[#a3a3a3] hover:text-[#f5f5f5]'
+                                ? 'text-primary'
+                                : 'text-foreground-muted hover:text-foreground'
                                 }`}
                         >
                             MY BOOKMARKS
                         </Link>
 
                         {/* Divider */}
-                        <div className="h-6 w-px bg-[#404040]"></div>
+                        <div className="h-6 w-px bg-border-subtle"></div>
 
                         {user ? (
                             <div className="relative group">
-                                <button className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full hover:bg-[#262626] transition-colors">
-                                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-[#d97706] to-[#b45309] flex items-center justify-center text-white font-bold shadow-md">
+                                <button className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full hover:bg-surface-hover transition-colors">
+                                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-inner">
                                         {user.charAt(0).toUpperCase()}
                                     </div>
-                                    <span className="text-sm font-medium text-[#f5f5f5]">{user}</span>
+                                    <span className="text-sm font-medium text-foreground">{user}</span>
                                 </button>
 
                                 {/* Dropdown */}
-                                <div className="absolute right-0 top-full mt-4 w-56 bg-[#171717] border border-[#404040] rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right p-2 z-50">
+                                <div className="absolute right-0 top-full mt-4 w-56 bg-surface border border-border-subtle rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right p-2 z-50">
                                     <button
                                         onClick={handleLogout}
-                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-[#a3a3a3] hover:text-[#f5f5f5] hover:bg-[#262626] rounded-lg transition-all"
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-all"
                                     >
                                         <LogOut size={18} />
                                         Sign Out
@@ -132,7 +132,7 @@ export default function Navbar() {
                         ) : (
                             <Link
                                 href="/auth/login"
-                                className="text-sm font-bold text-[#f5f5f5] bg-[#262626] hover:bg-[#404040] px-6 py-2.5 rounded-xl transition-all shadow-lg hover:shadow-xl"
+                                className="text-sm font-bold text-foreground bg-surface-hover hover:bg-border-subtle px-6 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-md"
                             >
                                 Login
                             </Link>
@@ -143,7 +143,7 @@ export default function Navbar() {
                     <div className="flex md:hidden">
                         <button
                             onClick={() => setIsOpen(!isOpen)}
-                            className="p-2 text-[#a3a3a3] hover:text-[#f5f5f5] transition-colors"
+                            className="p-2 text-foreground-muted hover:text-foreground transition-colors"
                         >
                             {isOpen ? <X size={28} /> : <Menu size={28} />}
                         </button>
@@ -152,30 +152,30 @@ export default function Navbar() {
 
                 {/* Mobile Menu */}
                 {isOpen && (
-                    <div className="md:hidden mt-4 pt-4 border-t border-[#404040] space-y-4 animate-in fade-in slide-in-from-top-4 duration-200">
+                    <div className="md:hidden mt-4 pt-4 border-t border-border-subtle space-y-4 animate-in fade-in slide-in-from-top-4 duration-200">
                         <Link
                             href="/files"
                             onClick={() => setIsOpen(false)}
-                            className="block px-4 py-3 text-[#f5f5f5] font-medium bg-[#262626] rounded-xl border border-[#404040]"
+                            className="block px-4 py-3 text-foreground font-medium bg-surface-hover rounded-xl border border-border-subtle"
                         >
                             My Library
                         </Link>
                         <Link
                             href="/bookmarks"
                             onClick={() => setIsOpen(false)}
-                            className="block px-4 py-3 text-[#f5f5f5] font-medium bg-[#262626] rounded-xl border border-[#404040]"
+                            className="block px-4 py-3 text-foreground font-medium bg-surface-hover rounded-xl border border-border-subtle"
                         >
                             My Bookmarks
                         </Link>
                         {user ? (
                             <div className="space-y-2">
-                                <div className="px-4 py-2 flex items-center gap-3 text-[#a3a3a3]">
+                                <div className="px-4 py-2 flex items-center gap-3 text-foreground-muted">
                                     <User size={18} />
-                                    <span>Signed in as <span className="text-[#f5f5f5] font-bold">{user}</span></span>
+                                    <span>Signed in as <span className="text-foreground font-bold">{user}</span></span>
                                 </div>
                                 <button
                                     onClick={handleLogout}
-                                    className="w-full flex items-center gap-3 px-4 py-3 text-[#f5f5f5] font-bold bg-[#d97706] hover:bg-[#b45309] rounded-xl transition-colors shadow-lg"
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-white font-bold bg-primary hover:bg-primary-hover rounded-xl transition-colors shadow-sm"
                                 >
                                     <LogOut size={20} />
                                     Logout
@@ -184,7 +184,7 @@ export default function Navbar() {
                         ) : (
                             <Link
                                 href="/auth/login"
-                                className="block w-full text-center px-4 py-3 text-[#f5f5f5] font-bold bg-[#d97706] hover:bg-[#b45309] rounded-xl transition-colors shadow-lg"
+                                className="block w-full text-center px-4 py-3 text-white font-bold bg-primary hover:bg-primary-hover rounded-xl transition-colors shadow-sm"
                             >
                                 Login
                             </Link>

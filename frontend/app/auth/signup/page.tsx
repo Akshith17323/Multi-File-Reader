@@ -60,9 +60,10 @@ function Signuppage() {
                 setPassword("");
                 setConfirmPassword("");
             }
-        } catch (err: any) {
-            setError(err.message || "Something went wrong. Please try again.");
-            toast.error(err.message || "Signup failed");
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+            setError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -72,22 +73,22 @@ function Signuppage() {
     const passwordsDontMatch = confirmPassword && password !== confirmPassword;
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-black px-4 py-8">
+        <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
             <div className="w-full max-w-sm">
                 {/* Header */}
                 <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-white mb-2">
+                    <h1 className="text-4xl font-bold text-foreground mb-2">
                         Create Account
                     </h1>
-                    <p className="text-gray-400">Join Multi File Reader today</p>
+                    <p className="text-foreground-muted">Join Multi File Reader today</p>
                 </div>
 
                 {/* Card */}
-                <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+                <div className="bg-surface backdrop-blur-xl border border-border-subtle rounded-2xl p-8 shadow-2xl">
                     {/* Error Alert */}
                     {error && (
                         <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-3">
-                            <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
+                            <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
                             <p className="text-red-400 text-sm">{error}</p>
                         </div>
                     )}
@@ -95,7 +96,7 @@ function Signuppage() {
                     <form onSubmit={handleSignup} className="space-y-5">
                         {/* Name Field */}
                         <div>
-                            <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
+                            <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2">
                                 Name
                             </label>
                             <input
@@ -105,13 +106,13 @@ function Signuppage() {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 disabled={isLoading}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full px-4 py-3 bg-background border border-border-subtle rounded-lg text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                         </div>
 
                         {/* Email Field */}
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                            <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
                                 Email
                             </label>
                             <input
@@ -121,13 +122,13 @@ function Signuppage() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full px-4 py-3 bg-background border border-border-subtle rounded-lg text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                         </div>
 
                         {/* Password Field */}
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
                                 Password
                             </label>
                             <div className="relative">
@@ -138,13 +139,13 @@ function Signuppage() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     disabled={isLoading}
-                                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed pr-12"
+                                    className="w-full px-4 py-3 bg-background border border-border-subtle rounded-lg text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed pr-12"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
                                     disabled={isLoading}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors disabled:opacity-50"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-muted hover:text-foreground transition-colors disabled:opacity-50"
                                 >
                                     {showPassword ? <EyeClosed size={20} /> : <Eye size={20} />}
                                 </button>
@@ -153,7 +154,7 @@ function Signuppage() {
 
                         {/* Confirm Password Field */}
                         <div>
-                            <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-300 mb-2">
+                            <label htmlFor="confirm-password" className="block text-sm font-medium text-foreground mb-2">
                                 Confirm Password
                             </label>
                             <div className="relative">
@@ -164,18 +165,18 @@ function Signuppage() {
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     disabled={isLoading}
-                                    className={`w-full px-4 py-3 bg-white/5 border rounded-lg text-white placeholder-gray-500 focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed pr-12 ${passwordsDontMatch
+                                    className={`w-full px-4 py-3 bg-background border rounded-lg text-foreground placeholder-foreground-muted focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed pr-12 ${passwordsDontMatch
                                         ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
                                         : passwordsMatch
                                             ? "border-green-500 focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                                            : "border-white/10 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+                                            : "border-border-subtle focus:border-primary focus:ring-2 focus:ring-primary/20"
                                         }`}
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                     disabled={isLoading}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors disabled:opacity-50"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-muted hover:text-foreground transition-colors disabled:opacity-50"
                                 >
                                     {showConfirmPassword ? <EyeClosed size={20} /> : <Eye size={20} />}
                                 </button>
@@ -199,7 +200,7 @@ function Signuppage() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full px-6 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-lg font-bold text-lg shadow-lg hover:shadow-violet-500/25 hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 mt-6"
+                            className="w-full px-6 py-3 bg-primary text-white rounded-lg font-bold text-lg shadow-lg hover:shadow-primary/25 hover:bg-primary-hover hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 mt-6"
                         >
                             {isLoading ? (
                                 <>
@@ -214,11 +215,11 @@ function Signuppage() {
 
                     {/* Login Link */}
                     <div className="mt-6 text-center">
-                        <p className="text-gray-400 text-sm">
+                        <p className="text-foreground-muted text-sm">
                             Already have an account?{" "}
                             <Link
                                 href="/auth/login"
-                                className="text-violet-400 hover:text-violet-300 font-semibold transition-colors"
+                                className="text-primary hover:text-primary-hover font-semibold transition-colors"
                             >
                                 Log in
                             </Link>

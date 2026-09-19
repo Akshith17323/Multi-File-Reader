@@ -55,7 +55,7 @@ class ReaderFactory {
                     />
                 );
             default:
-                return <div className="text-white">Unsupported file type</div>;
+                return <div className="text-foreground">Unsupported file type</div>;
         }
     }
 }
@@ -290,7 +290,7 @@ function ReaderContent() {
 
     if (!isInitialized || openFiles.length === 0) {
         return (
-            <div className="h-screen bg-black flex items-center justify-center text-white">
+            <div className="h-screen bg-background flex items-center justify-center text-foreground">
                 <p>Loading...</p>
             </div>
         );
@@ -338,7 +338,7 @@ export default function ReaderPage() {
     return (
         <Suspense
             fallback={
-                <div className="h-screen bg-black flex items-center justify-center text-white">
+                <div className="h-screen bg-background flex items-center justify-center text-foreground">
                     Loading Reader...
                 </div>
             }

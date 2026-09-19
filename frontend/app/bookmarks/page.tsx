@@ -143,16 +143,16 @@ export default function BookmarksPage() {
     };
 
     return (
-        <div className="min-h-screen p-8 md:p-12 relative bg-[#0a0a0a]">
-            <ToastContainer position="top-right" theme="dark" />
+        <div className="min-h-screen p-8 md:p-12 relative bg-background">
+            <ToastContainer position="top-right" theme="light" />
 
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-16">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-[#f5f5f5] tracking-tight mb-2">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight mb-2">
                         My Bookmarks
                     </h1>
-                    <p className="text-[#a3a3a3] text-base font-medium">
+                    <p className="text-foreground-muted text-base font-medium">
                         Continue where you left off
                     </p>
                 </div>
@@ -177,20 +177,20 @@ export default function BookmarksPage() {
                 {/* Loading State */}
                 {loading ? (
                     <div className="flex justify-center items-center h-96">
-                        <div className="w-16 h-16 border-4 border-[#262626] border-t-[#d97706] rounded-full animate-spin"></div>
+                        <div className="w-16 h-16 border-4 border-border-subtle border-t-primary rounded-full animate-spin"></div>
                     </div>
                 ) : bookmarks.length === 0 ? (
-                    <div className="text-center py-32 px-4 rounded-3xl bg-[#171717] border border-[#404040] border-dashed">
-                        <BookOpen size={80} className="mx-auto mb-6 text-[#404040]" />
-                        <h3 className="text-3xl font-bold text-[#f5f5f5] mb-3">
+                    <div className="text-center py-32 px-4 rounded-3xl bg-surface border border-border-subtle border-dashed">
+                        <BookOpen size={80} className="mx-auto mb-6 text-border-subtle" />
+                        <h3 className="text-3xl font-bold text-foreground mb-3">
                             No Bookmarks Yet
                         </h3>
-                        <p className="text-[#a3a3a3] text-lg mb-10 max-w-md mx-auto">
+                        <p className="text-foreground-muted text-lg mb-10 max-w-md mx-auto">
                             Start reading a book and your progress will be saved here automatically.
                         </p>
                         <button
                             onClick={() => router.push("/files")}
-                            className="px-10 py-4 bg-[#f5f5f5] text-[#0a0a0a] hover:bg-white rounded-xl transition-all font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1"
+                            className="px-10 py-4 bg-primary text-white hover:bg-primary-hover rounded-xl transition-all font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1"
                         >
                             Browse Files
                         </button>
@@ -200,20 +200,20 @@ export default function BookmarksPage() {
                         {bookmarks.map((bookmark) => (
                             <div
                                 key={bookmark.id}
-                                className="group bg-[#171717] rounded-2xl p-6 border border-[#262626] hover:border-[#404040] transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/50"
+                                className="group bg-surface rounded-2xl p-6 border border-border-subtle hover:border-foreground-muted transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/50"
                             >
                                 <div className="flex items-start justify-between gap-4 mb-4">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-xs font-bold px-2 py-1 rounded-md bg-[#262626] text-[#d97706] border border-[#404040]">
+                                            <span className="text-xs font-bold px-2 py-1 rounded-md bg-surface-hover text-primary border border-border-subtle">
                                                 {getFileType(bookmark.fileName || '')}
                                             </span>
-                                            <span className="text-xs text-[#737373] flex items-center gap-1">
+                                            <span className="text-xs text-foreground-muted flex items-center gap-1">
                                                 <Clock size={12} />
                                                 {new Date(bookmark.lastRead).toLocaleDateString()}
                                             </span>
                                         </div>
-                                        <h3 className="font-bold text-lg text-[#f5f5f5] line-clamp-2 mb-2" title={bookmark.fileName}>
+                                        <h3 className="font-bold text-lg text-foreground line-clamp-2 mb-2" title={bookmark.fileName}>
                                             {bookmark.fileName || 'Untitled'}
                                         </h3>
                                     </div>
@@ -223,7 +223,7 @@ export default function BookmarksPage() {
                                             e.stopPropagation();
                                             handleDelete(bookmark);
                                         }}
-                                        className="text-[#525252] hover:text-[#ef4444] transition-colors p-2 shrink-0"
+                                        className="text-foreground-muted hover:text-[#ef4444] transition-colors p-2 shrink-0"
                                         title="Clear Progress"
                                     >
                                         <Trash2 size={18} />
@@ -233,14 +233,14 @@ export default function BookmarksPage() {
                                 {/* Progress Bar */}
                                 <div className="mb-4">
                                     <div className="flex justify-between items-center mb-2">
-                                        <span className="text-sm text-[#a3a3a3]">Progress</span>
-                                        <span className="text-sm font-bold text-[#d97706]">
+                                        <span className="text-sm text-foreground-muted">Progress</span>
+                                        <span className="text-sm font-bold text-primary">
                                             {getProgressText(bookmark)}
                                         </span>
                                     </div>
-                                    <div className="w-full h-2 bg-[#262626] rounded-full overflow-hidden">
+                                    <div className="w-full h-2 bg-border-subtle rounded-full overflow-hidden">
                                         <div
-                                            className="h-full bg-linear-to-r from-[#d97706] to-[#f59e0b] transition-all duration-300"
+                                            className="h-full bg-linear-to-r from-primary to-purple-600 transition-all duration-300"
                                             style={{ width: `${bookmark.progress || 0}%` }}
                                         />
                                     </div>
@@ -249,7 +249,7 @@ export default function BookmarksPage() {
                                 {/* Continue Reading Button */}
                                 <button
                                     onClick={() => handleContinueReading(bookmark)}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#d97706] hover:bg-[#b45309] text-white rounded-xl font-bold transition-all hover:shadow-lg hover:shadow-[#d97706]/20"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-all hover:shadow-lg hover:shadow-primary/20"
                                 >
                                     <BookOpen size={18} />
                                     <span>Continue Reading</span>

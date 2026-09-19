@@ -112,32 +112,32 @@ function FileUpload() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#0a0a0a] relative px-6 py-20">
+    <div className="min-h-screen w-full flex items-center justify-center bg-background relative px-6 py-20">
 
       {/* Background Decor (Subtle Glow) */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-[#d97706]/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
 
       <div className="w-full max-w-2xl relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-500">
         <button
           onClick={() => router.push('/files')}
-          className="group mb-10 text-[#a3a3a3] hover:text-[#f5f5f5] flex items-center gap-2 transition-colors font-bold text-sm tracking-wide"
+          className="group mb-10 text-foreground-muted hover:text-foreground flex items-center gap-2 transition-colors font-bold text-sm tracking-wide"
         >
-          <div className="w-8 h-8 rounded-full border border-[#404040] flex items-center justify-center group-hover:border-[#f5f5f5] transition-colors">
+          <div className="w-8 h-8 rounded-full border border-border-subtle flex items-center justify-center group-hover:border-foreground transition-colors">
             ←
           </div>
           Back to Library
         </button>
 
         <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-[#f5f5f5] mb-3 tracking-tight">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-foreground mb-3 tracking-tight">
             Add to Collection
           </h1>
-          <p className="text-[#a3a3a3] text-base">
+          <p className="text-foreground-muted text-base">
             Upload documents to your secure digital library
           </p>
         </div>
 
-        <div className="bg-[#171717] rounded-3xl p-10 shadow-2xl border border-[#262626]">
+        <div className="bg-surface rounded-3xl p-10 shadow-2xl border border-border-subtle">
           {!resultUrl ? (
             <form onSubmit={uploadFile} className="space-y-8">
               <div
@@ -148,10 +148,10 @@ function FileUpload() {
                 className={`
                   relative border-2 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all duration-300
                   ${isDragging
-                    ? "border-[#d97706] bg-[#d97706]/10 scale-[1.02]"
-                    : "border-[#404040] hover:border-[#d97706] hover:bg-[#262626] bg-[#0f0f0f]"
+                    ? "border-primary bg-primary/10 scale-[1.02]"
+                    : "border-border-subtle hover:border-primary hover:bg-surface-hover bg-background"
                   }
-                  ${selectedFile ? "border-[#d97706]/50 bg-[#d97706]/5" : ""}
+                  ${selectedFile ? "border-primary/50 bg-primary/5" : ""}
                 `}
               >
                 <input
@@ -163,20 +163,20 @@ function FileUpload() {
                 />
 
                 <div className="flex flex-col items-center gap-6">
-                  <div className={`p-6 rounded-2xl bg-[#171717] border border-[#404040] shadow-xl transition-transform duration-300 ${isDragging ? "scale-110 rotate-3" : ""}`}>
+                  <div className={`p-6 rounded-2xl bg-surface border border-border-subtle shadow-xl transition-transform duration-300 ${isDragging ? "scale-110 rotate-3" : ""}`}>
                     {getFileIcon()}
                   </div>
 
                   <div>
                     {selectedFile ? (
                       <div className="animate-in fade-in zoom-in duration-300">
-                        <p className="text-2xl font-bold text-[#f5f5f5] mb-1">{selectedFile.name}</p>
-                        <p className="text-base text-[#d97706] font-medium">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                        <p className="text-2xl font-bold text-foreground mb-1">{selectedFile.name}</p>
+                        <p className="text-base text-primary font-medium">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        <p className="text-xl font-bold text-[#f5f5f5]">Drop your file here</p>
-                        <p className="text-[#737373]">or click to browse supports PDF, EPUB, TXT</p>
+                        <p className="text-xl font-bold text-foreground">Drop your file here</p>
+                        <p className="text-foreground-muted">or click to browse supports PDF, EPUB, TXT</p>
                       </div>
                     )}
                   </div>
@@ -185,13 +185,13 @@ function FileUpload() {
 
               {progress > 0 && progress < 100 && (
                 <div className="space-y-3">
-                  <div className="flex justify-between text-sm font-medium text-[#a3a3a3]">
+                  <div className="flex justify-between text-sm font-medium text-foreground-muted">
                     <span>Uploading...</span>
                     <span>{progress}%</span>
                   </div>
-                  <div className="h-3 bg-[#0f0f0f] rounded-full overflow-hidden border border-[#262626]">
+                  <div className="h-3 bg-background rounded-full overflow-hidden border border-border-subtle">
                     <div
-                      className="h-full bg-[#d97706] transition-all duration-300 shadow-[0_0_10px_rgba(217,119,6,0.5)]"
+                      className="h-full bg-primary transition-all duration-300 shadow-[0_0_10px_rgba(52,211,153,0.5)]"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -199,7 +199,7 @@ function FileUpload() {
               )}
 
               {error && (
-                <div className="p-5 bg-[#450a0a]/20 border border-[#ef4444]/30 rounded-xl flex items-center gap-4 text-[#ef4444]">
+                <div className="p-5 bg-red-900/20 border border-red-500/30 rounded-xl flex items-center gap-4 text-red-500">
                   <AlertCircle size={24} className="shrink-0" />
                   <p className="font-medium">{error}</p>
                 </div>
@@ -208,7 +208,7 @@ function FileUpload() {
               <button
                 type="submit"
                 disabled={!selectedFile || (progress > 0 && progress < 100)}
-                className="w-full py-5 bg-[#f5f5f5] hover:bg-white text-[#0a0a0a] rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3"
+                className="w-full py-5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3"
               >
                 {progress > 0 && progress < 100 ? (
                   <>
@@ -225,26 +225,26 @@ function FileUpload() {
             </form>
           ) : (
             <div className="text-center space-y-8 py-10 animate-in fade-in zoom-in duration-500">
-              <div className="w-24 h-24 bg-[#052e16] border-2 border-[#10b981] rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
-                <CheckCircle2 size={48} className="text-[#10b981]" />
+              <div className="w-24 h-24 bg-green-950 border-2 border-green-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
+                <CheckCircle2 size={48} className="text-green-500" />
               </div>
 
               <div>
-                <h2 className="text-3xl font-extrabold text-[#f5f5f5] mb-3">Upload Successful</h2>
-                <p className="text-[#a3a3a3] text-lg">&quot;{selectedFile?.name}&quot; has been added to your library.</p>
+                <h2 className="text-3xl font-extrabold text-foreground mb-3">Upload Successful</h2>
+                <p className="text-foreground-muted text-lg">&quot;{selectedFile?.name}&quot; has been added to your library.</p>
               </div>
 
               <div className="flex flex-col gap-4 pt-4">
                 <button
                   onClick={() => router.push('/files')}
-                  className="w-full py-4 bg-[#f5f5f5] hover:bg-white text-[#0a0a0a] rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="w-full py-4 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   Return to Library
                 </button>
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => router.push(getReaderUrl(resultUrl))}
-                    className="w-full py-4 bg-[#0f0f0f] hover:bg-[#262626] text-[#f5f5f5] border border-[#404040] rounded-xl font-bold text-lg transition-all duration-300"
+                    className="w-full py-4 bg-background hover:bg-surface-hover text-foreground border border-border-subtle rounded-xl font-bold text-lg transition-all duration-300"
                   >
                     Read Now
                   </button>
@@ -254,7 +254,7 @@ function FileUpload() {
                       setSelectedFile(null);
                       setProgress(0);
                     }}
-                    className="w-full py-4 bg-[#0f0f0f] hover:bg-[#262626] text-[#a3a3a3] hover:text-[#f5f5f5] border border-[#404040] rounded-xl font-bold text-lg transition-all duration-300"
+                    className="w-full py-4 bg-background hover:bg-surface-hover text-foreground-muted hover:text-foreground border border-border-subtle rounded-xl font-bold text-lg transition-all duration-300"
                   >
                     Upload Another
                   </button>

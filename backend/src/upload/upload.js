@@ -25,7 +25,7 @@
 const express = require("express");
 const multer = require("multer");
 const { bucket, bucketName } = require("../gcs");
-const prisma = require("../prisma");
+const prisma = require('../prisma');
 
 
 const router = express.Router();

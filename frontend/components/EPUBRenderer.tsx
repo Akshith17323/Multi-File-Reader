@@ -233,10 +233,10 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
     return (
         <div className="relative w-full h-full">
             {loading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/50 z-20">
+                <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-20">
                     <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="animate-spin text-purple-500" size={40} />
-                        <p className="text-white">Loading Book...</p>
+                        <Loader2 className="animate-spin text-primary" size={40} />
+                        <p className="text-foreground">Loading Book...</p>
                     </div>
                 </div>
             )}

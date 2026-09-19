@@ -111,7 +111,7 @@ export default function PDFRenderer({
     return (
         <div
             ref={containerRef}
-            className="w-full h-full overflow-auto bg-[#0a0a0a]/50 p-4 touch-pan-y"
+            className="w-full h-full overflow-auto bg-background/80 p-4 touch-pan-y"
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
@@ -121,9 +121,9 @@ export default function PDFRenderer({
                 onLoadSuccess={onDocumentLoadSuccess}
                 className="flex flex-col items-center min-h-full"
                 loading={
-                    <div className="flex flex-col items-center justify-center h-40 text-white gap-3">
-                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-                        <span className="text-sm text-gray-400">Loading PDF...</span>
+                    <div className="flex flex-col items-center justify-center h-40 text-foreground gap-3">
+                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                        <span className="text-sm text-foreground-muted">Loading PDF...</span>
                     </div>
                 }
             >

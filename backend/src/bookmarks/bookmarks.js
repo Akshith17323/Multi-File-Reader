@@ -1,4 +1,4 @@
-const prisma = require("../prisma");
+const prisma = require('../prisma');
 
 async function upsertBookmark(req, res) {
     try {
