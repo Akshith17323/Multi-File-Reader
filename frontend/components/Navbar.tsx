@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LogOut, User, Library, Menu, X } from "lucide-react";
+import { LogOut, User, Library, Menu, X, Sun, Moon, MoonStar } from "lucide-react";
 import { toast } from "react-toastify";
 
 export default function Navbar() {
@@ -11,6 +11,7 @@ export default function Navbar() {
     const pathname = usePathname();
     const [user, setUser] = useState<string | null>(null);
     const [isOpen, setIsOpen] = useState(false);
+    const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
     useEffect(() => {
         // Function to update user from storage
@@ -34,11 +35,71 @@ export default function Navbar() {
         window.addEventListener("auth-change", checkUser);
         window.addEventListener("storage", checkUser);
 
+        // Check theme
+        const savedTheme = localStorage.getItem("theme");
+        if (savedTheme === "dark" || (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+            setTheme("dark");
+            document.documentElement.classList.add("dark");
+        } else {
+            setTheme("light");
+            document.documentElement.classList.remove("dark");
+        }
+
         return () => {
             window.removeEventListener("auth-change", checkUser);
             window.removeEventListener("storage", checkUser);
         };
     }, []);
+
+    const toggleTheme = (e: React.MouseEvent) => {
+        const isDark = theme === "dark";
+        const nextTheme = isDark ? "light" : "dark";
+
+        const switchTheme = () => {
+            setTheme(nextTheme);
+            localStorage.setItem("theme", nextTheme);
+            if (nextTheme === "dark") {
+                document.documentElement.classList.add("dark");
+            } else {
+                document.documentElement.classList.remove("dark");
+            }
+        };
+
+        if (!(document as any).startViewTransition) {
+            switchTheme();
+            return;
+        }
+
+        const x = e.clientX;
+        const y = e.clientY;
+        const endRadius = Math.hypot(
+            Math.max(x, window.innerWidth - x),
+            Math.max(y, window.innerHeight - y)
+        );
+
+        const transition = (document as any).startViewTransition(() => {
+            switchTheme();
+        });
+
+        transition.ready.then(() => {
+            const clipPath = [
+                `circle(0px at ${x}px ${y}px)`,
+                `circle(${endRadius}px at ${x}px ${y}px)`,
+            ];
+            document.documentElement.animate(
+                {
+                    clipPath: isDark ? [...clipPath].reverse() : clipPath,
+                },
+                {
+                    duration: 500,
+                    easing: "ease-in-out",
+                    pseudoElement: isDark
+                        ? "::view-transition-old(root)"
+                        : "::view-transition-new(root)",
+                }
+            );
+        });
+    };
 
     const handleLogout = async () => {
         try {
@@ -71,25 +132,25 @@ export default function Navbar() {
     }
 
     return (
-        <nav className="sticky top-4 z-50 mx-4 md:mx-auto max-w-7xl">
-            <div className="bg-surface/80 backdrop-blur-xl border border-border-subtle rounded-2xl shadow-lg px-6 py-4 transition-all duration-300">
+        <nav className="sticky top-3 z-50 mx-4 md:mx-auto max-w-5xl">
+            <div className="bg-surface/80 backdrop-blur-xl border border-border-subtle rounded-2xl shadow-lg px-5 py-2.5 transition-all duration-300">
                 <div className="flex items-center justify-between">
                     {/* Logo */}
-                    <Link href="/files" className="flex items-center gap-3 group">
-                        <div className="bg-primary p-2 rounded-lg shadow-md group-hover:shadow-primary/20 transition-all duration-300">
-                            <Library size={24} className="text-white" />
+                    <Link href="/files" className="flex items-center gap-2.5 group">
+                        <div className="bg-primary p-1.5 rounded-lg shadow-md group-hover:shadow-primary/20 transition-all duration-300">
+                            <Library size={20} className="text-white" />
                         </div>
-                        <span className="font-bold text-xl tracking-tight text-foreground">
+                        <span className="font-bold text-lg tracking-tight text-foreground">
                             MultiReader
                         </span>
                     </Link>
 
                     {/* Desktop Menu */}
-                    <div className="hidden md:flex items-center gap-8">
+                    <div className="hidden md:flex items-center gap-6 group/nav">
                         <Link
                             href="/files"
-                            className={`text-sm font-bold tracking-wide transition-all duration-200 ${pathname === '/files'
-                                ? 'text-primary'
+                            className={`text-sm font-bold tracking-wide transition-all duration-300 group-hover/nav:opacity-50 hover:!opacity-100! ${pathname === '/files'
+                                ? 'text-primary opacity-100'
                                 : 'text-foreground-muted hover:text-foreground'
                                 }`}
                         >
@@ -98,8 +159,8 @@ export default function Navbar() {
 
                         <Link
                             href="/bookmarks"
-                            className={`text-sm font-bold tracking-wide transition-all duration-200 ${pathname === '/bookmarks'
-                                ? 'text-primary'
+                            className={`text-sm font-bold tracking-wide transition-all duration-300 group-hover/nav:opacity-50 hover:!opacity-100! ${pathname === '/bookmarks'
+                                ? 'text-primary opacity-100'
                                 : 'text-foreground-muted hover:text-foreground'
                                 }`}
                         >
@@ -107,24 +168,44 @@ export default function Navbar() {
                         </Link>
 
                         {/* Divider */}
-                        <div className="h-6 w-px bg-border-subtle"></div>
+                        <div className="h-5 w-px bg-border-subtle group-hover/nav:opacity-50 transition-all duration-300"></div>
+
+                        {/* Theme Toggle (macOS style) */}
+                        <button
+                            onClick={toggleTheme}
+                            className="relative inline-flex h-7 w-12 items-center rounded-full bg-border-subtle transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background group-hover/nav:opacity-50 hover:!opacity-100!"
+                        >
+                            <span className="sr-only">Toggle dark mode</span>
+                            <span
+                                className={`inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white transition-transform duration-300 ease-in-out shadow-sm ${theme === "dark" ? "translate-x-6" : "translate-x-1"
+                                    }`}
+                            >
+                                {theme === "dark" ? (
+                                    <MoonStar size={12} className="text-blue-600 fill-current" />
+                                ) : (
+                                    <Sun size={12} className="text-amber-500 fill-current" />
+                                )}
+                            </span>
+                        </button>
+
+                        <div className="h-5 w-px bg-border-subtle group-hover/nav:opacity-50 transition-all duration-300"></div>
 
                         {user ? (
-                            <div className="relative group">
-                                <button className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full hover:bg-surface-hover transition-colors">
-                                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-inner">
+                            <div className="relative group/user group-hover/nav:opacity-50 hover:!opacity-100! transition-all duration-300">
+                                <button className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-full hover:bg-surface-hover transition-colors">
+                                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-inner">
                                         {user.charAt(0).toUpperCase()}
                                     </div>
                                     <span className="text-sm font-medium text-foreground">{user}</span>
                                 </button>
 
                                 {/* Dropdown */}
-                                <div className="absolute right-0 top-full mt-4 w-56 bg-surface border border-border-subtle rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right p-2 z-50">
+                                <div className="absolute right-0 top-full mt-3 w-48 bg-surface border border-border-subtle rounded-xl shadow-xl opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible transition-all duration-200 transform origin-top-right p-2 z-50">
                                     <button
                                         onClick={handleLogout}
-                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-all"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-all"
                                     >
-                                        <LogOut size={18} />
+                                        <LogOut size={16} />
                                         Sign Out
                                     </button>
                                 </div>
@@ -132,7 +213,7 @@ export default function Navbar() {
                         ) : (
                             <Link
                                 href="/auth/login"
-                                className="text-sm font-bold text-foreground bg-surface-hover hover:bg-border-subtle px-6 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-md"
+                                className="text-sm font-bold text-foreground bg-surface-hover hover:bg-border-subtle px-5 py-2 rounded-xl transition-all shadow-sm hover:shadow-md group-hover/nav:opacity-50 hover:!opacity-100! duration-300"
                             >
                                 Login
                             </Link>
@@ -140,12 +221,20 @@ export default function Navbar() {
                     </div>
 
                     {/* Mobile menu button */}
-                    <div className="flex md:hidden">
+                    <div className="flex md:hidden items-center gap-3">
+                        {/* Theme Toggle Mobile */}
+                        <button
+                            onClick={toggleTheme}
+                            className="p-1.5 rounded-full bg-surface-hover text-foreground-muted hover:text-foreground transition-colors"
+                        >
+                            {theme === "dark" ? <Moon size={20} className="fill-current" /> : <Sun size={20} className="fill-current" />}
+                        </button>
+
                         <button
                             onClick={() => setIsOpen(!isOpen)}
-                            className="p-2 text-foreground-muted hover:text-foreground transition-colors"
+                            className="p-1.5 text-foreground-muted hover:text-foreground transition-colors"
                         >
-                            {isOpen ? <X size={28} /> : <Menu size={28} />}
+                            {isOpen ? <X size={24} /> : <Menu size={24} />}
                         </button>
                     </div>
                 </div>
