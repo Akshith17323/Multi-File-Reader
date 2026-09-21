@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* Light Theme: High-Contrast Purple Text, Pale Green Borders/Highlights */
+  /* Light Theme */
   --background: #ffffff;
   --surface: #f4f4f5; /* Light gray for cards/surfaces */
   --surface-hover: #e4e4e7;
@@ -9,10 +9,25 @@
   --foreground: #6b21a8; /* Dark Purple for readable text */
   --foreground-muted: #9333ea; /* Medium Purple */
   
-  --primary: #34d399; /* Pale Green */
-  --primary-hover: #10b981; /* Slightly darker pale green for hover */
+  --primary: #2563eb; /* Plain Blue */
+  --primary-hover: #1d4ed8; /* Darker plain blue for hover */
   
-  --border-subtle: #a7f3d0; /* Very pale green for borders */
+  --border-subtle: #bfdbfe; /* Light blue for borders */
+}
+
+.dark {
+  /* Dark Theme */
+  --background: #09090b;
+  --surface: #18181b;
+  --surface-hover: #27272a;
+  
+  --foreground: #fafafa;
+  --foreground-muted: #a1a1aa;
+  
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  
+  --border-subtle: #27272a;
 }
 
 @theme inline {
@@ -34,4 +49,25 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* View Transitions for Dark Mode Toggle */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+.dark::view-transition-old(root) {
+  z-index: 9999;
+}
+.dark::view-transition-new(root) {
+  z-index: 1;
 }
