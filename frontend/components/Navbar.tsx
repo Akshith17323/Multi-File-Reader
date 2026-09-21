@@ -65,7 +65,9 @@ export default function Navbar() {
             }
         };
 
-        if (!(document as any).startViewTransition) {
+        const doc = document as Document & { startViewTransition?: (callback: () => void) => { ready: Promise<void> } };
+
+        if (!doc.startViewTransition) {
             switchTheme();
             return;
         }
@@ -77,7 +79,7 @@ export default function Navbar() {
             Math.max(y, window.innerHeight - y)
         );
 
-        const transition = (document as any).startViewTransition(() => {
+        const transition = doc.startViewTransition(() => {
             switchTheme();
         });
 
@@ -89,10 +91,11 @@ export default function Navbar() {
             document.documentElement.animate(
                 {
                     clipPath: isDark ? [...clipPath].reverse() : clipPath,
+                    opacity: isDark ? [1, 0] : [0, 1],
                 },
                 {
-                    duration: 500,
-                    easing: "ease-in-out",
+                    duration: 700,
+                    easing: "cubic-bezier(0.4, 0, 0.2, 1)",
                     pseudoElement: isDark
                         ? "::view-transition-old(root)"
                         : "::view-transition-new(root)",
@@ -173,17 +176,17 @@ export default function Navbar() {
                         {/* Theme Toggle (macOS style) */}
                         <button
                             onClick={toggleTheme}
-                            className="relative inline-flex h-7 w-12 items-center rounded-full bg-border-subtle transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background group-hover/nav:opacity-50 hover:!opacity-100!"
+                            className="relative inline-flex h-8 w-14 items-center rounded-full bg-surface-hover hover:bg-border-subtle transition-colors focus:outline-none group-hover/nav:opacity-50 hover:!opacity-100!"
                         >
                             <span className="sr-only">Toggle dark mode</span>
                             <span
-                                className={`inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white transition-transform duration-300 ease-in-out shadow-sm ${theme === "dark" ? "translate-x-6" : "translate-x-1"
+                                className={`inline-flex h-6 w-6 transform items-center justify-center rounded-full bg-white transition-transform duration-300 ease-in-out shadow-md ${theme === "dark" ? "translate-x-7" : "translate-x-1"
                                     }`}
                             >
                                 {theme === "dark" ? (
-                                    <MoonStar size={12} className="text-blue-600 fill-current" />
+                                    <MoonStar size={14} className="text-blue-600 fill-current" />
                                 ) : (
-                                    <Sun size={12} className="text-amber-500 fill-current" />
+                                    <Sun size={14} className="text-amber-500 fill-current" />
                                 )}
                             </span>
                         </button>
