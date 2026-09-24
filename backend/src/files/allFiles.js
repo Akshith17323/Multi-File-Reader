@@ -22,7 +22,8 @@ async function get_all_files(req, res) {
         if (type) {
             const typeMap = {
                 'pdf': 'application/pdf',
-                'epub': 'application/epub+zip'
+                'epub': 'application/epub+zip',
+                'txt': 'text/plain'
             };
             if (typeMap[type]) {
                 where.fileType = typeMap[type];

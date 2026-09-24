@@ -109,7 +109,8 @@ function ReaderContent() {
 
             const files: FileTabData[] = fileUrls.map((url, index) => {
                 const fileName = url.split("/").pop() || `File ${index + 1}`;
-                const fileType = url.toLowerCase().endsWith(".pdf") ? "pdf" : "epub";
+                const lowerUrl = url.toLowerCase();
+                const fileType = lowerUrl.endsWith(".pdf") ? "pdf" : lowerUrl.endsWith(".txt") ? "txt" : "epub";
 
                 return {
                     id: `file_${index}_${Date.now()}`,
