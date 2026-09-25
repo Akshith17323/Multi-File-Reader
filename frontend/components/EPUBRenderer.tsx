@@ -62,7 +62,9 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
 
                 await book.ready;
                 if (!cancelled && book.locations.length() === 0) {
-                    await book.locations.generate(1000);
+                    book.locations.generate(1000).catch((err: unknown) => {
+                        console.error("Error generating locations:", err);
+                    });
                 }
             } catch (err: unknown) {
                 console.error("❌ Error initializing EPUB:", err);

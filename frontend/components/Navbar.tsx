@@ -13,27 +13,14 @@ export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
-        // Function to update user from storage
         const checkUser = () => {
             const storedUser = localStorage.getItem("user");
-            const token = localStorage.getItem("token");
-            if (storedUser && token) {
-                setUser(storedUser);
-            } else {
-                setUser(null);
-                if (storedUser) {
-                    localStorage.removeItem("user");
-                }
-            }
+            if (storedUser && localStorage.getItem("token")) setUser(storedUser);
+            else { setUser(null); if (storedUser) localStorage.removeItem("user"); }
         };
-
-        // Initial check
         checkUser();
-
-        // Listen for custom auth events and storage changes
         window.addEventListener("auth-change", checkUser);
         window.addEventListener("storage", checkUser);
-
         return () => {
             window.removeEventListener("auth-change", checkUser);
             window.removeEventListener("storage", checkUser);
@@ -58,9 +45,6 @@ export default function Navbar() {
             router.push("/auth/login");
         }
     };
-
-    // Debugging
-    console.log("Navbar Rendering. Pathname:", pathname);
 
     // Safety check for pathname
     if (!pathname) return null;
