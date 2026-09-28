@@ -13,14 +13,16 @@
   "license": "ISC",
   "author": "",
   "type": "commonjs",
-  "main": "index.js",
+  "main": "main.js",
   "scripts": {
+    "start:electron": "electron .",
     "frontend": "cd frontend && npm run dev",
     "backend": "cd backend && npm start",
-    "project": "concurrently \"npm run backend\" \"npm run frontend\" --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\""
+    "electron": "concurrently \"npm run backend\" \"npm run frontend\" \"npm run start:electron\" --names \"BACKEND,FRONTEND,ELECTRON\" --prefix-colors \"blue,green,magenta\""
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "electron": "^44.4.5"
   },
   "dependencies": {
     "tree": "^0.1.3"
