@@ -158,9 +158,10 @@ export default function BookmarksPage() {
                         </p>
                         <button
                             onClick={() => router.push("/files")}
-                            className="px-10 py-4 bg-primary text-white hover:bg-primary-hover rounded-xl transition-all font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1"
+                            className="px-10 py-4 bg-primary text-white rounded-xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group"
                         >
-                            Browse Files
+                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <span className="relative z-10">Browse Files</span>
                         </button>
                     </div>
                 ) : (
@@ -168,7 +169,7 @@ export default function BookmarksPage() {
                         {bookmarks.map((bookmark) => (
                             <div
                                 key={bookmark.id}
-                                className="group bg-surface rounded-2xl p-6 border border-border-subtle hover:border-foreground-muted transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/50"
+                                className="group bg-surface backdrop-blur-2xl rounded-3xl p-6 border border-border-subtle transition-all duration-500 hover:-translate-y-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_15px_40px_rgb(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] dark:hover:shadow-[0_15px_40px_rgb(0,0,0,0.4)]"
                             >
                                 <div className="flex items-start justify-between gap-4 mb-4">
                                     <div className="flex-1 min-w-0">
@@ -217,10 +218,11 @@ export default function BookmarksPage() {
                                 {/* Continue Reading Button */}
                                 <button
                                     onClick={() => handleContinueReading(bookmark)}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold transition-all hover:shadow-lg hover:shadow-primary/20"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-[0_4px_15px_var(--color-primary-glow)] hover:shadow-[0_8px_25px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden group/btn"
                                 >
-                                    <BookOpen size={18} />
-                                    <span>Continue Reading</span>
+                                    <div className="absolute inset-0 bg-white/20 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" />
+                                    <BookOpen size={18} className="relative z-10" />
+                                    <span className="relative z-10">Continue Reading</span>
                                 </button>
                             </div>
                         ))}
