@@ -7,58 +7,27 @@ on:
     branches: [ "main" ]
 
 jobs:
-  test-web:
+  test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./apps/web
     steps:
     - uses: actions/checkout@v4
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-        cache-dependency-path: './apps/web/package-lock.json'
-    - run: npm ci
-
-  test-server:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./apps/server
-    steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-        cache-dependency-path: './apps/server/package-lock.json'
-    - run: npm ci
     
-  test-electron:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./apps/electron
-    steps:
-    - uses: actions/checkout@v4
     - name: Use Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
         cache: 'npm'
-        cache-dependency-path: './apps/electron/package-lock.json'
-    - run: npm ci
-    
+        
+    - name: Install Dependencies
+      run: npm ci
+      
     # Playwright requires xvfb on Linux to run Electron headlessly
     - name: Install xvfb
       run: sudo apt-get install -y xvfb
       
-    # Optionally, playwright install-deps
     - name: Install Playwright OS dependencies
       run: npx playwright install-deps
       
-    - name: Run Playwright Tests
+    - name: Run Electron Integration Tests
+      working-directory: ./apps/electron
       run: xvfb-run npx playwright test
