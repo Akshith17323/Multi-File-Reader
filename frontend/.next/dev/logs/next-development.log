@@ -1,0 +1,3 @@
+[03:16:39.882] Server  ERROR   Error: ENOENT: no such file or directory, scandir '/Users/akshith/Personal_Projects/Multi-File-Reader/frontend/app'
+[03:16:39.883] Server  ERROR    ⨯ "unhandledRejection:" Error: ENOENT: no such file or directory, scandir '/Users/akshith/Personal_Projects/Multi-File-Reader/frontend/app'
+[03:16:39.884] Server  ERROR    ⨯ "unhandledRejection: " Error: ENOENT: no such file or directory, scandir '/Users/akshith/Personal_Projects/Multi-File-Reader/frontend/app'
