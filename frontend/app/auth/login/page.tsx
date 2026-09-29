@@ -76,7 +76,7 @@ function Loginpage() {
         </div>
 
         {/* Card */}
-        <div className="bg-surface backdrop-blur-xl border border-border-subtle rounded-2xl p-8 shadow-2xl">
+        <div className="bg-surface backdrop-blur-2xl border border-border-subtle rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-300 hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_40px_rgb(0,0,0,0.3)]">
           {/* Error Alert */}
           {error && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-3">
@@ -98,7 +98,7 @@ function Loginpage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
-                className="w-full px-4 py-3 bg-background border border-border-subtle rounded-lg text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -115,7 +115,7 @@ function Loginpage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
-                  className="w-full px-4 py-3 bg-background border border-border-subtle rounded-lg text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed pr-12"
+                  className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed pr-12"
                 />
                 <button
                   type="button"
@@ -132,8 +132,9 @@ function Loginpage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full px-6 py-3 bg-primary text-white rounded-lg font-bold text-lg shadow-lg hover:shadow-primary/25 hover:bg-primary-hover hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+              className="w-full px-6 py-4 bg-primary text-white rounded-xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 relative overflow-hidden group"
             >
+              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               {isLoading ? (
                 <>
                   <Loader2 className="animate-spin" size={20} />
