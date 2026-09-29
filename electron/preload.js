@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   invoke: (channel, ...args) => {
-    let validChannels = ['get-version', 'api-login', 'api-signup', 'api-logout', 'select-and-upload-file'];
+    let validChannels = ['get-version', 'select-and-upload-file'];
     if (validChannels.includes(channel)) {
       return ipcRenderer.invoke(channel, ...args);
     }

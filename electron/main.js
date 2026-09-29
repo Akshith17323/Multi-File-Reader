@@ -8,6 +8,8 @@ function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    frame: false,
+    titleBarStyle: 'hidden',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -43,49 +45,6 @@ function createWindow() {
     return app.getVersion();
   });
 
-  // Auth Handlers connecting to backend
-  ipcMain.handle('api-login', async (event, credentials) => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials)
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.Message || data.error || 'Login failed');
-      return data;
-    } catch (err) {
-      throw err;
-    }
-  });
-
-  ipcMain.handle('api-signup', async (event, credentials) => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials)
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.Message || data.error || 'Signup failed');
-      return data;
-    } catch (err) {
-      throw err;
-    }
-  });
-
-  ipcMain.handle('api-logout', async (event) => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/logout`, {
-        method: 'POST'
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Logout failed');
-      return data;
-    } catch (err) {
-      throw err;
-    }
-  });
 
   // Native file picker and upload to backend
   ipcMain.handle('select-and-upload-file', async (event, token) => {
@@ -125,6 +84,8 @@ function createWindow() {
       throw err;
     }
   });
+
+
 }
 
 app.whenReady().then(() => {
