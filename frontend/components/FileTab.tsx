@@ -6,7 +6,7 @@ export interface FileTabData {
     id: string;
     url: string;
     name: string;
-    type: "pdf" | "epub";
+    type: "pdf" | "epub" | "txt";
 }
 
 interface FileTabProps {
@@ -17,7 +17,7 @@ interface FileTabProps {
 }
 
 export default function FileTab({ file, isActive, onClick, onClose }: FileTabProps) {
-    const Icon = file.type === "pdf" ? FileText : BookOpen;
+    const Icon = file.type === "epub" ? BookOpen : FileText;
 
     const getTypeBadge = () => {
         return file.type.toUpperCase();

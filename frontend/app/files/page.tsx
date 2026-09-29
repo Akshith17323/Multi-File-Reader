@@ -265,21 +265,22 @@ export default function FilesPage() {
 
           <button
             onClick={() => router.push("/fileupload")}
-            className="group flex items-center gap-3 px-8 py-4 bg-primary hover:bg-primary-hover text-white rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-1 transition-all duration-300"
+            className="group flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
           >
-            <span className="text-2xl font-light leading-none">+</span>
-            <span>Upload New</span>
+            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <span className="text-2xl font-light leading-none relative z-10">+</span>
+            <span className="relative z-10">Upload New</span>
           </button>
         </div>
 
         {/* Controls Bar */}
-        <div className="bg-surface/50 backdrop-blur-sm p-4 rounded-2xl border border-border-subtle/50 mb-12 flex flex-col lg:flex-row gap-4">
+        <div className="bg-surface backdrop-blur-2xl p-5 rounded-3xl border border-border-subtle shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] mb-12 flex flex-col lg:flex-row gap-4 transition-all duration-300">
           <input
             type="text"
             placeholder="Search by title..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-6 py-4 bg-background border border-border-subtle rounded-xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-foreground placeholder-foreground-muted"
+            className="flex-1 px-6 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all text-foreground placeholder-foreground-muted"
           />
 
           <div className="flex gap-4">
@@ -287,7 +288,7 @@ export default function FilesPage() {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="h-full px-8 py-4 bg-background border border-border-subtle rounded-xl focus:outline-none focus:border-primary transition-colors text-foreground cursor-pointer appearance-none min-w-40"
+                className="h-full px-8 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all text-foreground cursor-pointer appearance-none min-w-40"
               >
                 <option value="">All Types</option>
                 <option value="pdf">PDF</option>
@@ -299,7 +300,7 @@ export default function FilesPage() {
             <div className="relative">
               <select
                 onChange={handleSortChange}
-                className="h-full px-8 py-4 bg-background border border-border-subtle rounded-xl focus:outline-none focus:border-primary transition-colors text-foreground cursor-pointer appearance-none min-w-40"
+                className="h-full px-8 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all text-foreground cursor-pointer appearance-none min-w-40"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -362,7 +363,7 @@ export default function FilesPage() {
               {files.map((file) => (
                 <div
                   key={file.id}
-                  className="group relative bg-surface rounded-2xl overflow-hidden flex flex-col shadow-xl hover:shadow-2xl hover:shadow-black/50 hover:-translate-y-2 transition-all duration-300 border border-border-subtle hover:border-border-subtle"
+                  className="group relative bg-surface backdrop-blur-2xl rounded-3xl overflow-hidden flex flex-col shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:shadow-[0_15px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_15px_40px_rgb(0,0,0,0.4)] hover:-translate-y-2 transition-all duration-500 border border-border-subtle"
                 >
                   <div className="aspect-3/4 relative bg-background overflow-hidden group-hover:scale-105 transition-transform duration-500">
                     <div className="w-full h-full">

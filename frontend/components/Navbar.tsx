@@ -135,39 +135,46 @@ export default function Navbar() {
     }
 
     return (
-        <nav className="sticky top-3 z-50 mx-4 md:mx-auto max-w-5xl">
-            <div className="bg-surface/80 backdrop-blur-xl border border-border-subtle rounded-2xl shadow-lg px-5 py-2.5 transition-all duration-300">
+        <nav className="sticky top-4 z-50 mx-4 md:mx-auto max-w-5xl">
+            <div className="bg-surface backdrop-blur-2xl border border-border-subtle rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] px-6 py-3 transition-all duration-300">
                 <div className="flex items-center justify-between">
                     {/* Logo */}
-                    <Link href="/files" className="flex items-center gap-2.5 group">
-                        <div className="bg-primary p-1.5 rounded-lg shadow-md group-hover:shadow-primary/20 transition-all duration-300">
-                            <Library size={20} className="text-white" />
+                    <Link href="/files" className="flex items-center gap-3 group">
+                        <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-linear-to-br from-primary to-purple-600 shadow-lg group-hover:shadow-primary-glow transition-all duration-500 overflow-hidden">
+                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <Library size={22} className="text-white relative z-10 group-hover:scale-110 transition-transform duration-500" />
                         </div>
-                        <span className="font-bold text-lg tracking-tight text-foreground">
+                        <span className="font-extrabold text-xl tracking-tight bg-clip-text text-transparent bg-linear-to-r from-foreground to-foreground-muted group-hover:to-primary transition-all duration-500">
                             MultiReader
                         </span>
                     </Link>
 
                     {/* Desktop Menu */}
-                    <div className="hidden md:flex items-center gap-6 group/nav">
+                    <div className="hidden md:flex items-center gap-4 group/nav">
                         <Link
                             href="/files"
-                            className={`text-sm font-bold tracking-wide transition-all duration-300 group-hover/nav:opacity-50 hover:!opacity-100! ${pathname === '/files'
-                                ? 'text-primary opacity-100'
-                                : 'text-foreground-muted hover:text-foreground'
+                            className={`relative text-sm font-bold tracking-wide py-2 px-3 rounded-lg transition-all duration-300 overflow-hidden group/link ${pathname === '/files'
+                                ? 'text-primary bg-primary/10'
+                                : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
                                 }`}
                         >
                             MY LIBRARY
+                            {pathname === '/files' && (
+                                <span className="absolute bottom-0 left-0 w-full h-[2px] bg-primary shadow-[0_0_8px_var(--color-primary)]" />
+                            )}
                         </Link>
 
                         <Link
                             href="/bookmarks"
-                            className={`text-sm font-bold tracking-wide transition-all duration-300 group-hover/nav:opacity-50 hover:!opacity-100! ${pathname === '/bookmarks'
-                                ? 'text-primary opacity-100'
-                                : 'text-foreground-muted hover:text-foreground'
+                            className={`relative text-sm font-bold tracking-wide py-2 px-3 rounded-lg transition-all duration-300 overflow-hidden group/link ${pathname === '/bookmarks'
+                                ? 'text-primary bg-primary/10'
+                                : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
                                 }`}
                         >
                             MY BOOKMARKS
+                            {pathname === '/bookmarks' && (
+                                <span className="absolute bottom-0 left-0 w-full h-[2px] bg-primary shadow-[0_0_8px_var(--color-primary)]" />
+                            )}
                         </Link>
 
                         {/* Divider */}

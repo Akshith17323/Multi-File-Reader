@@ -10,6 +10,7 @@ import { EPUBRendererRef } from "@/components/EPUBRenderer";
 
 const PDFRenderer = dynamic(() => import("@/components/PDFRenderer"), { ssr: false });
 const EPUBRenderer = dynamic(() => import("@/components/EPUBRenderer"), { ssr: false });
+const TextRenderer = dynamic(() => import("@/components/TextRenderer"), { ssr: false });
 
 interface ReaderFactoryProps {
     pdfPage: number;
@@ -52,6 +53,15 @@ class ReaderFactory {
                         onProgressChange={props.setEpubProgress}
                         viewMode={props.viewMode}
                         fontSize={props.fontSize}
+                    />
+                );
+            case "txt":
+                return (
+                    <TextRenderer
+                        key={activeFile.id}
+                        url={activeFile.url}
+                        fontSize={props.fontSize}
+                        viewMode={props.viewMode}
                     />
                 );
             default:
@@ -99,7 +109,8 @@ function ReaderContent() {
 
             const files: FileTabData[] = fileUrls.map((url, index) => {
                 const fileName = url.split("/").pop() || `File ${index + 1}`;
-                const fileType = url.toLowerCase().endsWith(".pdf") ? "pdf" : "epub";
+                const lowerUrl = url.toLowerCase();
+                const fileType = lowerUrl.endsWith(".pdf") ? "pdf" : lowerUrl.endsWith(".txt") ? "txt" : "epub";
 
                 return {
                     id: `file_${index}_${Date.now()}`,
