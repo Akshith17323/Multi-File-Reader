@@ -41,14 +41,6 @@ export default function FilesPage() {
     setPage(1);
   }, [search, typeFilter, sortBy, sortOrder]);
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchFiles();
-    }, 500);
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, typeFilter, page, sortBy, sortOrder]);
-
   const fetchFiles = async () => {
     setLoading(true);
     setError(null);
@@ -96,6 +88,14 @@ export default function FilesPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchFiles();
+    }, 500);
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, typeFilter, page, sortBy, sortOrder]);
 
   const handleDelete = async (filename: string, fileId: string) => {
     if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;

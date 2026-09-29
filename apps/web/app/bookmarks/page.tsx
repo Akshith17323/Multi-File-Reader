@@ -24,11 +24,6 @@ export default function BookmarksPage() {
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
 
-    useEffect(() => {
-        fetchBookmarks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
     const fetchBookmarks = async () => {
         setLoading(true);
         setError(null);
@@ -54,6 +49,11 @@ export default function BookmarksPage() {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchBookmarks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleDelete = async (bookmark: Bookmark) => {
         if (!confirm(`Clear progress for "${bookmark.fileName}"?`)) return;

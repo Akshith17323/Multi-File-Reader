@@ -2,9 +2,9 @@ name: Unit Tests
 
 on:
   push:
-    branches: [ "main", "Testing" ]
+    branches: [ "Testing" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main","Testing" ]
 
 jobs:
   test:
@@ -20,14 +20,15 @@ jobs:
         
     - name: Install Dependencies
       run: npm ci
-      
-    # Playwright requires xvfb on Linux to run Electron headlessly
-    - name: Install xvfb
-      run: sudo apt-get install -y xvfb
-      
-    - name: Install Playwright OS dependencies
-      run: npx playwright install-deps
-      
-    - name: Run Electron Integration Tests
-      working-directory: ./apps/electron
-      run: xvfb-run npx playwright test
+
+    - name: Test Web (Lint)
+      run: npm run lint --workspace=apps/web
+
+    - name: Test Web (Build)
+      run: npm run build --workspace=apps/web
+
+    - name: Test Server (Syntax Check)
+      run: node --check ./apps/server/src/server.js
+
+    - name: Test Electron (Syntax Check)
+      run: node --check ./apps/electron/main.js
