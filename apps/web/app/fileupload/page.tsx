@@ -3,10 +3,6 @@ import React, { useRef, useState } from "react";
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, File } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { isElectron } from "@/hooks/useEnvironment";
-import { pdfjs } from "react-pdf";
-import ePub from "epubjs";
-
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 function FileUpload() {
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -101,6 +97,9 @@ function FileUpload() {
       const objectUrl = URL.createObjectURL(selectedFile);
       
       if (ext === 'pdf') {
+        const { pdfjs } = await import("react-pdf");
+        pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+        
         const pdf = await pdfjs.getDocument(objectUrl).promise;
         const page = await pdf.getPage(1);
         const viewport = page.getViewport({ scale: 1.0 });
@@ -115,6 +114,7 @@ function FileUpload() {
           if (blob) fd.append("thumbnail", blob, "thumbnail.jpg");
         }
       } else if (ext === 'epub') {
+        const ePub = (await import("epubjs")).default;
         const book = ePub(objectUrl);
         await book.ready;
         const coverUrl = await book.coverUrl();
