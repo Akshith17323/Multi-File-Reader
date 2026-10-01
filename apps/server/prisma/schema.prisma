@@ -24,17 +24,17 @@ model User {
 }
 
 model File {
-  id        String     @id @default(cuid())
-  userId    String
-  user      User       @relation(fields: [userId], references: [id])
-  fileName  String
-  fileUrl   String
-  fileSize  String
-  fileType  String
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  // bookmarks Bookmark[]
-  bookmarks Bookmark[]
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  fileName     String
+  fileUrl      String
+  thumbnailUrl String?
+  fileSize     String
+  fileType     String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  bookmarks    Bookmark[]
 }
 
 model Bookmark {

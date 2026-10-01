@@ -6,14 +6,20 @@ const { uploadFile } = require('../upload/upload')
 const middleware = require('../middleware/authMiddleware')
 
 const upload = multer({
-  // storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    const allowed = ['text/plain', 'application/pdf', 'application/epub+zip']
-    if (allowed.includes(file.mimetype)) cb(null, true)
-    else cb(new Error('Only txt, epub, pdf files allowed'), false)
+    if (file.fieldname === 'UploadingFile') {
+      const allowed = ['text/plain', 'application/pdf', 'application/epub+zip']
+      if (allowed.includes(file.mimetype)) cb(null, true)
+      else cb(new Error('Only txt, epub, pdf files allowed for documents'), false)
+    } else if (file.fieldname === 'thumbnail') {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp']
+      if (allowed.includes(file.mimetype)) cb(null, true)
+      else cb(new Error('Only images allowed for thumbnails'), false)
+    } else {
+      cb(new Error('Unexpected field'), false)
+    }
   }
 })
-
 
 router.post('/fileUpload',
   middleware,
@@ -21,7 +27,7 @@ router.post('/fileUpload',
     console.log(">>> POST /fileUpload hit");
     next();
   },
-  upload.single('UploadingFile'),
+  upload.fields([{ name: 'UploadingFile', maxCount: 1 }, { name: 'thumbnail', maxCount: 1 }]),
   uploadFile
 )
 

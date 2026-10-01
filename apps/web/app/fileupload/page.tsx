@@ -3,6 +3,10 @@ import React, { useRef, useState } from "react";
 import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, File } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { isElectron } from "@/hooks/useEnvironment";
+import { pdfjs } from "react-pdf";
+import ePub from "epubjs";
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 function FileUpload() {
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -91,6 +95,40 @@ function FileUpload() {
 
     const fd = new FormData();
     fd.append("UploadingFile", selectedFile);
+
+    try {
+      const ext = selectedFile.name.split('.').pop()?.toLowerCase();
+      const objectUrl = URL.createObjectURL(selectedFile);
+      
+      if (ext === 'pdf') {
+        const pdf = await pdfjs.getDocument(objectUrl).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1.0 });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        if (context) {
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          await page.render({ canvasContext: context, viewport } as any).promise;
+          const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/jpeg', 0.8));
+          if (blob) fd.append("thumbnail", blob, "thumbnail.jpg");
+        }
+      } else if (ext === 'epub') {
+        const book = ePub(objectUrl);
+        await book.ready;
+        const coverUrl = await book.coverUrl();
+        if (coverUrl) {
+          const response = await fetch(coverUrl);
+          const blob = await response.blob();
+          fd.append("thumbnail", blob, "thumbnail.jpg");
+        }
+      }
+      
+      URL.revokeObjectURL(objectUrl);
+    } catch (e) {
+      console.warn("Could not generate thumbnail:", e);
+    }
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", uploadEndpoint);

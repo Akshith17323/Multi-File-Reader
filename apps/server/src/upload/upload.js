@@ -40,6 +40,29 @@ function formatBytes(bytes, decimals = 2) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
+async function uploadToGCS(fileBuffer, fileName, mimeType) {
+  return new Promise((resolve, reject) => {
+    const file = bucket.file(fileName);
+    const stream = file.createWriteStream({
+      resumable: false,
+      metadata: { contentType: mimeType },
+    });
+
+    stream.on("error", (err) => reject(err));
+    stream.on("finish", async () => {
+      try {
+        await file.makePublic();
+        const url = `https://storage.googleapis.com/${bucketName}/${fileName}`;
+        resolve(url);
+      } catch (err) {
+        reject(err);
+      }
+    });
+
+    stream.end(fileBuffer);
+  });
+}
+
 async function uploadFile(req, res) {
   console.log("🚀 uploadFile handler called");
   try {
@@ -47,62 +70,45 @@ async function uploadFile(req, res) {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
-    if (!req.file) {
-      console.error("❌ No file found in req.file");
-      return res.status(400).json({ message: "No file" });
+    const files = req.files;
+    if (!files || !files.UploadingFile || files.UploadingFile.length === 0) {
+      console.error("❌ No document file found");
+      return res.status(400).json({ message: "No document file provided" });
     }
-    console.log("📂 File received:", req.file.originalname, "Size:", req.file.size, "Mime:", req.file.mimetype);
 
-    const fileName = `${req.user.userId}/${Date.now()}-${req.file.originalname}`;
+    const documentFile = files.UploadingFile[0];
+    const thumbnailFile = files.thumbnail && files.thumbnail.length > 0 ? files.thumbnail[0] : null;
 
-    console.log("📝 Generated filename with path:", fileName);
+    console.log("📂 Document received:", documentFile.originalname, "Size:", documentFile.size);
+    if (thumbnailFile) {
+      console.log("🖼️ Thumbnail received:", thumbnailFile.originalname, "Size:", thumbnailFile.size);
+    }
 
-    const file = bucket.file(fileName);
-    console.log("🔗 Created bucket file reference");
+    const docFileName = `${req.user.userId}/${Date.now()}-${documentFile.originalname}`;
+    const docUrl = await uploadToGCS(documentFile.buffer, docFileName, documentFile.mimetype);
+    console.log("✅ Document upload success. URL:", docUrl);
 
-    const stream = file.createWriteStream({
-      resumable: false,
-      metadata: { contentType: req.file.mimetype },
-    });
-    console.log("🌊 Created write stream");
+    let thumbnailUrl = null;
+    if (thumbnailFile) {
+      const thumbFileName = `${req.user.userId}/thumb-${Date.now()}-${thumbnailFile.originalname}`;
+      thumbnailUrl = await uploadToGCS(thumbnailFile.buffer, thumbFileName, thumbnailFile.mimetype);
+      console.log("✅ Thumbnail upload success. URL:", thumbnailUrl);
+    }
 
-    stream.on("error", (err) => {
-      console.error("❌ Stream Error:", err);
-      res.status(500).json({ error: err.message });
-    });
-
-    stream.on("finish", async () => {
-      console.log("✅ Stream finished. Making public...");
-      try {
-        await file.makePublic();
-        console.log("🌍 File made public.");
-
-        // The URL will now include the folder structure automatically
-        const url = `https://storage.googleapis.com/${bucketName}/${fileName}`;
-        console.log("✅ Upload success. URL:", url);
-
-        const PrismaFile = await prisma.file.create({
-          data: {
-            userId: req.user.userId,
-            fileName: req.file.originalname, // You can keep original name for display
-            // OR save 'fileName' (the variable) if you want the full path in DB
-            fileUrl: url,
-            fileType: req.file.mimetype,
-            fileSize: formatBytes(req.file.size)
-          }
-        });
-
-        res.status(200).json({ message: "Uploaded", url });
-      } catch (publicErr) {
-        console.error("❌ Error making public:", publicErr);
-        res.status(500).json({ error: "File uploaded but failed to make public: " + publicErr.message });
+    const PrismaFile = await prisma.file.create({
+      data: {
+        userId: req.user.userId,
+        fileName: documentFile.originalname,
+        fileUrl: docUrl,
+        thumbnailUrl: thumbnailUrl,
+        fileType: documentFile.mimetype,
+        fileSize: formatBytes(documentFile.size)
       }
     });
 
-    console.log("Process: Piping buffer to stream...");
-    stream.end(req.file.buffer);
+    res.status(200).json({ message: "Uploaded", url: docUrl, thumbnailUrl });
   } catch (err) {
-    console.error("❌ uploadFile Catch Error:", err);
+    console.error("❌ uploadFile Error:", err);
     res.status(500).json({ error: err.message });
   }
 }
