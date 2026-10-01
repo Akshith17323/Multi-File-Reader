@@ -59,6 +59,7 @@ async function get_all_files(req, res) {
             id: file.id,
             name: file.fileName,
             url: file.fileUrl,
+            thumbnailUrl: file.thumbnailUrl,
             metadata: {
                 size: file.fileSize,
                 updated: file.createdAt,

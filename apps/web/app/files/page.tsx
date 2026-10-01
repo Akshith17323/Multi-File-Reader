@@ -14,6 +14,7 @@ interface FileData {
   name: string;
   url: string;
   id: string;
+  thumbnailUrl?: string;
   metadata: {
     size: string;
     updated: string;
@@ -326,7 +327,7 @@ export default function FilesPage() {
                 >
                   <div className="aspect-3/4 relative bg-background overflow-hidden group-hover:scale-105 transition-transform duration-500">
                     <div className="w-full h-full">
-                      <FilePreview url={file.url} type={file.metadata.contentType} />
+                      <FilePreview url={file.url} type={file.metadata.contentType} thumbnailUrl={file.thumbnailUrl} />
                     </div>
 
                     <div className="absolute top-4 left-4 z-10">
