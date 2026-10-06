@@ -4,6 +4,8 @@ import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, File } from "luci
 import { useRouter } from "next/navigation";
 import { isElectron } from "@/hooks/useEnvironment";
 
+import { FileAdapter } from "@/services/fileAdapter";
+
 function FileUpload() {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [progress, setProgress] = useState(0);
@@ -64,100 +66,33 @@ function FileUpload() {
       return;
     }
 
-    if (isElectron()) {
-      setProgress(50);
-      try {
-        const filePath = (selectedFile as any).path;
-        if (!filePath) throw new Error("Could not find file path for desktop upload. Try selecting the file again.");
-        
-        const result = await (window as any).electronAPI.invoke('upload-dropped-file', {
-          filePath,
-          token
-        });
-        
-        if (result.ok) {
-          setProgress(100);
-          setResultUrl(result.data.url || null);
-        } else {
-          setError(result.error || "Upload failed");
-          setProgress(0);
-        }
-      } catch (err: any) {
-        setError(err.message || "Upload failed in Electron");
-        setProgress(0);
-      }
+    try {
+      setError(null);
+      const resultingUrl = await FileAdapter.uploadFile(selectedFile, token, uploadEndpoint, setProgress);
+      setProgress(100);
+      setResultUrl(resultingUrl);
+    } catch (err: any) {
+      setError(err.message || "Upload failed");
+      setProgress(0);
+    }
+  };
+
+  const handleLocalBook = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setError("Please login to add local files");
       return;
     }
-
-    const fd = new FormData();
-    fd.append("UploadingFile", selectedFile);
-
+    
     try {
-      const ext = selectedFile.name.split('.').pop()?.toLowerCase();
-      const objectUrl = URL.createObjectURL(selectedFile);
-      
-      if (ext === 'pdf') {
-        const { pdfjs } = await import("react-pdf");
-        pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-        
-        const pdf = await pdfjs.getDocument(objectUrl).promise;
-        const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 1.0 });
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        
-        if (context) {
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
-          await page.render({ canvasContext: context, viewport } as any).promise;
-          const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/jpeg', 0.8));
-          if (blob) fd.append("thumbnail", blob, "thumbnail.jpg");
-        }
-      } else if (ext === 'epub') {
-        const ePub = (await import("epubjs")).default;
-        const book = ePub(objectUrl);
-        await book.ready;
-        const coverUrl = await book.coverUrl();
-        if (coverUrl) {
-          const response = await fetch(coverUrl);
-          const blob = await response.blob();
-          fd.append("thumbnail", blob, "thumbnail.jpg");
-        }
+      const data = await FileAdapter.addLocalBook(token);
+      if (data) {
+        setResultUrl(data.url);
+        setSelectedFile({ name: data.fileName } as any);
       }
-      
-      URL.revokeObjectURL(objectUrl);
-    } catch (e) {
-      console.warn("Could not generate thumbnail:", e);
+    } catch (err: any) {
+      setError(err.message || "Failed to add local book");
     }
-
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", uploadEndpoint);
-    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-
-    xhr.upload.onprogress = (ev) => {
-      if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100));
-    };
-
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const body = JSON.parse(xhr.responseText);
-          setResultUrl(body.url || null);
-        } catch {
-          setError("Upload succeeded but response parsing failed");
-        }
-      } else {
-        try {
-          const errBody = JSON.parse(xhr.responseText);
-          setError(errBody.error || errBody.message || `Upload failed: ${xhr.status}`);
-        } catch (e) {
-          setError(`Upload failed: ${xhr.status} ${xhr.statusText}`);
-        }
-      }
-    };
-
-    xhr.onerror = () => setError("Network/error during upload");
-    xhr.send(fd);
   };
 
   const getFileIcon = () => {
@@ -268,23 +203,36 @@ function FileUpload() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={!selectedFile || (progress > 0 && progress < 100)}
-                className="w-full py-5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3"
-              >
-                {progress > 0 && progress < 100 ? (
-                  <>
-                    <Loader2 className="animate-spin" size={24} />
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload size={24} />
-                    <span>Start Upload</span>
-                  </>
+              <div className="flex gap-4">
+                <button
+                  type="submit"
+                  disabled={!selectedFile || (progress > 0 && progress < 100)}
+                  className="flex-1 py-5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3"
+                >
+                  {progress > 0 && progress < 100 ? (
+                    <>
+                      <Loader2 className="animate-spin" size={24} />
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={24} />
+                      <span>Start Upload</span>
+                    </>
+                  )}
+                </button>
+                {isElectron() && (
+                  <button
+                    type="button"
+                    onClick={handleLocalBook}
+                    disabled={progress > 0 && progress < 100}
+                    className="flex-1 py-5 bg-surface hover:bg-surface-hover text-foreground border border-border-subtle rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3"
+                  >
+                    <File size={24} />
+                    <span>Add Local Book</span>
+                  </button>
                 )}
-              </button>
+              </div>
             </form>
           ) : (
             <div className="text-center space-y-8 py-10 animate-in fade-in zoom-in duration-500">

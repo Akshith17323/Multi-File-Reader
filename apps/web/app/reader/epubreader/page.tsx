@@ -44,8 +44,13 @@ function ReaderContent() {
       try {
         setLoading(true);
 
-        const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
-        const book = ePub(proxiedUrl);
+        let sourceUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
+        if (url.startsWith('local://')) {
+          const localPath = url.replace('local://', '');
+          sourceUrl = `mfr-local://${encodeURIComponent(localPath)}`;
+        }
+
+        const book = ePub(sourceUrl);
         bookRef.current = book;
         setIsBookReady(true);
 

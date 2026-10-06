@@ -15,6 +15,14 @@ function PDFReaderContent() {
   useEffect(() => {
     if (!url) return;
 
+    if (url.startsWith('local://')) {
+      const localPath = url.replace('local://', '');
+      const encodedPath = encodeURIComponent(localPath);
+      // Electron will intercept this custom protocol and serve the local file
+      setBlobUrl(`mfr-local://${encodedPath}`);
+      return;
+    }
+
     const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
     fetch(proxiedUrl)
       .then((res) => res.blob())

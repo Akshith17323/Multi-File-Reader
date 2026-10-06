@@ -2,7 +2,7 @@
 const express = require('express')
 const router = express.Router()
 const multer = require('multer')
-const { uploadFile } = require('../upload/upload')
+const { uploadFile, addLocalFile, addDriveFile } = require('../upload/upload')
 const middleware = require('../middleware/authMiddleware')
 
 const upload = multer({
@@ -30,5 +30,8 @@ router.post('/fileUpload',
   upload.fields([{ name: 'UploadingFile', maxCount: 1 }, { name: 'thumbnail', maxCount: 1 }]),
   uploadFile
 )
+
+router.post('/localUpload', middleware, addLocalFile)
+router.post('/driveUpload', middleware, addDriveFile)
 
 module.exports = router

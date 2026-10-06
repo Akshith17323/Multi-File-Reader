@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useEnvironment } from '../hooks/useEnvironment';
+import { WindowAdapter } from '../services/windowAdapter';
 
 export default function DesktopTitlebar() {
   const { isElectron } = useEnvironment();
@@ -14,15 +15,15 @@ export default function DesktopTitlebar() {
   if (!mounted || !isElectron) return null;
 
   const handleMinimize = () => {
-    (window as any).electronAPI?.send('window-minimize');
+    WindowAdapter.minimize();
   };
 
   const handleMaximize = () => {
-    (window as any).electronAPI?.send('window-maximize');
+    WindowAdapter.maximize();
   };
 
   const handleClose = () => {
-    (window as any).electronAPI?.send('window-close');
+    WindowAdapter.close();
   };
 
   return (
