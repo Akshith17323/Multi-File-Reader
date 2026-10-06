@@ -99,6 +99,7 @@ async function uploadFile(req, res) {
       data: {
         userId: req.user.userId,
         fileName: documentFile.originalname,
+        source: "CLOUD",
         fileUrl: docUrl,
         thumbnailUrl: thumbnailUrl,
         fileType: documentFile.mimetype,
@@ -113,4 +114,53 @@ async function uploadFile(req, res) {
   }
 }
 
-module.exports = { uploadFile };
+async function addLocalFile(req, res) {
+  try {
+    if (!req.user || !req.user.userId) return res.status(401).json({ message: "User not authenticated" });
+    const { fileName, fileType, fileSize, localId } = req.body;
+    if (!fileName || !localId) return res.status(400).json({ message: "Missing required fields" });
+
+    const PrismaFile = await prisma.file.create({
+      data: {
+        userId: req.user.userId,
+        fileName,
+        source: "LOCAL",
+        localId,
+        thumbnailUrl: `local-thumb://${localId}`,
+        fileType,
+        fileSize: formatBytes(fileSize)
+      }
+    });
+    res.status(200).json({ message: "Local file added", file: PrismaFile });
+  } catch (err) {
+    console.error("❌ addLocalFile Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+async function addDriveFile(req, res) {
+  try {
+    if (!req.user || !req.user.userId) return res.status(401).json({ message: "User not authenticated" });
+    // Expect driveId, driveType ("GOOGLE_DRIVE" or "ONEDRIVE"), and optional thumbnail
+    const { fileName, fileType, fileSize, driveId, driveType, thumbnailUrl } = req.body;
+    if (!fileName || !driveId || !driveType) return res.status(400).json({ message: "Missing required fields" });
+
+    const PrismaFile = await prisma.file.create({
+      data: {
+        userId: req.user.userId,
+        fileName,
+        source: driveType,
+        driveId,
+        thumbnailUrl,
+        fileType,
+        fileSize: formatBytes(fileSize)
+      }
+    });
+    res.status(200).json({ message: "Drive file added", file: PrismaFile });
+  } catch (err) {
+    console.error("❌ addDriveFile Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { uploadFile, addLocalFile, addDriveFile };

@@ -55,17 +55,26 @@ async function get_all_files(req, res) {
         });
 
         // Transform to match frontend expectations
-        const transformedFiles = files.map(file => ({
-            id: file.id,
-            name: file.fileName,
-            url: file.fileUrl,
-            thumbnailUrl: file.thumbnailUrl,
+        const transformedFiles = files.map(file => {
+            let url = file.fileUrl;
+            if (file.source === 'LOCAL' && file.localId) {
+                url = `local://${file.localId}`;
+            } else if ((file.source === 'GOOGLE_DRIVE' || file.source === 'ONEDRIVE') && file.driveId) {
+                url = `drive://${file.source}/${file.driveId}`;
+            }
+
+            return {
+                id: file.id,
+                name: file.fileName,
+                url: url,
+                thumbnailUrl: file.thumbnailUrl,
             metadata: {
                 size: file.fileSize,
                 updated: file.createdAt,
                 contentType: file.fileType
             }
-        }));
+        };
+        });
 
         // Return paginated response
         res.json({

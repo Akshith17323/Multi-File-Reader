@@ -28,7 +28,13 @@ model File {
   userId       String
   user         User       @relation(fields: [userId], references: [id])
   fileName     String
-  fileUrl      String
+
+  // Storage Location Information
+  source       String     @default("CLOUD") // "CLOUD", "LOCAL", "GOOGLE_DRIVE", "ONEDRIVE"
+  fileUrl      String?    // For Cloud (GCS/S3) files
+  localId      String?    // For Local browser files
+  driveId      String?    // For Google Drive / OneDrive files
+
   thumbnailUrl String?
   fileSize     String
   fileType     String
