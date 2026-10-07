@@ -50,6 +50,7 @@ export const apiClient = {
   // --- Auth ---
   login: (data: any) => ApiAdapter.fetch('/api/auth/login', { method: 'POST', body: data }),
   signup: (data: any) => ApiAdapter.fetch('/api/auth/signup', { method: 'POST', body: data }),
+  googleLogin: (token: string) => ApiAdapter.fetch('/api/auth/google', { method: 'POST', body: { token } }),
   logout: () => ApiAdapter.fetch('/api/auth/logout', { method: 'POST' }),
 
   // --- Files ---

@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiClient } from "@/services/apiClient";
+import { GoogleLogin } from '@react-oauth/google';
 
 function Loginpage() {
   const [email, setEmail] = useState<string>("");
@@ -49,6 +50,33 @@ function Loginpage() {
       const error = err as Error;
       setError(error.message || "Something went wrong. Please try again.");
       toast.error(error.message || "Login failed");
+    } finally {
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const data = await apiClient.googleLogin(credentialResponse.credential);
+
+      toast.success(`Welcome, ${data.user}!`);
+
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+        if (data.user) {
+          localStorage.setItem("user", data.user);
+          window.dispatchEvent(new Event("auth-change"));
+        }
+      }
+
+      router.push("/fileupload");
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || "Google Login failed. Please try again.");
+      toast.error(error.message || "Google Login failed");
     } finally {
       setIsLoading(false);
     }
@@ -135,6 +163,26 @@ function Loginpage() {
               )}
             </button>
           </form>
+
+          {/* Divider */}
+          <div className="mt-6 flex items-center gap-4">
+            <div className="flex-1 h-px bg-border-subtle"></div>
+            <span className="text-foreground-muted text-sm font-medium">OR</span>
+            <div className="flex-1 h-px bg-border-subtle"></div>
+          </div>
+
+          {/* Google Login */}
+          <div className="mt-6 flex justify-center">
+            <GoogleLogin 
+              onSuccess={handleGoogleSuccess} 
+              onError={() => {
+                setError("Google Login Failed");
+                toast.error("Google Login Failed");
+              }}
+              theme="filled_black"
+              shape="pill"
+            />
+          </div>
 
           {/* Sign Up Link */}
           <div className="mt-6 text-center">
