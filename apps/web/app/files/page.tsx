@@ -225,9 +225,9 @@ export default function FilesPage() {
 
           <button
             onClick={() => router.push("/fileupload")}
-            className="group flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
+            className="group flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-1 transition-all duration-500 ease-out relative overflow-hidden"
           >
-            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ease-in-out" />
             <span className="text-2xl font-light leading-none relative z-10">+</span>
             <span className="relative z-10">Upload New</span>
           </button>
@@ -240,7 +240,7 @@ export default function FilesPage() {
             placeholder="Search by title..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-6 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all text-foreground placeholder-foreground-muted"
+            className="flex-1 px-6 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out text-foreground placeholder-foreground-muted"
           />
 
           <div className="flex gap-4">
@@ -248,7 +248,7 @@ export default function FilesPage() {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="h-full px-8 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all text-foreground cursor-pointer appearance-none min-w-40"
+                className="h-full px-8 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out text-foreground cursor-pointer appearance-none min-w-40"
               >
                 <option value="">All Types</option>
                 <option value="pdf">PDF</option>
@@ -260,7 +260,7 @@ export default function FilesPage() {
             <div className="relative">
               <select
                 onChange={handleSortChange}
-                className="h-full px-8 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all text-foreground cursor-pointer appearance-none min-w-40"
+                className="h-full px-8 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out text-foreground cursor-pointer appearance-none min-w-40"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -297,7 +297,7 @@ export default function FilesPage() {
             </div>
           </div>
         ) : files.length === 0 ? (
-          <div className="text-center py-32 px-4 rounded-3xl bg-surface border border-border-subtle border-dashed">
+          <div className="text-center py-32 px-4 rounded-3xl bg-surface backdrop-blur-2xl border border-border-subtle border-dashed">
             <BookOpen size={80} className="mx-auto mb-6 text-border-subtle" />
             <h3 className="text-3xl font-bold text-foreground mb-3">
               {search || typeFilter ? "No files found" : "Your library is empty"}
@@ -311,7 +311,7 @@ export default function FilesPage() {
             {!search && !typeFilter && (
               <button
                 onClick={() => router.push("/fileupload")}
-                className="px-10 py-4 bg-primary text-white hover:bg-primary-hover rounded-xl transition-all font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1"
+                className="px-10 py-4 bg-primary text-white hover:bg-primary-hover rounded-xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-1 transition-all duration-500 ease-out"
               >
                 Start Uploading
               </button>
@@ -323,7 +323,7 @@ export default function FilesPage() {
               {files.map((file) => (
                 <div
                   key={file.id}
-                  className="group relative bg-surface backdrop-blur-2xl rounded-3xl overflow-hidden flex flex-col shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:shadow-[0_15px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_15px_40px_rgb(0,0,0,0.4)] hover:-translate-y-2 transition-all duration-500 border border-border-subtle"
+                  className="group relative bg-surface backdrop-blur-2xl rounded-3xl overflow-hidden flex flex-col shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:shadow-[0_15px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_15px_40px_rgb(0,0,0,0.4)] hover:-translate-y-2 transition-all duration-500 ease-out border border-border-subtle"
                 >
                   <div className="aspect-3/4 relative bg-background overflow-hidden group-hover:scale-105 transition-transform duration-500">
                     <div className="w-full h-full">
@@ -336,16 +336,16 @@ export default function FilesPage() {
                       </span>
                     </div>
 
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out flex items-center justify-center gap-3">
                       <button
                         onClick={() => handleRead(file)}
-                        className="bg-primary text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 font-medium text-sm"
+                        className="bg-primary text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-all duration-500 ease-out hover:bg-primary-hover font-medium text-sm"
                       >
                         Open
                       </button>
                       <button
                         onClick={() => handleOpenInNewTab(file)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 font-medium text-sm"
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-all duration-500 ease-out hover:bg-blue-700 font-medium text-sm"
                       >
                         + New Tab
                       </button>
@@ -371,13 +371,13 @@ export default function FilesPage() {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleRename(file.id)}
-                                className="flex-1 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-bold transition-colors"
+                                className="flex-1 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-bold transition-all duration-300 ease-in-out"
                               >
                                 Save
                               </button>
                               <button
                                 onClick={() => { setEditingFileId(null); setNewFileName(""); }}
-                                className="flex-1 px-3 py-1.5 bg-border-subtle hover:bg-foreground-muted text-white rounded-lg text-xs font-bold transition-colors"
+                                className="flex-1 px-3 py-1.5 bg-border-subtle hover:bg-foreground-muted text-white rounded-lg text-xs font-bold transition-all duration-300 ease-in-out"
                               >
                                 Cancel
                               </button>
@@ -409,7 +409,7 @@ export default function FilesPage() {
                               setEditingFileId(file.id);
                               setNewFileName(file.name);
                             }}
-                            className="text-foreground-muted hover:text-primary transition-colors p-1 shrink-0"
+                            className="text-foreground-muted hover:text-primary transition-all duration-300 ease-in-out hover:scale-110 p-1 shrink-0"
                             title="Rename File"
                           >
                             <Edit2 size={18} />
@@ -419,7 +419,7 @@ export default function FilesPage() {
                               e.stopPropagation();
                               handleDelete(file.name, file.id);
                             }}
-                            className="text-foreground-muted hover:text-[#ef4444] transition-colors p-1 shrink-0"
+                            className="text-foreground-muted hover:text-[#ef4444] transition-all duration-300 ease-in-out hover:scale-110 p-1 shrink-0"
                             title="Delete File"
                           >
                             <Trash2 size={18} />

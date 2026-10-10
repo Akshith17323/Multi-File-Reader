@@ -207,7 +207,7 @@ export default function Navbar() {
                                 </button>
 
                                 {/* Dropdown */}
-                                <div className="absolute right-0 top-full mt-3 w-48 bg-surface border border-border-subtle rounded-xl shadow-xl opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible transition-all duration-200 transform origin-top-right p-2 z-50">
+                                <div className="absolute right-0 top-full mt-3 w-48 bg-surface backdrop-blur-2xl border border-border-subtle rounded-xl shadow-xl opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible transition-all duration-200 transform origin-top-right p-2 z-50">
                                     <button
                                         onClick={handleLogout}
                                         className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-all"

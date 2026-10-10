@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef, useState } from "react";
-import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, File } from "lucide-react";
+import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, File, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { isElectron } from "@/hooks/useEnvironment";
 
@@ -135,7 +135,7 @@ function FileUpload() {
           </p>
         </div>
 
-        <div className="bg-surface rounded-3xl p-10 shadow-2xl border border-border-subtle">
+        <div className="bg-surface backdrop-blur-2xl rounded-3xl p-10 shadow-2xl border border-border-subtle">
           {!resultUrl ? (
             <form onSubmit={uploadFile} className="space-y-8">
               <div
@@ -144,7 +144,7 @@ function FileUpload() {
                 onDrop={handleDrop}
                 onClick={() => fileRef.current?.click()}
                 className={`
-                  relative border-2 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all duration-300
+                  relative border-2 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all duration-500 ease-in-out
                   ${isDragging
                     ? "border-primary bg-primary/10 scale-[1.02]"
                     : "border-border-subtle hover:border-primary hover:bg-surface-hover bg-background"
@@ -167,7 +167,21 @@ function FileUpload() {
 
                   <div>
                     {selectedFile ? (
-                      <div className="animate-in fade-in zoom-in duration-300">
+                      <div className="animate-in fade-in zoom-in duration-300 relative group">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFile(null);
+                            setProgress(0);
+                            setError(null);
+                            if (fileRef.current) fileRef.current.value = '';
+                          }}
+                          className="absolute -top-8 -right-8 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out"
+                          title="Remove file"
+                        >
+                          <X size={20} />
+                        </button>
                         <p className="text-2xl font-bold text-foreground mb-1">{selectedFile.name}</p>
                         <p className="text-base text-primary font-medium">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                       </div>
@@ -207,7 +221,7 @@ function FileUpload() {
                 <button
                   type="submit"
                   disabled={!selectedFile || (progress > 0 && progress < 100)}
-                  className="flex-1 py-5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3"
+                  className="flex-1 py-5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3"
                 >
                   {progress > 0 && progress < 100 ? (
                     <>
@@ -226,7 +240,7 @@ function FileUpload() {
                     type="button"
                     onClick={handleLocalBook}
                     disabled={progress > 0 && progress < 100}
-                    className="flex-1 py-5 bg-surface hover:bg-surface-hover text-foreground border border-border-subtle rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3"
+                    className="flex-1 py-5 bg-surface hover:bg-surface-hover text-foreground border border-border-subtle rounded-xl font-bold text-xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-3"
                   >
                     <File size={24} />
                     <span>Add Local Book</span>

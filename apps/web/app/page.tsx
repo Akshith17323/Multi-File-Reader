@@ -40,7 +40,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => router.push("/auth/signup")}
-            className="px-8 py-3.5 bg-surface backdrop-blur-md border border-border-subtle text-foreground rounded-2xl font-bold text-lg hover:border-primary/50 hover:bg-surface-hover hover:-translate-y-1 transition-all duration-300 w-full sm:w-auto shadow-sm"
+            className="px-8 py-3.5 bg-surface backdrop-blur-2xl border border-border-subtle text-foreground rounded-2xl font-bold text-lg hover:border-primary/50 hover:bg-surface-hover hover:-translate-y-1 transition-all duration-300 w-full sm:w-auto shadow-sm"
           >
             Sign Up
           </button>

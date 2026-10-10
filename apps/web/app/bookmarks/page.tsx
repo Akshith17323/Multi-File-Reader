@@ -148,7 +148,7 @@ export default function BookmarksPage() {
                         <div className="w-16 h-16 border-4 border-border-subtle border-t-primary rounded-full animate-spin"></div>
                     </div>
                 ) : bookmarks.length === 0 ? (
-                    <div className="text-center py-32 px-4 rounded-3xl bg-surface border border-border-subtle border-dashed">
+                    <div className="text-center py-32 px-4 rounded-3xl bg-surface backdrop-blur-2xl border border-border-subtle border-dashed">
                         <BookOpen size={80} className="mx-auto mb-6 text-border-subtle" />
                         <h3 className="text-3xl font-bold text-foreground mb-3">
                             No Bookmarks Yet

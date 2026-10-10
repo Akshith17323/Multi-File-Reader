@@ -1,11 +1,11 @@
 "use client";
 import React, { useState } from "react";
-import { Eye, EyeClosed, Loader2, AlertCircle } from "lucide-react";
+import { Eye, EyeClosed, Loader2, AlertCircle, Chrome, Github } from "lucide-react";
 import { toast } from 'react-toastify';
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiClient } from "@/services/apiClient";
-import { GoogleLogin } from '@react-oauth/google';
+import { useGoogleLogin } from '@react-oauth/google';
 
 function Loginpage() {
   const [email, setEmail] = useState<string>("");
@@ -51,7 +51,6 @@ function Loginpage() {
       setError(error.message || "Something went wrong. Please try again.");
       toast.error(error.message || "Login failed");
     } finally {
-    } finally {
       setIsLoading(false);
     }
   };
@@ -60,7 +59,7 @@ function Loginpage() {
     setIsLoading(true);
     setError("");
     try {
-      const data = await apiClient.googleLogin(credentialResponse.credential);
+      const data = await apiClient.googleLogin(credentialResponse.access_token || credentialResponse.credential);
 
       toast.success(`Welcome, ${data.user}!`);
 
@@ -82,6 +81,14 @@ function Loginpage() {
     }
   };
 
+  const googleLogin = useGoogleLogin({
+    onSuccess: handleGoogleSuccess,
+    onError: () => {
+      setError("Google Login Failed");
+      toast.error("Google Login Failed");
+    }
+  });
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
@@ -94,7 +101,7 @@ function Loginpage() {
         </div>
 
         {/* Card */}
-        <div className="bg-surface backdrop-blur-2xl border border-border-subtle rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-300 hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_40px_rgb(0,0,0,0.3)]">
+        <div className="bg-surface backdrop-blur-2xl border border-border-subtle rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-500 ease-out hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_40px_rgb(0,0,0,0.3)] hover:-translate-y-1">
           {/* Error Alert */}
           {error && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-3">
@@ -116,7 +123,7 @@ function Loginpage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
-                className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -133,13 +140,13 @@ function Loginpage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
-                  className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed pr-12"
+                  className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={isLoading}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-muted hover:text-foreground transition-colors disabled:opacity-50"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-muted hover:text-foreground transition-all duration-300 ease-in-out disabled:opacity-50"
                 >
                   {showPassword ? <EyeClosed size={20} /> : <Eye size={20} />}
                 </button>
@@ -150,9 +157,9 @@ function Loginpage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full px-6 py-4 bg-primary text-white rounded-xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 relative overflow-hidden group"
+              className="w-full px-6 py-4 bg-primary text-white rounded-xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 relative overflow-hidden group"
             >
-              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out" />
               {isLoading ? (
                 <>
                   <Loader2 className="animate-spin" size={20} />
@@ -171,17 +178,17 @@ function Loginpage() {
             <div className="flex-1 h-px bg-border-subtle"></div>
           </div>
 
-          {/* Google Login */}
-          <div className="mt-6 flex justify-center">
-            <GoogleLogin 
-              onSuccess={handleGoogleSuccess} 
-              onError={() => {
-                setError("Google Login Failed");
-                toast.error("Google Login Failed");
-              }}
-              theme="filled_black"
-              shape="pill"
-            />
+          {/* OAuth Buttons */}
+          <div className="mt-6 flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => googleLogin()}
+              disabled={isLoading}
+              className="w-full px-5 py-3.5 bg-background border border-border-subtle hover:bg-surface-hover text-foreground rounded-xl font-bold transition-all duration-300 ease-in-out disabled:opacity-50 flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
+            >
+              <Chrome size={20} className="text-primary" />
+              <span>Continue with Google</span>
+            </button>
           </div>
 
           {/* Sign Up Link */}
@@ -190,7 +197,7 @@ function Loginpage() {
               Don&apos;t have an account?{" "}
               <Link
                 href="/auth/signup"
-                className="text-primary hover:text-primary-hover font-semibold transition-colors"
+                className="text-primary hover:text-primary-hover font-semibold transition-all duration-300 ease-in-out"
               >
                 Sign up
               </Link>

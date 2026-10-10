@@ -1,10 +1,11 @@
 "use client";
 import React, { useState } from "react";
-import { Eye, EyeClosed, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Eye, EyeClosed, Loader2, AlertCircle, CheckCircle2, Chrome, Github } from "lucide-react";
 import { toast } from 'react-toastify';
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiClient } from "@/services/apiClient";
+import { useGoogleLogin } from '@react-oauth/google';
 
 function Signuppage() {
     const router = useRouter();
@@ -59,6 +60,40 @@ function Signuppage() {
         }
     };
 
+    const handleGoogleSuccess = async (credentialResponse: any) => {
+        setIsLoading(true);
+        setError("");
+        try {
+            const data = await apiClient.googleLogin(credentialResponse.access_token || credentialResponse.credential);
+
+            toast.success(`Welcome, ${data.user}! Account linked successfully.`);
+
+            if (data.token) {
+                localStorage.setItem("token", data.token);
+                if (data.user) {
+                    localStorage.setItem("user", data.user);
+                    window.dispatchEvent(new Event("auth-change"));
+                }
+            }
+
+            router.push("/fileupload");
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : "Google Signup failed. Please try again.";
+            setError(errorMessage);
+            toast.error(errorMessage);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const googleLogin = useGoogleLogin({
+        onSuccess: handleGoogleSuccess,
+        onError: () => {
+            setError("Google Signup Failed");
+            toast.error("Google Signup Failed");
+        }
+    });
+
     const passwordsMatch = password && confirmPassword && password === confirmPassword;
     const passwordsDontMatch = confirmPassword && password !== confirmPassword;
 
@@ -74,7 +109,7 @@ function Signuppage() {
                 </div>
 
                 {/* Card */}
-                <div className="bg-surface backdrop-blur-2xl border border-border-subtle rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-300 hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_40px_rgb(0,0,0,0.3)]">
+                <div className="bg-surface backdrop-blur-2xl border border-border-subtle rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-500 ease-out hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_40px_rgb(0,0,0,0.3)] hover:-translate-y-1">
                     {/* Error Alert */}
                     {error && (
                         <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-3">
@@ -96,7 +131,7 @@ function Signuppage() {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 disabled={isLoading}
-                                className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                         </div>
 
@@ -112,7 +147,7 @@ function Signuppage() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading}
-                                className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                         </div>
 
@@ -129,13 +164,13 @@ function Signuppage() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     disabled={isLoading}
-                                    className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed pr-12"
+                                    className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed pr-12"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
                                     disabled={isLoading}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-muted hover:text-foreground transition-colors disabled:opacity-50"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-muted hover:text-foreground transition-all duration-300 ease-in-out disabled:opacity-50"
                                 >
                                     {showPassword ? <EyeClosed size={20} /> : <Eye size={20} />}
                                 </button>
@@ -155,7 +190,7 @@ function Signuppage() {
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     disabled={isLoading}
-                                    className={`w-full px-5 py-3.5 bg-background/50 border rounded-xl text-foreground placeholder-foreground-muted focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed pr-12 ${passwordsDontMatch
+                                    className={`w-full px-5 py-3.5 bg-background/50 border rounded-xl text-foreground placeholder-foreground-muted focus:outline-none transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed pr-12 ${passwordsDontMatch
                                         ? "border-red-500 focus:border-red-500 focus:ring-4 focus:ring-red-500/20"
                                         : passwordsMatch
                                             ? "border-green-500 focus:border-green-500 focus:ring-4 focus:ring-green-500/20"
@@ -166,7 +201,7 @@ function Signuppage() {
                                     type="button"
                                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                                     disabled={isLoading}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-muted hover:text-foreground transition-colors disabled:opacity-50"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-muted hover:text-foreground transition-all duration-300 ease-in-out disabled:opacity-50"
                                 >
                                     {showConfirmPassword ? <EyeClosed size={20} /> : <Eye size={20} />}
                                 </button>
@@ -190,9 +225,9 @@ function Signuppage() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full px-6 py-4 bg-primary text-white rounded-xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 mt-6 relative overflow-hidden group"
+                            className="w-full px-6 py-4 bg-primary text-white rounded-xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 mt-6 relative overflow-hidden group"
                         >
-                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out" />
                             {isLoading ? (
                                 <>
                                     <Loader2 className="animate-spin" size={20} />
@@ -204,13 +239,33 @@ function Signuppage() {
                         </button>
                     </form>
 
+                    {/* Divider */}
+                    <div className="mt-6 flex items-center gap-4">
+                        <div className="flex-1 h-px bg-border-subtle"></div>
+                        <span className="text-foreground-muted text-sm font-medium">OR</span>
+                        <div className="flex-1 h-px bg-border-subtle"></div>
+                    </div>
+
+                    {/* OAuth Buttons */}
+                    <div className="mt-6 flex flex-col gap-3">
+                        <button
+                            type="button"
+                            onClick={() => googleLogin()}
+                            disabled={isLoading}
+                            className="w-full px-5 py-3.5 bg-background border border-border-subtle hover:bg-surface-hover text-foreground rounded-xl font-bold transition-all duration-300 ease-in-out disabled:opacity-50 flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
+                        >
+                            <Chrome size={20} className="text-primary" />
+                            <span>Sign up with Google</span>
+                        </button>
+                    </div>
+
                     {/* Login Link */}
                     <div className="mt-6 text-center">
                         <p className="text-foreground-muted text-sm">
                             Already have an account?{" "}
                             <Link
                                 href="/auth/login"
-                                className="text-primary hover:text-primary-hover font-semibold transition-colors"
+                                className="text-primary hover:text-primary-hover font-semibold transition-all duration-300 ease-in-out"
                             >
                                 Log in
                             </Link>

@@ -85,12 +85,25 @@ async function googleLogin(req, res) {
     const { token } = req.body;
     if (!token) return res.status(403).json({ Message: "Token required" });
 
-    const ticket = await googleClient.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+    let payload;
     
-    const payload = ticket.getPayload();
+    try {
+      // Try verifying as ID token (from standard Google button)
+      const ticket = await googleClient.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (e) {
+      // If it fails, try using it as an access token (from custom useGoogleLogin button)
+      const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        payload = await response.json();
+      }
+    }
+
     if (!payload) return res.status(401).json({ Message: "Invalid Google Token" });
 
     const { sub: googleId, email, name, picture: avatar } = payload;
