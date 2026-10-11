@@ -33,7 +33,7 @@ export default function DesktopTitlebar() {
       
       {/* Fixed Titlebar */}
       <div 
-        className="flex justify-between items-center h-8 w-full fixed top-0 z-[100] px-3 select-none backdrop-blur-xl bg-surface/80 border-b border-border-subtle"
+        className="flex justify-between items-center h-8 w-full fixed top-0 z-[100] px-3 select-none backdrop-blur-2xl bg-surface/75 border-b border-border-subtle shadow-xs"
         style={{ WebkitAppRegion: 'drag' } as any}
       >
         <div className="text-xs font-bold tracking-wider text-foreground-muted flex items-center gap-2">

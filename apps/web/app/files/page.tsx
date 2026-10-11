@@ -30,6 +30,7 @@ export default function FilesPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [newFileName, setNewFileName] = useState("");
+  const [fileToDelete, setFileToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -98,8 +99,14 @@ export default function FilesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, typeFilter, page, sortBy, sortOrder]);
 
-  const handleDelete = async (filename: string, fileId: string) => {
-    if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
+  const handleDelete = (filename: string, fileId: string) => {
+    setFileToDelete({ id: fileId, name: filename });
+  };
+
+  const confirmDelete = async () => {
+    if (!fileToDelete) return;
+    const { id: fileId } = fileToDelete;
+    setFileToDelete(null);
 
     try {
       const token = localStorage.getItem("token");
@@ -208,10 +215,15 @@ export default function FilesPage() {
   };
 
   return (
-    <div className="min-h-screen p-8 md:p-12 relative bg-background">
+    <div className="min-h-screen p-8 md:p-12 relative bg-background overflow-hidden">
       <ToastContainer position="top-right" theme="light" />
 
-      <div className="max-w-7xl mx-auto">
+      {/* Ambient Glowing Orbs for Glassmorphism Depth */}
+      <div className="absolute top-20 left-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none -z-0" />
+      <div className="absolute top-1/3 right-10 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-3xl pointer-events-none -z-0" />
+      <div className="absolute bottom-20 left-1/3 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-3xl pointer-events-none -z-0" />
+
+      <div className="max-w-7xl mx-auto relative z-10">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
           <div className="space-y-1">
@@ -234,13 +246,13 @@ export default function FilesPage() {
         </div>
 
         {/* Controls Bar */}
-        <div className="bg-surface backdrop-blur-2xl p-5 rounded-3xl border border-border-subtle shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] mb-12 flex flex-col lg:flex-row gap-4 transition-all duration-300">
+        <div className="bg-surface/80 backdrop-blur-2xl p-5 rounded-3xl border border-border-subtle shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] mb-12 flex flex-col lg:flex-row gap-4 transition-all duration-300">
           <input
             type="text"
             placeholder="Search by title..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-6 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out text-foreground placeholder-foreground-muted"
+            className="flex-1 px-6 py-4 bg-surface/60 backdrop-blur-md border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow focus:bg-surface/90 transition-all duration-300 ease-in-out text-foreground placeholder-foreground-muted"
           />
 
           <div className="flex gap-4">
@@ -248,7 +260,7 @@ export default function FilesPage() {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="h-full px-8 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out text-foreground cursor-pointer appearance-none min-w-40"
+                className="h-full px-8 py-4 bg-surface/60 backdrop-blur-md border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow focus:bg-surface/90 transition-all duration-300 ease-in-out text-foreground cursor-pointer appearance-none min-w-40"
               >
                 <option value="">All Types</option>
                 <option value="pdf">PDF</option>
@@ -260,7 +272,7 @@ export default function FilesPage() {
             <div className="relative">
               <select
                 onChange={handleSortChange}
-                className="h-full px-8 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out text-foreground cursor-pointer appearance-none min-w-40"
+                className="h-full px-8 py-4 bg-surface/60 backdrop-blur-md border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow focus:bg-surface/90 transition-all duration-300 ease-in-out text-foreground cursor-pointer appearance-none min-w-40"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -339,20 +351,20 @@ export default function FilesPage() {
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out flex items-center justify-center gap-3">
                       <button
                         onClick={() => handleRead(file)}
-                        className="bg-primary text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-all duration-500 ease-out hover:bg-primary-hover font-medium text-sm"
+                        className="bg-primary/90 backdrop-blur-md text-white border border-white/20 px-4 py-2 rounded-xl shadow-xl transform scale-90 group-hover:scale-100 transition-all duration-300 ease-out hover:bg-primary font-medium text-sm"
                       >
                         Open
                       </button>
                       <button
                         onClick={() => handleOpenInNewTab(file)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-all duration-500 ease-out hover:bg-blue-700 font-medium text-sm"
+                        className="bg-blue-600/90 backdrop-blur-md text-white border border-white/20 px-4 py-2 rounded-xl shadow-xl transform scale-90 group-hover:scale-100 transition-all duration-300 ease-out hover:bg-blue-600 font-medium text-sm"
                       >
                         + New Tab
                       </button>
                     </div>
                   </div>
 
-                  <div className="p-5 flex-1 flex flex-col bg-surface">
+                  <div className="p-5 flex-1 flex flex-col bg-surface/80 backdrop-blur-md">
                     <div className="flex justify-between items-start gap-3">
                       <div className="flex-1 min-w-0">
                         {editingFileId === file.id ? (
@@ -438,17 +450,17 @@ export default function FilesPage() {
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-6 py-3 bg-border-subtle text-foreground rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-foreground-muted transition-colors"
+                  className="px-6 py-3 bg-surface/80 backdrop-blur-xl border border-border-subtle text-foreground rounded-2xl font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-hover hover:border-primary/40 shadow-sm transition-all duration-300"
                 >
                   Previous
                 </button>
-                <span className="text-foreground-muted font-medium">
-                  Page <span className="text-foreground">{page}</span> of <span className="text-foreground">{totalPages}</span>
-                </span>
+                <div className="px-5 py-2.5 bg-surface/70 backdrop-blur-xl border border-border-subtle rounded-2xl text-foreground-muted font-medium shadow-sm">
+                  Page <span className="text-foreground font-bold">{page}</span> of <span className="text-foreground font-bold">{totalPages}</span>
+                </div>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-6 py-3 bg-border-subtle text-foreground rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-foreground-muted transition-colors"
+                  className="px-6 py-3 bg-surface/80 backdrop-blur-xl border border-border-subtle text-foreground rounded-2xl font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-hover hover:border-primary/40 shadow-sm transition-all duration-300"
                 >
                   Next
                 </button>
@@ -457,6 +469,37 @@ export default function FilesPage() {
           </>
         )}
       </div>
+
+      {/* Glassmorphic Delete Confirmation Modal */}
+      {fileToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-surface/90 backdrop-blur-2xl border border-border-subtle rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-6">
+            <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center">
+              <Trash2 size={28} />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-foreground mb-2">Delete File</h3>
+              <p className="text-foreground-muted text-sm">
+                Are you sure you want to delete <span className="font-semibold text-foreground">&quot;{fileToDelete.name}&quot;</span>? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setFileToDelete(null)}
+                className="flex-1 py-3 px-5 bg-surface-hover/80 hover:bg-surface-hover text-foreground font-semibold rounded-xl border border-border-subtle transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 py-3 px-5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-red-600/30 transition-all duration-300"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

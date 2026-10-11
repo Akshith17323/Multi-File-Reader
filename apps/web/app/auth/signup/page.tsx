@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Eye, EyeClosed, Loader2, AlertCircle, CheckCircle2, Chrome, Github } from "lucide-react";
+import { Eye, EyeClosed, Loader2, AlertCircle, CheckCircle2, Chrome } from "lucide-react";
 import { toast } from 'react-toastify';
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -86,20 +86,16 @@ function Signuppage() {
         }
     };
 
-    const googleLogin = useGoogleLogin({
-        onSuccess: handleGoogleSuccess,
-        onError: () => {
-            setError("Google Signup Failed");
-            toast.error("Google Signup Failed");
-        }
-    });
-
     const passwordsMatch = password && confirmPassword && password === confirmPassword;
     const passwordsDontMatch = confirmPassword && password !== confirmPassword;
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
-            <div className="w-full max-w-sm">
+        <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8 relative overflow-hidden">
+            {/* Ambient Blurred Glowing Orbs for Glassmorphism Depth */}
+            <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="w-full max-w-sm relative z-10">
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold text-foreground mb-2">
@@ -109,7 +105,7 @@ function Signuppage() {
                 </div>
 
                 {/* Card */}
-                <div className="bg-surface backdrop-blur-2xl border border-border-subtle rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-500 ease-out hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_40px_rgb(0,0,0,0.3)] hover:-translate-y-1">
+                <div className="bg-surface/80 backdrop-blur-2xl border border-border-subtle rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all duration-500 ease-out hover:shadow-[0_8px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_40px_rgb(0,0,0,0.3)] hover:-translate-y-1">
                     {/* Error Alert */}
                     {error && (
                         <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-3">
@@ -131,7 +127,7 @@ function Signuppage() {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 disabled={isLoading}
-                                className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full px-5 py-3.5 bg-surface/60 backdrop-blur-md border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow focus:bg-surface/90 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                         </div>
 
@@ -147,7 +143,7 @@ function Signuppage() {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading}
-                                className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full px-5 py-3.5 bg-surface/60 backdrop-blur-md border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow focus:bg-surface/90 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                         </div>
 
@@ -164,7 +160,7 @@ function Signuppage() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     disabled={isLoading}
-                                    className="w-full px-5 py-3.5 bg-background/50 border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed pr-12"
+                                    className="w-full px-5 py-3.5 bg-surface/60 backdrop-blur-md border border-border-subtle rounded-xl text-foreground placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow focus:bg-surface/90 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed pr-12"
                                 />
                                 <button
                                     type="button"
@@ -190,7 +186,7 @@ function Signuppage() {
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                     disabled={isLoading}
-                                    className={`w-full px-5 py-3.5 bg-background/50 border rounded-xl text-foreground placeholder-foreground-muted focus:outline-none transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed pr-12 ${passwordsDontMatch
+                                    className={`w-full px-5 py-3.5 bg-surface/60 backdrop-blur-md border rounded-xl text-foreground placeholder-foreground-muted focus:outline-none transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed pr-12 ${passwordsDontMatch
                                         ? "border-red-500 focus:border-red-500 focus:ring-4 focus:ring-red-500/20"
                                         : passwordsMatch
                                             ? "border-green-500 focus:border-green-500 focus:ring-4 focus:ring-green-500/20"
@@ -248,15 +244,14 @@ function Signuppage() {
 
                     {/* OAuth Buttons */}
                     <div className="mt-6 flex flex-col gap-3">
-                        <button
-                            type="button"
-                            onClick={() => googleLogin()}
-                            disabled={isLoading}
-                            className="w-full px-5 py-3.5 bg-background border border-border-subtle hover:bg-surface-hover text-foreground rounded-xl font-bold transition-all duration-300 ease-in-out disabled:opacity-50 flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
-                        >
-                            <Chrome size={20} className="text-primary" />
-                            <span>Sign up with Google</span>
-                        </button>
+                        <GoogleSignupButton
+                            isLoading={isLoading}
+                            onSuccess={handleGoogleSuccess}
+                            onError={() => {
+                                setError("Google Signup Failed");
+                                toast.error("Google Signup Failed");
+                            }}
+                        />
                     </div>
 
                     {/* Login Link */}
@@ -274,6 +269,61 @@ function Signuppage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+function GoogleSignupButton({
+    isLoading,
+    onSuccess,
+    onError,
+}: {
+    isLoading: boolean;
+    onSuccess: (credentialResponse: any) => void;
+    onError: () => void;
+}) {
+    const hasClientId = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
+
+    if (!hasClientId) {
+        return (
+            <button
+                type="button"
+                onClick={() => toast.warn("Google Signup requires NEXT_PUBLIC_GOOGLE_CLIENT_ID in apps/web/.env.local")}
+                disabled={isLoading}
+                className="w-full px-5 py-3.5 bg-surface/80 backdrop-blur-xl border border-border-subtle hover:bg-surface-hover hover:border-primary/40 text-foreground rounded-xl font-bold transition-all duration-300 ease-in-out disabled:opacity-50 flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
+            >
+                <Chrome size={20} className="text-primary" />
+                <span>Sign up with Google</span>
+            </button>
+        );
+    }
+
+    return <ActiveGoogleSignupButton isLoading={isLoading} onSuccess={onSuccess} onError={onError} />;
+}
+
+function ActiveGoogleSignupButton({
+    isLoading,
+    onSuccess,
+    onError,
+}: {
+    isLoading: boolean;
+    onSuccess: (credentialResponse: any) => void;
+    onError: () => void;
+}) {
+    const googleLogin = useGoogleLogin({
+        onSuccess,
+        onError,
+    });
+
+    return (
+        <button
+            type="button"
+            onClick={() => googleLogin()}
+            disabled={isLoading}
+            className="w-full px-5 py-3.5 bg-surface/80 backdrop-blur-xl border border-border-subtle hover:bg-surface-hover hover:border-primary/40 text-foreground rounded-xl font-bold transition-all duration-300 ease-in-out disabled:opacity-50 flex items-center justify-center gap-3 shadow-sm hover:shadow-md"
+        >
+            <Chrome size={20} className="text-primary" />
+            <span>Sign up with Google</span>
+        </button>
     );
 }
 

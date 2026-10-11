@@ -248,39 +248,41 @@ export default function Navbar() {
 
                 {/* Mobile Menu */}
                 {isOpen && (
-                    <div className="md:hidden mt-4 pt-4 border-t border-border-subtle space-y-4 animate-in fade-in slide-in-from-top-4 duration-200">
+                    <div className="md:hidden mt-4 pt-4 border-t border-border-subtle space-y-3 animate-in fade-in slide-in-from-top-4 duration-200">
                         <Link
                             href="/files"
                             onClick={() => setIsOpen(false)}
-                            className="block px-4 py-3 text-foreground font-medium bg-surface-hover rounded-xl border border-border-subtle"
+                            className="block px-4 py-3 text-foreground font-semibold bg-surface/70 backdrop-blur-xl hover:bg-surface-hover rounded-2xl border border-border-subtle transition-all shadow-xs"
                         >
                             My Library
                         </Link>
                         <Link
                             href="/bookmarks"
                             onClick={() => setIsOpen(false)}
-                            className="block px-4 py-3 text-foreground font-medium bg-surface-hover rounded-xl border border-border-subtle"
+                            className="block px-4 py-3 text-foreground font-semibold bg-surface/70 backdrop-blur-xl hover:bg-surface-hover rounded-2xl border border-border-subtle transition-all shadow-xs"
                         >
                             My Bookmarks
                         </Link>
                         {user ? (
-                            <div className="space-y-2">
-                                <div className="px-4 py-2 flex items-center gap-3 text-foreground-muted">
-                                    <User size={18} />
-                                    <span>Signed in as <span className="text-foreground font-bold">{user}</span></span>
+                            <div className="space-y-3 pt-1">
+                                <div className="px-4 py-2.5 flex items-center gap-3 text-foreground-muted bg-surface/50 backdrop-blur-md rounded-2xl border border-border-subtle">
+                                    <div className="w-7 h-7 rounded-full bg-linear-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-inner">
+                                        {user.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className="text-sm">Signed in as <span className="text-foreground font-bold">{user}</span></span>
                                 </div>
                                 <button
                                     onClick={handleLogout}
-                                    className="w-full flex items-center gap-3 px-4 py-3 text-white font-bold bg-primary hover:bg-primary-hover rounded-xl transition-colors shadow-sm"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-white font-bold bg-primary hover:bg-primary-hover rounded-2xl transition-all shadow-md"
                                 >
-                                    <LogOut size={20} />
+                                    <LogOut size={18} />
                                     Logout
                                 </button>
                             </div>
                         ) : (
                             <Link
                                 href="/auth/login"
-                                className="block w-full text-center px-4 py-3 text-white font-bold bg-primary hover:bg-primary-hover rounded-xl transition-colors shadow-sm"
+                                className="block w-full text-center px-4 py-3 text-white font-bold bg-primary hover:bg-primary-hover rounded-2xl transition-all shadow-md"
                             >
                                 Login
                             </Link>

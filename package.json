@@ -19,10 +19,14 @@
     "packages/*"
   ],
   "scripts": {
-    "start:electron": "electron apps/electron",
+    "dev": "concurrently \"npm run server\" \"npm run web\" --names \"SERVER,WEB\" --prefix-colors \"blue,green\"",
+    "dev:all": "concurrently \"npm run server\" \"npm run web\" \"npm run start:electron\" --names \"SERVER,WEB,ELECTRON\" --prefix-colors \"blue,green,magenta\"",
     "web": "npm --workspace=apps/web run dev",
     "server": "npm --workspace=apps/server start",
-    "electron": "concurrently \"npm run server\" \"npm run web\" \"npm run start:electron\" --names \"SERVER,WEB,ELECTRON\" --prefix-colors \"blue,green,magenta\""
+    "start:electron": "electron apps/electron",
+    "electron": "concurrently \"npm run server\" \"npm run web\" \"npm run start:electron\" --names \"SERVER,WEB,ELECTRON\" --prefix-colors \"blue,green,magenta\"",
+    "build": "npm --workspace=apps/web run build",
+    "lint": "npm --workspace=apps/web run lint"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

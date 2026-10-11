@@ -30,13 +30,15 @@ export default function FilePreview({ url, type, thumbnailUrl }: FilePreviewProp
 
     // Fallback for errors, old files without thumbnails, or other types
     return (
-        <div className="w-full h-full bg-surface-hover flex flex-col items-center justify-center p-4 text-center">
-            {type === "application/epub+zip" ? (
-                <Book size={40} className="text-foreground-muted mb-2" />
-            ) : (
-                <FileText size={40} className="text-foreground-muted mb-2" />
-            )}
-            <span className="text-xs text-foreground-muted font-medium">Thumbnail not available</span>
+        <div className="w-full h-full bg-surface/50 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center border-b border-border-subtle/40">
+            <div className="w-16 h-16 rounded-2xl bg-surface-hover/80 backdrop-blur-xl border border-border-subtle flex items-center justify-center mb-3 shadow-inner">
+                {type === "application/epub+zip" ? (
+                    <Book size={32} className="text-emerald-500" />
+                ) : (
+                    <FileText size={32} className="text-primary" />
+                )}
+            </div>
+            <span className="text-xs text-foreground-muted font-semibold tracking-wide">Document Preview</span>
         </div>
     );
 }
