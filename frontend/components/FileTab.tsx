@@ -1,12 +1,12 @@
 "use client";
 
-import { X, FileText, BookOpen } from "lucide-react";
+import { X, FileText, BookOpen, Code, FileQuestion, AlignLeft } from "lucide-react";
 
 export interface FileTabData {
     id: string;
     url: string;
     name: string;
-    type: "pdf" | "epub";
+    type: string;
 }
 
 interface FileTabProps {
@@ -17,7 +17,28 @@ interface FileTabProps {
 }
 
 export default function FileTab({ file, isActive, onClick, onClose }: FileTabProps) {
-    const Icon = file.type === "pdf" ? FileText : BookOpen;
+    const getIconAndColor = () => {
+        switch (file.type.toLowerCase()) {
+            case "pdf":
+                return { Icon: FileText, color: "text-blue-400", activeBg: "bg-blue-500/20" };
+            case "epub":
+                return { Icon: BookOpen, color: "text-purple-400", activeBg: "bg-purple-500/20" };
+            case "code":
+            case "js":
+            case "ts":
+            case "py":
+            case "json":
+                return { Icon: Code, color: "text-emerald-400", activeBg: "bg-emerald-500/20" };
+            case "txt":
+            case "text":
+            case "md":
+                return { Icon: AlignLeft, color: "text-amber-400", activeBg: "bg-amber-500/20" };
+            default:
+                return { Icon: FileQuestion, color: "text-gray-400", activeBg: "bg-gray-500/20" };
+        }
+    };
+
+    const { Icon, color, activeBg } = getIconAndColor();
 
     const getTypeBadge = () => {
         return file.type.toUpperCase();
@@ -40,10 +61,10 @@ export default function FileTab({ file, isActive, onClick, onClose }: FileTabPro
             <div
                 className={`
         flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
-        ${isActive ? "bg-blue-500/20" : "bg-[#2a2c34]"}
+        ${isActive ? activeBg : "bg-[#2a2c34]"}
       `}
             >
-                <Icon size={16} className={isActive ? "text-blue-400" : "text-[#737373]"} />
+                <Icon size={16} className={isActive ? color : "text-[#737373]"} />
             </div>
 
             {/* File Name */}

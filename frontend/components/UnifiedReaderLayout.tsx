@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, ReactNode } from "react";
+import { useState, ReactNode } from "react";
 import { ChevronLeft, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import FileTab, { FileTabData } from "./FileTab";
@@ -102,8 +102,10 @@ export default function UnifiedReaderLayout({
                                 <div className="w-8 h-8 rounded-lg bg-[#252830] flex items-center justify-center">
                                     {isPdf ? (
                                         <FileText size={16} className="text-blue-400" />
-                                    ) : (
+                                    ) : isEpub ? (
                                         <ScrollText size={16} className="text-purple-400" />
+                                    ) : (
+                                        <FileText size={16} className="text-emerald-400" />
                                     )}
                                 </div>
                                 <div>
@@ -226,8 +228,8 @@ export default function UnifiedReaderLayout({
                             </div>
                         )}
 
-                        {/* Font Size Controls (EPUB only) */}
-                        {isEpub && fontSize && (
+                        {/* Font Size Controls (EPUB & Text/Code) */}
+                        {!isPdf && fontSize && (
                             <div className="flex items-center gap-2 bg-[#252830] rounded-lg px-3 py-2">
                                 <button
                                     onClick={onFontSizeDecrease}
