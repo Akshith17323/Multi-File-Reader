@@ -15,6 +15,7 @@ interface EPUBRendererProps {
     onProgressChange?: (percentage: number) => void;
     viewMode: "single" | "continuous" | "two-page";
     fontSize: number;
+    initialCfi?: string;
 }
 
 const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
@@ -23,6 +24,7 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
     onProgressChange,
     viewMode,
     fontSize,
+    initialCfi,
 }, ref) => {
     const viewerRef = useRef<HTMLDivElement | null>(null);
     const renditionRef = useRef<Rendition | null>(null);
@@ -30,8 +32,17 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [currentLocation, setCurrentLocation] = useState<string>("");
+    const [currentLocation, setCurrentLocation] = useState<string>(initialCfi || "");
     const [isBookReady, setIsBookReady] = useState(false);
+
+    useEffect(() => {
+        if (initialCfi && initialCfi !== currentLocation) {
+            setCurrentLocation(initialCfi);
+            if (renditionRef.current) {
+                renditionRef.current.display(initialCfi);
+            }
+        }
+    }, [initialCfi, currentLocation]);
 
     const touchStartRef = useRef<number | null>(null);
 
@@ -62,7 +73,9 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
 
                 await book.ready;
                 if (!cancelled && book.locations.length() === 0) {
-                    await book.locations.generate(1000);
+                    book.locations.generate(1000).catch((err: unknown) => {
+                        console.error("Error generating locations:", err);
+                    });
                 }
             } catch (err: unknown) {
                 console.error("❌ Error initializing EPUB:", err);

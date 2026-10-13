@@ -101,9 +101,11 @@ export default function UnifiedReaderLayout({
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-surface-hover flex items-center justify-center">
                                     {isPdf ? (
-                                        <FileText size={16} className="text-primary" />
+                                        <FileText size={16} className="text-blue-400" />
+                                    ) : isEpub ? (
+                                        <ScrollText size={16} className="text-purple-400" />
                                     ) : (
-                                        <ScrollText size={16} className="text-primary" />
+                                        <FileText size={16} className="text-emerald-400" />
                                     )}
                                 </div>
                                 <div>
@@ -226,8 +228,8 @@ export default function UnifiedReaderLayout({
                             </div>
                         )}
 
-                        {/* Font Size Controls (EPUB only) */}
-                        {isEpub && fontSize && (
+                        {/* Font Size Controls (EPUB & Text/Code) */}
+                        {!isPdf && fontSize && (
                             <div className="flex items-center gap-2 bg-surface rounded-lg px-3 py-2 border border-border-subtle">
                                 <button
                                     onClick={onFontSizeDecrease}

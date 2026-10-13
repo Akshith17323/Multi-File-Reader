@@ -1,75 +1,17 @@
 "use client";
 
-import { useState, useEffect, Suspense, useRef, RefObject } from "react";
+import { useState, useEffect, Suspense, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import UnifiedReaderLayout, { ViewMode, FitMode } from "@/components/UnifiedReaderLayout";
+import UnifiedReaderLayout from "@/components/UnifiedReaderLayout";
 import { FileTabData } from "@/components/FileTab";
-import dynamic from "next/dynamic";
+import { ReaderFactory, ReaderRenderer } from "@/components/readers/ReaderFactory";
+import {
+    ReaderLocationState,
+    ReaderHandle,
+    ViewMode,
+    FitMode,
+} from "@/components/readers/types";
 import { apiClient } from "@/services/apiClient";
-
-import { EPUBRendererRef } from "@/components/EPUBRenderer";
-
-const PDFRenderer = dynamic(() => import("@/components/PDFRenderer"), { ssr: false });
-const EPUBRenderer = dynamic(() => import("@/components/EPUBRenderer"), { ssr: false });
-const TextRenderer = dynamic(() => import("@/components/TextRenderer"), { ssr: false });
-
-interface ReaderFactoryProps {
-    pdfPage: number;
-    handlePdfPageChange: (page: number) => void;
-    handlePdfLoadSuccess: (pages: number) => void;
-    viewMode: ViewMode;
-    fitMode: FitMode;
-    zoom: number;
-    epubRef: RefObject<EPUBRendererRef | null>;
-    handleEpubLocationChange: (cfi: string) => void;
-    setEpubProgress: (progress: number) => void;
-    fontSize: number;
-}
-
-class ReaderFactory {
-    static createReader(activeFile: FileTabData | undefined, props: ReaderFactoryProps) {
-        if (!activeFile) return null;
-
-        switch (activeFile.type) {
-            case "pdf":
-                return (
-                    <PDFRenderer
-                        key={activeFile.id}
-                        blobUrl={`${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(activeFile.url)}`}
-                        pageNumber={props.pdfPage}
-                        onPageChange={props.handlePdfPageChange}
-                        onLoadSuccess={props.handlePdfLoadSuccess}
-                        viewMode={props.viewMode}
-                        fitMode={props.fitMode}
-                        scale={props.zoom}
-                    />
-                );
-            case "epub":
-                return (
-                    <EPUBRenderer
-                        key={activeFile.id}
-                        ref={props.epubRef}
-                        url={activeFile.url}
-                        onLocationChange={props.handleEpubLocationChange}
-                        onProgressChange={props.setEpubProgress}
-                        viewMode={props.viewMode}
-                        fontSize={props.fontSize}
-                    />
-                );
-            case "txt":
-                return (
-                    <TextRenderer
-                        key={activeFile.id}
-                        url={activeFile.url}
-                        fontSize={props.fontSize}
-                        viewMode={props.viewMode}
-                    />
-                );
-            default:
-                return <div className="text-foreground">Unsupported file type</div>;
-        }
-    }
-}
 
 function ReaderContent() {
     const searchParams = useSearchParams();
@@ -83,19 +25,17 @@ function ReaderContent() {
     const [activeFileIndex, setActiveFileIndex] = useState(0);
     const [isInitialized, setIsInitialized] = useState(false);
 
-    // Reader state
+    // Common view options
     const [viewMode, setViewMode] = useState<ViewMode>("single");
     const [fitMode, setFitMode] = useState<FitMode>("width");
     const [zoom, setZoom] = useState(1.0);
     const [fontSize, setFontSize] = useState(100);
 
-    // PDF-specific state
-    const [pdfPage, setPdfPage] = useState(1);
-    const [pdfTotalPages, setPdfTotalPages] = useState(0);
+    // Multi-tab location state dictionary (keyed by tab file ID)
+    const [tabStates, setTabStates] = useState<Record<string, ReaderLocationState>>({});
 
-    // EPUB-specific state
-    const epubRef = useRef<EPUBRendererRef>(null);
-    const [epubProgress, setEpubProgress] = useState<number>(0);
+    // Polymorphic handles for each active reader instance
+    const readerRefs = useRef<Record<string, ReaderHandle | null>>({});
 
     // Initialize files from URL params
     useEffect(() => {
@@ -110,8 +50,7 @@ function ReaderContent() {
 
             const files: FileTabData[] = fileUrls.map((url, index) => {
                 const fileName = url.split("/").pop() || `File ${index + 1}`;
-                const lowerUrl = url.toLowerCase();
-                const fileType = lowerUrl.endsWith(".pdf") ? "pdf" : lowerUrl.endsWith(".txt") ? "txt" : "epub";
+                const fileType = ReaderFactory.detectFileType(url);
 
                 return {
                     id: `file_${index}_${Date.now()}`,
@@ -142,10 +81,7 @@ function ReaderContent() {
         const encodedFileUrls = openFiles.map((f) => encodeURIComponent(f.url)).join(",");
         const newUrl = `/reader?files=${encodedFileUrls}&active=${activeFileIndex}`;
 
-        // Save to sessionStorage so files page can detect reader is open
         sessionStorage.setItem("readerFiles", fileUrls);
-
-        // Use replaceState to avoid adding to history on every tab switch
         window.history.replaceState({}, "", newUrl);
     }, [openFiles, activeFileIndex, isInitialized]);
 
@@ -164,10 +100,21 @@ function ReaderContent() {
                 const data = await apiClient.getBookmark(token, activeFile.url);
 
                 if (data) {
-                    if (activeFile.type === "pdf" && data.pageNumber) {
-                        setPdfPage(data.pageNumber);
-                    }
-                    // For EPUB, the renderer will handle loading the CFI
+                    setTabStates((prev) => {
+                        // Only set initial location if not already modified locally
+                        if (prev[activeFile.id]?.pageNumber || prev[activeFile.id]?.cfi) {
+                            return prev;
+                        }
+                        return {
+                            ...prev,
+                            [activeFile.id]: {
+                                pageNumber: data.pageNumber,
+                                totalPages: data.totalPages,
+                                cfi: data.cfi,
+                                progress: data.progress,
+                            },
+                        };
+                    });
                 }
             } catch (err) {
                 console.error("Failed to load bookmark", err);
@@ -177,57 +124,64 @@ function ReaderContent() {
         loadBookmark();
     }, [activeFileIndex, openFiles, isInitialized]);
 
-    // Save bookmark
-    const saveBookmark = async (pageNumber?: number, cfi?: string) => {
-        if (!isInitialized || openFiles.length === 0) return;
-
-        const activeFile = openFiles[activeFileIndex];
-        if (!activeFile) return;
+    // Save bookmark for specific file tab
+    const saveBookmark = useCallback(async (fileId: string, location: ReaderLocationState) => {
+        const file = openFiles.find((f) => f.id === fileId);
+        if (!file) return;
 
         try {
             const token = localStorage.getItem("token");
             if (!token) return;
 
-            let progress = 0;
-            if (activeFile.type === "pdf" && pageNumber && pdfTotalPages) {
-                progress = Math.round((pageNumber / pdfTotalPages) * 100);
-            }
-
             await apiClient.upsertBookmark(token, {
-                fileUrl: activeFile.url,
-                fileName: activeFile.name,
-                pageNumber: pageNumber || undefined,
-                totalPages: pdfTotalPages || undefined,
-                cfi: cfi || undefined,
-                progress,
+                fileUrl: file.url,
+                fileName: file.name,
+                pageNumber: location.pageNumber,
+                totalPages: location.totalPages,
+                cfi: location.cfi,
+                progress: location.progress || 0,
             });
         } catch (err) {
             console.error("Failed to save bookmark", err);
         }
-    };
-
-    const activeFile = openFiles[activeFileIndex];
+    }, [openFiles]);
 
     // Handlers
+    const handleTabLocationChange = useCallback((fileId: string, location: ReaderLocationState) => {
+        setTabStates((prev) => ({
+            ...prev,
+            [fileId]: {
+                ...prev[fileId],
+                ...location,
+            },
+        }));
+        saveBookmark(fileId, location);
+    }, [saveBookmark]);
+
     const handleTabChange = (index: number) => {
         setActiveFileIndex(index);
-        // Reset reader state when switching files
-        setPdfPage(1);
-        setPdfTotalPages(0);
     };
 
     const handleTabClose = (index: number) => {
+        const closedFile = openFiles[index];
         const newFiles = openFiles.filter((_, i) => i !== index);
 
+        if (closedFile) {
+            delete readerRefs.current[closedFile.id];
+            setTabStates((prev) => {
+                const updated = { ...prev };
+                delete updated[closedFile.id];
+                return updated;
+            });
+        }
+
         if (newFiles.length === 0) {
-            // No files left, go back to library
             router.push("/files");
             return;
         }
 
         setOpenFiles(newFiles);
 
-        // Adjust active index if needed
         if (index === activeFileIndex) {
             setActiveFileIndex(Math.max(0, index - 1));
         } else if (index < activeFileIndex) {
@@ -235,44 +189,19 @@ function ReaderContent() {
         }
     };
 
-    const handlePdfPageChange = (page: number) => {
-        setPdfPage(page);
-        saveBookmark(page);
-    };
+    const activeFile = openFiles[activeFileIndex];
+    const activeLocation = activeFile ? tabStates[activeFile.id] : undefined;
 
-    const handlePdfLoadSuccess = (pages: number) => {
-        setPdfTotalPages(pages);
-    };
+    // Polymorphic Next/Prev Page Actions
+    const handleNextPage = useCallback(() => {
+        if (!activeFile) return;
+        readerRefs.current[activeFile.id]?.next();
+    }, [activeFile]);
 
-    const handleEpubLocationChange = (cfi: string) => {
-        saveBookmark(undefined, cfi);
-    };
-
-    const handleNextPage = () => {
-        if (activeFile?.type === "epub") {
-            epubRef.current?.next();
-        } else {
-            const increment = viewMode === "two-page" ? 2 : 1;
-            setPdfPage((prev) => {
-                const next = Math.min(prev + increment, pdfTotalPages);
-                saveBookmark(next);
-                return next;
-            });
-        }
-    };
-
-    const handlePrevPage = () => {
-        if (activeFile?.type === "epub") {
-            epubRef.current?.prev();
-        } else {
-            const increment = viewMode === "two-page" ? 2 : 1;
-            setPdfPage((prev) => {
-                const next = Math.max(prev - increment, 1);
-                saveBookmark(next);
-                return next;
-            });
-        }
-    };
+    const handlePrevPage = useCallback(() => {
+        if (!activeFile) return;
+        readerRefs.current[activeFile.id]?.prev();
+    }, [activeFile]);
 
     // Keyboard navigation
     useEffect(() => {
@@ -286,8 +215,7 @@ function ReaderContent() {
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeFile, viewMode, pdfTotalPages]); // Re-bind when dependencies change
+    }, [handleNextPage, handlePrevPage]);
 
     if (!isInitialized || openFiles.length === 0) {
         return (
@@ -303,9 +231,9 @@ function ReaderContent() {
             activeFileIndex={activeFileIndex}
             onTabChange={handleTabChange}
             onTabClose={handleTabClose}
-            currentPage={activeFile?.type === "pdf" ? pdfPage : undefined}
-            totalPages={activeFile?.type === "pdf" ? pdfTotalPages : undefined}
-            epubProgress={activeFile?.type === "epub" ? epubProgress : undefined}
+            currentPage={activeLocation?.pageNumber}
+            totalPages={activeLocation?.totalPages}
+            epubProgress={activeLocation?.progress !== undefined ? activeLocation.progress / 100 : undefined}
             onNextPage={handleNextPage}
             onPrevPage={handlePrevPage}
             viewMode={viewMode}
@@ -319,18 +247,34 @@ function ReaderContent() {
             onFontSizeIncrease={() => setFontSize((s) => Math.min(200, s + 20))}
             onFontSizeDecrease={() => setFontSize((s) => Math.max(50, s - 20))}
         >
-            {ReaderFactory.createReader(activeFile, {
-                pdfPage,
-                handlePdfPageChange,
-                handlePdfLoadSuccess,
-                viewMode,
-                fitMode,
-                zoom,
-                epubRef,
-                handleEpubLocationChange,
-                setEpubProgress,
-                fontSize,
-            })}
+            {/* Multi-Tab Reader Container */}
+            <div className="relative w-full h-full overflow-hidden">
+                {openFiles.map((file, index) => {
+                    const isActive = index === activeFileIndex;
+                    return (
+                        <div
+                            key={file.id}
+                            className={`w-full h-full ${isActive ? "block" : "hidden"}`}
+                        >
+                            <ReaderRenderer
+                                ref={(handle) => {
+                                    readerRefs.current[file.id] = handle;
+                                }}
+                                file={file}
+                                isActive={isActive}
+                                viewOptions={{
+                                    viewMode,
+                                    fitMode,
+                                    zoom,
+                                    fontSize,
+                                }}
+                                initialLocation={tabStates[file.id]}
+                                onLocationChange={(loc) => handleTabLocationChange(file.id, loc)}
+                            />
+                        </div>
+                    );
+                })}
+            </div>
         </UnifiedReaderLayout>
     );
 }
