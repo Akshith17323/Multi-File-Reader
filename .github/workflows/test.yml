@@ -1,0 +1,34 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [ "Testing" ]
+  pull_request:
+    branches: [ "main","Testing" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Test Web (Lint)
+      run: npm run lint --workspace=apps/web
+
+    - name: Test Web (Build)
+      run: npm run build --workspace=apps/web
+
+    - name: Test Server (Syntax Check)
+      run: node --check ./apps/server/src/server.js
+
+    - name: Test Electron (Syntax Check)
+      run: node --check ./apps/electron/main.js

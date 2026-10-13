@@ -1,0 +1,96 @@
+const prisma = require('../prisma');
+
+async function get_all_files(req, res) {
+    try {
+        const userId = req.user.userId;
+        const { search, type, page = '1', limit = '10', sortBy = 'createdAt', order = 'desc' } = req.query;
+
+        // Build where clause
+        const where = {
+            userId: userId,
+        };
+
+        // Add search filter
+        if (search) {
+            where.fileName = {
+                contains: search,
+                mode: 'insensitive'
+            };
+        }
+
+        // Add type filter
+        if (type) {
+            const typeMap = {
+                'pdf': 'application/pdf',
+                'epub': 'application/epub+zip',
+                'txt': 'text/plain'
+            };
+            if (typeMap[type]) {
+                where.fileType = typeMap[type];
+            }
+        }
+
+        // Calculate pagination
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        const skip = (pageNum - 1) * limitNum;
+
+        // Determine sort field
+        const orderBy = {};
+        if (sortBy === 'name') {
+            orderBy.fileName = order;
+        } else {
+            orderBy.createdAt = order;
+        }
+
+        // Get total count for pagination
+        const totalCount = await prisma.file.count({ where });
+
+        // Fetch files
+        const files = await prisma.file.findMany({
+            where,
+            orderBy,
+            skip,
+            take: limitNum,
+        });
+
+        // Transform to match frontend expectations
+        const transformedFiles = files.map(file => {
+            let url = file.fileUrl;
+            if (file.source === 'LOCAL' && file.localId) {
+                url = `local://${file.localId}`;
+            } else if ((file.source === 'GOOGLE_DRIVE' || file.source === 'ONEDRIVE') && file.driveId) {
+                url = `drive://${file.source}/${file.driveId}`;
+            }
+
+            return {
+                id: file.id,
+                name: file.fileName,
+                url: url,
+                thumbnailUrl: file.thumbnailUrl,
+            metadata: {
+                size: file.fileSize,
+                updated: file.createdAt,
+                contentType: file.fileType
+            }
+        };
+        });
+
+        // Return paginated response
+        res.json({
+            files: transformedFiles,
+            pagination: {
+                currentPage: pageNum,
+                totalPages: Math.ceil(totalCount / limitNum),
+                totalCount: totalCount,
+                limit: limitNum
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Error fetching files:', error);
+        res.status(500).json({ error: 'Failed to fetch files' });
+    }
+}
+
+module.exports = { get_all_files };
