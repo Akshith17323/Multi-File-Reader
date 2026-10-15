@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol } = require('electron');
 const path = require('path');
 const { registerFileHandlers } = require('./adapters/FileHandlerAdapter');
 const { registerApiProxy } = require('./services/ApiProxyService');

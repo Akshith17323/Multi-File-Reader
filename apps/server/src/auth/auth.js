@@ -94,7 +94,7 @@ async function googleLogin(req, res) {
         audience: process.env.GOOGLE_CLIENT_ID,
       });
       payload = ticket.getPayload();
-    } catch (e) {
+    } catch {
       // If it fails, try using it as an access token (from custom useGoogleLogin button)
       const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { Authorization: `Bearer ${token}` }
