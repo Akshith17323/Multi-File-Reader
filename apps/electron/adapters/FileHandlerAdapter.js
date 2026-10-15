@@ -1,18 +1,30 @@
 const fs = require('fs');
 const path = require('path');
-const { net } = require('electron');
+const { net, BrowserWindow } = require('electron');
 
-function registerFileHandlers(ipcMain, protocol, dialog, mainWindow, BACKEND_URL) {
-  
+let isRegistered = false;
+
+function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, maybeBackend) {
+  if (isRegistered) return;
+  isRegistered = true;
+
+  const BACKEND_URL = typeof maybeWindowOrBackend === 'string' ? maybeWindowOrBackend : maybeBackend;
+  const targetWindow = typeof maybeWindowOrBackend === 'object' ? maybeWindowOrBackend : null;
+  const getWindow = (event) => (event?.sender ? BrowserWindow.fromWebContents(event.sender) : null) || BrowserWindow.getFocusedWindow() || targetWindow;
+
   // Local File Picker (Saves metadata via /localUpload instead of uploading blob)
   ipcMain.handle('open-local-file-dialog', async (event, token) => {
-    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    const win = getWindow(event);
+    const dialogOptions = {
       title: 'Select a Local Book',
       properties: ['openFile'],
       filters: [
         { name: 'Supported Books', extensions: ['pdf', 'epub'] }
       ]
-    });
+    };
+    const { canceled, filePaths } = win 
+      ? await dialog.showOpenDialog(win, dialogOptions)
+      : await dialog.showOpenDialog(dialogOptions);
 
     if (canceled || filePaths.length === 0) return { ok: false, error: "Canceled" };
 
@@ -55,14 +67,18 @@ function registerFileHandlers(ipcMain, protocol, dialog, mainWindow, BACKEND_URL
 
   // Native file picker and upload to backend (Cloud)
   ipcMain.handle('select-and-upload-file', async (event, token) => {
-    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    const win = getWindow(event);
+    const dialogOptions = {
       title: 'Select a File to Upload',
       properties: ['openFile'],
       filters: [
         { name: 'Supported Files', extensions: ['txt', 'pdf', 'epub'] },
         { name: 'All Files', extensions: ['*'] }
       ]
-    });
+    };
+    const { canceled, filePaths } = win
+      ? await dialog.showOpenDialog(win, dialogOptions)
+      : await dialog.showOpenDialog(dialogOptions);
 
     if (canceled || filePaths.length === 0) return { canceled: true };
 

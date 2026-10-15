@@ -85,20 +85,7 @@ export default function BookmarksPage() {
     };
 
     const handleContinueReading = (bookmark: Bookmark) => {
-        // Determine file type from fileName or fileUrl
-        const fileNameLower = bookmark.fileName?.toLowerCase() || '';
-        const fileUrlLower = bookmark.fileUrl?.toLowerCase() || '';
-
-        const isPDF = fileNameLower.endsWith('.pdf') || fileUrlLower.includes('.pdf');
-        const isEPUB = fileNameLower.endsWith('.epub') || fileUrlLower.includes('.epub');
-
-        if (isPDF) {
-            router.push(`/reader/pdfreader?url=${encodeURIComponent(bookmark.fileUrl)}`);
-        } else if (isEPUB) {
-            router.push(`/reader/epubreader?url=${encodeURIComponent(bookmark.fileUrl)}`);
-        } else {
-            toast.info(`Unable to determine file type. FileName: ${bookmark.fileName}, URL: ${bookmark.fileUrl}`);
-        }
+        router.push(`/reader?files=${encodeURIComponent(bookmark.fileUrl)}&active=0`);
     };
 
     const getProgressText = (bookmark: Bookmark) => {

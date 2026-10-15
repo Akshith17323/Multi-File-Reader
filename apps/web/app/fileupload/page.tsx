@@ -18,6 +18,22 @@ function FileUpload() {
 
   const uploadEndpoint = `${url}/fileUpload`;
 
+  const handleFileSelection = (file: File) => {
+    setError(null);
+    setResultUrl(null);
+    setProgress(0);
+
+    const validTypes = ['.pdf', '.epub', '.txt'];
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+
+    if (!validTypes.includes(fileExtension)) {
+      setError("Invalid file type. Please upload PDF, EPUB, or TXT files.");
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -35,22 +51,6 @@ function FileUpload() {
     if (files && files.length > 0) {
       handleFileSelection(files[0]);
     }
-  };
-
-  const handleFileSelection = (file: File) => {
-    setError(null);
-    setResultUrl(null);
-    setProgress(0);
-
-    const validTypes = ['.pdf', '.epub', '.txt'];
-    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-
-    if (!validTypes.includes(fileExtension)) {
-      setError("Invalid file type. Please upload PDF, EPUB, or TXT files.");
-      return;
-    }
-
-    setSelectedFile(file);
   };
 
   const uploadFile = async (e: React.FormEvent) => {
@@ -104,9 +104,7 @@ function FileUpload() {
   };
 
   const getReaderUrl = (url: string) => {
-    if (url.endsWith('.pdf')) return `/reader/pdfreader?url=${encodeURIComponent(url)}`;
-    if (url.endsWith('.epub')) return `/reader/epubreader?url=${encodeURIComponent(url)}`;
-    return url; // Fallback
+    return `/reader?files=${encodeURIComponent(url)}&active=0`;
   };
 
   return (

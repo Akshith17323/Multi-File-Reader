@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LogOut, User, Library, Menu, X, Sun, Moon, MoonStar } from "lucide-react";
+import { LogOut, Library, Menu, X, Sun, Moon, MoonStar } from "lucide-react";
 import { toast } from "react-toastify";
 import { apiClient } from "@/services/apiClient";
 
