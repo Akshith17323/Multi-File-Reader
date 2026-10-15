@@ -5,12 +5,12 @@ import { FileText, Book } from "lucide-react";
 import Image from "next/image";
 
 interface FilePreviewProps {
-    url: string;
+    url?: string;
     type: string;
     thumbnailUrl?: string | null;
 }
 
-export default function FilePreview({ url, type, thumbnailUrl }: FilePreviewProps) {
+export default function FilePreview({ type, thumbnailUrl }: FilePreviewProps) {
     const [imgError, setImgError] = useState(false);
 
     if (thumbnailUrl && !imgError) {

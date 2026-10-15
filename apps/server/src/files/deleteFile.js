@@ -1,5 +1,4 @@
 const { bucket } = require("../gcs");
-const path = require("path");
 const prisma = require('../prisma');
 
 async function deleteFile(req, res) {
@@ -15,8 +14,11 @@ async function deleteFile(req, res) {
         // 1. Check if file exists in DB and belongs to user
         const dbFile = await prisma.file.findFirst({
             where: {
-                fileName: filename,
-                userId: userId
+                userId: userId,
+                OR: [
+                    { id: filename },
+                    { fileName: filename }
+                ]
             }
         });
 
@@ -26,7 +28,8 @@ async function deleteFile(req, res) {
         }
 
         // 2. Delete from GCS
-        const file = bucket.file(filename);
+        const gcsFileName = dbFile.fileName;
+        const file = bucket.file(gcsFileName);
         // We can check existence in GCS, but often we just try to delete. 
         // If GCS file is missing but DB has it, we should still delete from DB.
         try {

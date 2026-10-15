@@ -1,4 +1,9 @@
+let isRegistered = false;
+
 function registerApiProxy(ipcMain, BACKEND_URL) {
+  if (isRegistered) return;
+  isRegistered = true;
+
   // Universal API proxy for Electron to bypass CORS
   ipcMain.handle('api-request', async (event, { endpoint, method = 'GET', headers = {}, body }) => {
     try {

@@ -1,11 +1,5 @@
-const express = require("express");
-const multer = require("multer");
-const { bucket, bucketName } = require("../gcs");
+const { bucket } = require("../gcs");
 const prisma = require('../prisma');
-
-
-const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
 
 function formatBytes(bytes, decimals = 2) {
   if (!+bytes) return '0 Bytes';
@@ -71,7 +65,7 @@ async function uploadFile(req, res) {
       console.log("✅ Thumbnail upload success. URL:", thumbnailUrl);
     }
 
-    const PrismaFile = await prisma.file.create({
+    await prisma.file.create({
       data: {
         userId: req.user.userId,
         fileName: documentFile.originalname,

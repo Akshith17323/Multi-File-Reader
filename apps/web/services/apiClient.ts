@@ -60,11 +60,11 @@ export const apiClient = {
   deleteFile: (token: string, fileId: string) => 
     ApiAdapter.fetch(`/files/${fileId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }),
     
-  updateFile: (token: string, filename: string, newFilename: string) => 
-    ApiAdapter.fetch(`/files/${encodeURIComponent(filename)}`, { 
-      method: 'PUT', 
+  updateFile: (token: string, fileId: string, fileName: string) => 
+    ApiAdapter.fetch(`/files/${encodeURIComponent(fileId)}`, { 
+      method: 'PATCH', 
       headers: { Authorization: `Bearer ${token}` },
-      body: { newFilename } 
+      body: { fileName } 
     }),
 
   // --- Bookmarks ---

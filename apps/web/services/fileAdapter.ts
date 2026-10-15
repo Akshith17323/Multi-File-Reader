@@ -117,7 +117,7 @@ export class FileAdapter {
           try {
             const errBody = JSON.parse(xhr.responseText);
             reject(new Error(errBody.error || errBody.message || `Upload failed: ${xhr.status}`));
-          } catch (e) {
+          } catch {
             reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
           }
         }
