@@ -8,7 +8,15 @@ export interface ElectronApiResponse<T = any> {
 
 export interface ElectronAPI {
   invoke: (
-    channel: 'get-version' | 'api-request' | 'select-and-upload-file' | 'upload-dropped-file' | 'open-local-file' | 'check-file-permission',
+    channel:
+      | 'get-version'
+      | 'api-request'
+      | 'select-and-upload-file'
+      | 'upload-dropped-file'
+      | 'open-local-file'
+      | 'check-file-permission'
+      | 'check-local-files-status'
+      | 'relink-local-file',
     ...args: any[]
   ) => Promise<any>;
   send: (

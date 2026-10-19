@@ -19,6 +19,22 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
+function extractPathFromLocalUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  let filePath = rawUrl;
+  if (filePath.startsWith('mfr-local://')) {
+    filePath = decodeURIComponent(filePath.replace(/^mfr-local:\/\//, ''));
+  } else if (filePath.startsWith('file://')) {
+    filePath = decodeURIComponent(filePath.replace(/^file:\/\//, ''));
+  } else {
+    filePath = decodeURIComponent(filePath);
+  }
+  if (process.platform === 'win32' && filePath.startsWith('/') && filePath[2] === ':') {
+    filePath = filePath.slice(1);
+  }
+  return filePath;
+}
+
 let isInitialized = false;
 
 function setupAppHandlers() {
@@ -27,26 +43,26 @@ function setupAppHandlers() {
 
   // Handle native local file requests via custom protocol mfr-local://
   protocol.handle('mfr-local', async (request) => {
-    let filePath = decodeURIComponent(request.url.replace(/^mfr-local:\/\//, ''));
-    if (process.platform === 'win32' && filePath.startsWith('/') && filePath[2] === ':') {
-      filePath = filePath.slice(1);
+    const filePath = extractPathFromLocalUrl(request.url);
+
+    // If file does not exist on disk (moved/renamed/deleted), return 404
+    if (!fs.existsSync(filePath)) {
+      console.warn('[mfr-local] Media offline - file not found at:', filePath);
+      return new Response('Media Offline: File not found on disk', {
+        status: 404,
+        headers: { 'Content-Type': 'text/plain' },
+      });
     }
 
-    // Verify file existence and read permission
+    // Verify read permission
     try {
       fs.accessSync(filePath, fs.constants.R_OK);
     } catch (err) {
-      console.error('File permission error for path:', filePath, err);
-      const win = BrowserWindow.getFocusedWindow();
-      if (win) {
-        dialog.showMessageBox(win, {
-          type: 'error',
-          title: 'Permission Denied',
-          message: 'Cannot access the local file.',
-          detail: `Multi-File Reader was denied read permission for:\n${filePath}\n\nPlease check system file permissions or select the file again.`,
-        });
-      }
-      return new Response('File read permission denied or file not found', { status: 403 });
+      console.error('[mfr-local] File permission error for path:', filePath, err);
+      return new Response('File read permission denied', {
+        status: 403,
+        headers: { 'Content-Type': 'text/plain' },
+      });
     }
 
     return net.fetch('file://' + filePath);
@@ -110,6 +126,124 @@ function setupAppHandlers() {
       return { hasPermission: true };
     } catch (err) {
       return { hasPermission: false, error: err.message };
+    }
+  });
+
+  // Batch check status (existence & permissions) for local file URLs
+  ipcMain.handle('check-local-files-status', async (event, urls) => {
+    if (!Array.isArray(urls)) return {};
+    const results = {};
+    for (const url of urls) {
+      if (!url || typeof url !== 'string') continue;
+      const isLocal =
+        url.startsWith('mfr-local://') ||
+        url.startsWith('file://') ||
+        url.startsWith('/') ||
+        /^[a-zA-Z]:[\\/]/.test(url);
+
+      if (!isLocal) {
+        results[url] = { exists: true, isLocal: false, readable: true, path: url };
+        continue;
+      }
+
+      const filePath = extractPathFromLocalUrl(url);
+      try {
+        if (!fs.existsSync(filePath)) {
+          results[url] = {
+            exists: false,
+            isLocal: true,
+            readable: false,
+            path: filePath,
+            error: 'File not found at specified path (Media Offline)',
+          };
+        } else {
+          fs.accessSync(filePath, fs.constants.R_OK);
+          results[url] = { exists: true, isLocal: true, readable: true, path: filePath };
+        }
+      } catch (err) {
+        results[url] = {
+          exists: true,
+          isLocal: true,
+          readable: false,
+          path: filePath,
+          error: err.message,
+        };
+      }
+    }
+    return results;
+  });
+
+  // Relink a missing local file via native OS open dialog (DaVinci Resolve style)
+  ipcMain.handle('relink-local-file', async (event, { oldUrl, originalFileName } = {}) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    const oldPath = extractPathFromLocalUrl(oldUrl || '');
+    const ext = path.extname(oldPath || originalFileName || '').toLowerCase().replace(/^\./, '');
+
+    const filters = [];
+    if (ext === 'pdf') {
+      filters.push({ name: 'PDF Documents (*.pdf)', extensions: ['pdf'] });
+    } else if (ext === 'epub') {
+      filters.push({ name: 'EPUB Books (*.epub)', extensions: ['epub'] });
+    } else if (ext === 'txt') {
+      filters.push({ name: 'Text Documents (*.txt)', extensions: ['txt'] });
+    }
+    filters.push(
+      { name: 'Supported Books & Documents', extensions: ['pdf', 'epub', 'txt'] },
+      { name: 'All Files', extensions: ['*'] }
+    );
+
+    const dialogTitle = originalFileName
+      ? `Relink Media: Locate "${originalFileName}"`
+      : 'Relink Missing Local File';
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: dialogTitle,
+      properties: ['openFile'],
+      filters,
+    });
+
+    if (canceled || filePaths.length === 0) {
+      return { canceled: true };
+    }
+
+    const newPath = filePaths[0];
+    const newFileName = path.basename(newPath);
+
+    try {
+      fs.accessSync(newPath, fs.constants.R_OK);
+      const stat = fs.statSync(newPath);
+      const newExt = path.extname(newPath).toLowerCase();
+      let fileType = 'text/plain';
+      if (newExt === '.pdf') fileType = 'application/pdf';
+      else if (newExt === '.epub') fileType = 'application/epub+zip';
+
+      const formatSize = (bytes) => {
+        if (!bytes || bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      };
+
+      return {
+        canceled: false,
+        oldUrl,
+        newUrl: `mfr-local://${newPath}`,
+        newPath,
+        fileName: newFileName,
+        fileSize: formatSize(stat.size),
+        rawSize: stat.size,
+        fileType,
+      };
+    } catch (err) {
+      console.error('Permission check failed for relinked file:', err);
+      if (win) {
+        dialog.showErrorBox(
+          'File Permission Error',
+          `Could not read ${newFileName}: ${err.message}. Please check file permissions.`
+        );
+      }
+      return { canceled: false, error: err.message };
     }
   });
 

@@ -6,6 +6,10 @@ import UnifiedReaderLayout, { ViewMode, FitMode } from "@/components/UnifiedRead
 import { FileTabData } from "@/components/FileTab";
 import dynamic from "next/dynamic";
 import { apiClient } from "@/services/apiClient";
+import { isElectron } from "@/hooks/useEnvironment";
+import { AlertTriangle, Link2 } from "lucide-react";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 import { EPUBRendererRef } from "@/components/EPUBRenderer";
 
@@ -13,7 +17,8 @@ const PDFRenderer = dynamic(() => import("@/components/PDFRenderer"), { ssr: fal
 const EPUBRenderer = dynamic(() => import("@/components/EPUBRenderer"), { ssr: false });
 const TextRenderer = dynamic(() => import("@/components/TextRenderer"), { ssr: false });
 
-interface ReaderFactoryProps {
+interface ActiveFileReaderProps {
+    activeFile: FileTabData | undefined;
     pdfPage: number;
     handlePdfPageChange: (page: number) => void;
     handlePdfLoadSuccess: (pages: number) => void;
@@ -37,49 +42,59 @@ function getReaderSourceUrl(url: string): string {
     return `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
 }
 
-class ReaderFactory {
-    static createReader(activeFile: FileTabData | undefined, props: ReaderFactoryProps) {
-        if (!activeFile) return null;
-        const sourceUrl = getReaderSourceUrl(activeFile.url);
+function ActiveFileReader({
+    activeFile,
+    pdfPage,
+    handlePdfPageChange,
+    handlePdfLoadSuccess,
+    viewMode,
+    fitMode,
+    zoom,
+    epubRef,
+    handleEpubLocationChange,
+    setEpubProgress,
+    fontSize,
+}: ActiveFileReaderProps) {
+    if (!activeFile) return null;
+    const sourceUrl = getReaderSourceUrl(activeFile.url);
 
-        switch (activeFile.type) {
-            case "pdf":
-                return (
-                    <PDFRenderer
-                        key={activeFile.id}
-                        blobUrl={sourceUrl}
-                        pageNumber={props.pdfPage}
-                        onPageChange={props.handlePdfPageChange}
-                        onLoadSuccess={props.handlePdfLoadSuccess}
-                        viewMode={props.viewMode}
-                        fitMode={props.fitMode}
-                        scale={props.zoom}
-                    />
-                );
-            case "epub":
-                return (
-                    <EPUBRenderer
-                        key={activeFile.id}
-                        ref={props.epubRef}
-                        url={sourceUrl}
-                        onLocationChange={props.handleEpubLocationChange}
-                        onProgressChange={props.setEpubProgress}
-                        viewMode={props.viewMode}
-                        fontSize={props.fontSize}
-                    />
-                );
-            case "txt":
-                return (
-                    <TextRenderer
-                        key={activeFile.id}
-                        url={sourceUrl}
-                        fontSize={props.fontSize}
-                        viewMode={props.viewMode}
-                    />
-                );
-            default:
-                return <div className="text-foreground">Unsupported file type</div>;
-        }
+    switch (activeFile.type) {
+        case "pdf":
+            return (
+                <PDFRenderer
+                    key={activeFile.id}
+                    blobUrl={sourceUrl}
+                    pageNumber={pdfPage}
+                    onPageChange={handlePdfPageChange}
+                    onLoadSuccess={handlePdfLoadSuccess}
+                    viewMode={viewMode}
+                    fitMode={fitMode}
+                    scale={zoom}
+                />
+            );
+        case "epub":
+            return (
+                <EPUBRenderer
+                    key={activeFile.id}
+                    ref={epubRef}
+                    url={sourceUrl}
+                    onLocationChange={handleEpubLocationChange}
+                    onProgressChange={setEpubProgress}
+                    viewMode={viewMode}
+                    fontSize={fontSize}
+                />
+            );
+        case "txt":
+            return (
+                <TextRenderer
+                    key={activeFile.id}
+                    url={sourceUrl}
+                    fontSize={fontSize}
+                    viewMode={viewMode}
+                />
+            );
+        default:
+            return <div className="text-foreground">Unsupported file type</div>;
     }
 }
 
@@ -94,6 +109,10 @@ function ReaderContent() {
     const [openFiles, setOpenFiles] = useState<FileTabData[]>([]);
     const [activeFileIndex, setActiveFileIndex] = useState(0);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [offlineFiles, setOfflineFiles] = useState<
+        Record<string, { exists: boolean; path: string; error?: string; readable?: boolean; isLocal?: boolean }>
+    >({});
+    const [isRelinking, setIsRelinking] = useState(false);
 
     // Reader state
     const [viewMode, setViewMode] = useState<ViewMode>("single");
@@ -219,6 +238,114 @@ function ReaderContent() {
     };
 
     const activeFile = openFiles[activeFileIndex];
+    const isOffline = activeFile ? offlineFiles[activeFile.url]?.exists === false : false;
+    const offlinePath = activeFile ? offlineFiles[activeFile.url]?.path || activeFile.url : "";
+
+    // Check if active local file is missing/moved on disk
+    useEffect(() => {
+        if (!isInitialized || openFiles.length === 0) return;
+        if (!isElectron() || !window.electronAPI?.invoke) return;
+
+        const currentActive = openFiles[activeFileIndex];
+        if (!currentActive) return;
+
+        const isLocal =
+            currentActive.url.startsWith("mfr-local://") ||
+            currentActive.url.startsWith("file://") ||
+            currentActive.url.startsWith("/") ||
+            /^[a-zA-Z]:[\\/]/.test(currentActive.url);
+
+        if (!isLocal) return;
+
+        window.electronAPI
+            .invoke("check-local-files-status", [currentActive.url])
+            .then((statusMap: Record<string, { exists: boolean; path: string; error?: string }>) => {
+                if (statusMap) {
+                    setOfflineFiles((prev) => ({ ...prev, ...statusMap }));
+                }
+            })
+            .catch((err) => console.warn("Failed to check active file status:", err));
+    }, [activeFileIndex, openFiles, isInitialized]);
+
+    const handleRelinkActiveFile = async () => {
+        if (!activeFile) return;
+        try {
+            if (!window.electronAPI?.invoke) {
+                toast.info("Relinking is supported in the desktop app");
+                return;
+            }
+
+            setIsRelinking(true);
+            const result = await window.electronAPI.invoke("relink-local-file", {
+                oldUrl: activeFile.url,
+                originalFileName: activeFile.name,
+            });
+
+            if (!result || result.canceled) {
+                setIsRelinking(false);
+                return;
+            }
+
+            if (result.error) {
+                toast.error(`Relink failed: ${result.error}`);
+                setIsRelinking(false);
+                return;
+            }
+
+            const oldUrl = activeFile.url;
+            const newUrl = result.newUrl;
+            const newName = result.fileName;
+
+            // Migrate bookmarks
+            const token = localStorage.getItem("token");
+            if (token) {
+                try {
+                    const oldBookmark = await apiClient.getBookmark(token, oldUrl);
+                    if (oldBookmark) {
+                        await apiClient.upsertBookmark(token, {
+                            ...oldBookmark,
+                            fileUrl: newUrl,
+                            fileName: newName,
+                        });
+                        await apiClient.deleteBookmark(token, oldUrl).catch(() => null);
+                    }
+                } catch (bErr) {
+                    console.warn("Could not migrate bookmark on relink:", bErr);
+                }
+            }
+
+            // Update openFiles state with the new URL and name
+            const updatedFiles = openFiles.map((file, index) => {
+                if (index === activeFileIndex) {
+                    const lowerUrl = newUrl.toLowerCase();
+                    const fileType = lowerUrl.endsWith(".pdf") ? "pdf" : lowerUrl.endsWith(".txt") ? "txt" : "epub";
+                    return {
+                        ...file,
+                        url: newUrl,
+                        name: newName,
+                        type: fileType as any,
+                    };
+                }
+                return file;
+            });
+
+            setOpenFiles(updatedFiles);
+
+            // Clear offline flag for old & new URL
+            setOfflineFiles((prev) => {
+                const next = { ...prev };
+                delete next[oldUrl];
+                next[newUrl] = { exists: true, readable: true, path: result.newPath };
+                return next;
+            });
+
+            toast.success(`Relinked successfully to "${newName}"`);
+        } catch (err: any) {
+            toast.error(err.message || "Failed to relink file");
+        } finally {
+            setIsRelinking(false);
+        }
+    };
 
     // Handlers
     const handleTabChange = (index: number) => {
@@ -315,9 +442,9 @@ function ReaderContent() {
             activeFileIndex={activeFileIndex}
             onTabChange={handleTabChange}
             onTabClose={handleTabClose}
-            currentPage={activeFile?.type === "pdf" ? pdfPage : undefined}
-            totalPages={activeFile?.type === "pdf" ? pdfTotalPages : undefined}
-            epubProgress={activeFile?.type === "epub" ? epubProgress : undefined}
+            currentPage={activeFile?.type === "pdf" && !isOffline ? pdfPage : undefined}
+            totalPages={activeFile?.type === "pdf" && !isOffline ? pdfTotalPages : undefined}
+            epubProgress={activeFile?.type === "epub" && !isOffline ? epubProgress : undefined}
             onNextPage={handleNextPage}
             onPrevPage={handlePrevPage}
             viewMode={viewMode}
@@ -331,18 +458,82 @@ function ReaderContent() {
             onFontSizeIncrease={() => setFontSize((s) => Math.min(200, s + 20))}
             onFontSizeDecrease={() => setFontSize((s) => Math.max(50, s - 20))}
         >
-            {ReaderFactory.createReader(activeFile, {
-                pdfPage,
-                handlePdfPageChange,
-                handlePdfLoadSuccess,
-                viewMode,
-                fitMode,
-                zoom,
-                epubRef,
-                handleEpubLocationChange,
-                setEpubProgress,
-                fontSize,
-            })}
+            <ToastContainer position="top-right" theme="dark" />
+            {isOffline ? (
+                <div className="w-full h-full min-h-[600px] flex items-center justify-center p-6 bg-[#0c0d10] text-foreground select-none relative overflow-hidden">
+                    {/* Cinematic DaVinci Hazard Striping Overlay */}
+                    <div
+                        className="absolute inset-0 opacity-10 pointer-events-none"
+                        style={{
+                            backgroundImage: `repeating-linear-gradient(-45deg, #ef4444 0px, #ef4444 20px, transparent 20px, transparent 40px)`,
+                        }}
+                    />
+
+                    {/* Ambient Glow */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-red-600/10 blur-[120px] rounded-full pointer-events-none" />
+
+                    {/* Central Warning Card */}
+                    <div className="relative z-10 max-w-xl w-full mx-auto bg-surface/90 backdrop-blur-2xl border-2 border-red-500/30 rounded-3xl p-8 sm:p-10 shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex flex-col items-center text-center">
+                        {/* Warning Icon Badge */}
+                        <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-500 mb-5 shadow-[0_0_30px_rgba(239,68,68,0.3)]">
+                            <AlertTriangle size={34} className="animate-pulse" />
+                        </div>
+
+                        {/* Title */}
+                        <h2 className="text-2xl sm:text-3xl font-black tracking-[0.2em] text-red-500 uppercase mb-2">
+                            Media Offline
+                        </h2>
+
+                        {/* Subtitle */}
+                        <p className="text-foreground-muted text-sm sm:text-base max-w-md mb-6 leading-relaxed">
+                            Multi-File Reader could not find this file on disk. It may have been moved, renamed, or deleted.
+                        </p>
+
+                        {/* Last Known Path Card */}
+                        <div className="w-full bg-background/80 border border-border-subtle rounded-2xl p-4 mb-8 text-left">
+                            <span className="text-[11px] font-bold text-foreground-muted uppercase tracking-wider block mb-1">
+                                Last Known Disk Location
+                            </span>
+                            <p className="font-mono text-xs sm:text-sm text-foreground break-all select-text bg-surface/50 p-2.5 rounded-xl border border-border-subtle">
+                                {offlinePath}
+                            </p>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full justify-center">
+                            <button
+                                onClick={handleRelinkActiveFile}
+                                disabled={isRelinking}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl shadow-[0_0_25px_rgba(239,68,68,0.4)] hover:shadow-[0_0_35px_rgba(239,68,68,0.6)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50"
+                            >
+                                <Link2 size={18} />
+                                <span>{isRelinking ? "Relinking..." : "Relink Media File..."}</span>
+                            </button>
+
+                            <button
+                                onClick={() => router.push("/files")}
+                                className="w-full sm:w-auto px-6 py-4 bg-surface hover:bg-surface-hover text-foreground border border-border-subtle hover:border-foreground-muted rounded-2xl font-bold text-sm transition-colors cursor-pointer"
+                            >
+                                Return to Library
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <ActiveFileReader
+                    activeFile={activeFile}
+                    pdfPage={pdfPage}
+                    handlePdfPageChange={handlePdfPageChange}
+                    handlePdfLoadSuccess={handlePdfLoadSuccess}
+                    viewMode={viewMode}
+                    fitMode={fitMode}
+                    zoom={zoom}
+                    epubRef={epubRef}
+                    handleEpubLocationChange={handleEpubLocationChange}
+                    setEpubProgress={setEpubProgress}
+                    fontSize={fontSize}
+                />
+            )}
         </UnifiedReaderLayout>
     );
 }

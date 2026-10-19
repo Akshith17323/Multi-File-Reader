@@ -10,8 +10,22 @@ async function updateFile(req, res) {
             return res.status(400).json({ message: 'File ID is required' });
         }
 
-        if (!fileName || fileName.trim() === '') {
-            return res.status(400).json({ message: 'File name is required' });
+        const updateData = {};
+        if (fileName && fileName.trim() !== '') {
+            updateData.fileName = fileName.trim();
+        }
+        if (req.body.fileUrl) {
+            updateData.fileUrl = req.body.fileUrl;
+        }
+        if (req.body.fileSize) {
+            updateData.fileSize = req.body.fileSize;
+        }
+        if (req.body.fileType) {
+            updateData.fileType = req.body.fileType;
+        }
+
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).json({ message: 'No valid fields provided for update' });
         }
 
         // Verify file ownership
@@ -29,7 +43,7 @@ async function updateFile(req, res) {
         // Update file
         const updatedFile = await prisma.file.update({
             where: { id },
-            data: { fileName: fileName.trim() }
+            data: updateData
         });
 
         return res.status(200).json({
@@ -37,7 +51,9 @@ async function updateFile(req, res) {
             file: {
                 id: updatedFile.id,
                 fileName: updatedFile.fileName,
-                fileUrl: updatedFile.fileUrl
+                fileUrl: updatedFile.fileUrl,
+                fileSize: updatedFile.fileSize,
+                fileType: updatedFile.fileType
             }
         });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, ReactNode } from "react";
-import { ChevronLeft, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown } from "lucide-react";
+import { ChevronLeft, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import FileTab, { FileTabData } from "./FileTab";
 
@@ -62,7 +62,7 @@ export default function UnifiedReaderLayout({
     onFontSizeDecrease,
 }: UnifiedReaderLayoutProps) {
     const router = useRouter();
-    const [isSidebarCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const activeFile = openFiles[activeFileIndex];
     const isEpub = activeFile?.type === "epub";
@@ -87,14 +87,22 @@ export default function UnifiedReaderLayout({
             {/* Top Control Bar */}
             <div className="relative z-20 bg-surface/80 backdrop-blur-xl border-b border-border-subtle px-6 py-3">
                 <div className="flex items-center justify-between gap-4">
-                    {/* Left: Back to Library */}
-                    <div className="flex items-center gap-4">
+                    {/* Left: Back to Library & Tabs Toggle */}
+                    <div className="flex items-center gap-2">
                         <button
                             onClick={handleBackToLibrary}
                             className="p-2 hover:bg-surface-hover rounded-lg text-foreground-muted hover:text-foreground transition-colors"
                             title="Back to Library"
                         >
                             <ChevronLeft size={20} />
+                        </button>
+
+                        <button
+                            onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+                            className="p-2 hover:bg-surface-hover rounded-lg text-foreground-muted hover:text-foreground transition-colors"
+                            title={isSidebarCollapsed ? "Show Open Files Tabs" : "Hide Open Files Tabs"}
+                        >
+                            {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
                         </button>
 
                         {activeFile && (
@@ -257,7 +265,7 @@ export default function UnifiedReaderLayout({
                     className={`
             bg-surface/95 backdrop-blur-xl border-r border-border-subtle flex flex-col
             transition-all duration-300
-            ${isSidebarCollapsed ? "w-0" : "w-72"}
+            ${isSidebarCollapsed ? "w-0 border-r-0 overflow-hidden" : "w-72"}
           `}
                 >
                     {!isSidebarCollapsed && (

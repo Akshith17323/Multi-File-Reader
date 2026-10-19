@@ -57,12 +57,18 @@ export const apiClient = {
   deleteFile: (token: string, fileId: string) => 
     universalFetch(`/files/${fileId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }),
     
-  updateFile: (token: string, filename: string, newFilename: string) => 
-    universalFetch(`/files/${encodeURIComponent(filename)}`, { 
-      method: 'PUT', 
+  updateFile: (
+    token: string,
+    fileId: string,
+    updateData: string | { fileName?: string; fileUrl?: string; fileSize?: string; fileType?: string }
+  ) => {
+    const body = typeof updateData === "string" ? { fileName: updateData } : updateData;
+    return universalFetch(`/files/${fileId}`, {
+      method: "PATCH",
       headers: { Authorization: `Bearer ${token}` },
-      body: { newFilename } 
-    }),
+      body,
+    });
+  },
 
   // --- Bookmarks ---
   getAllBookmarks: (token: string) => 

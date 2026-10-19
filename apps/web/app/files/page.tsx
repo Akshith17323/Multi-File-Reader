@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, BookOpen, AlertCircle, Edit2 } from "lucide-react";
+import { Trash2, BookOpen, AlertCircle, Edit2, AlertTriangle, Link2 } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { apiClient } from "@/services/apiClient";
@@ -30,6 +30,9 @@ export default function FilesPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [newFileName, setNewFileName] = useState("");
+  const [offlineFiles, setOfflineFiles] = useState<
+    Record<string, { exists: boolean; path: string; error?: string; readable?: boolean; isLocal?: boolean }>
+  >({});
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -174,6 +177,120 @@ export default function FilesPage() {
       }
     } catch (err: any) {
       toast.error(err.message || 'Failed to open local file');
+    }
+  };
+
+  // Scan local files for DaVinci Resolve-style Media Offline status
+  useEffect(() => {
+    if (!isElectron() || !window.electronAPI?.invoke || files.length === 0) return;
+
+    const localFiles = files.filter(
+      (f) =>
+        f.url.startsWith("mfr-local://") ||
+        f.url.startsWith("file://") ||
+        f.url.startsWith("/") ||
+        /^[a-zA-Z]:[\\/]/.test(f.url)
+    );
+
+    if (localFiles.length === 0) return;
+
+    let isMounted = true;
+    window.electronAPI
+      .invoke("check-local-files-status", localFiles.map((f) => f.url))
+      .then((statusMap: Record<string, { exists: boolean; path: string; error?: string }>) => {
+        if (isMounted && statusMap) {
+          setOfflineFiles((prev) => ({ ...prev, ...statusMap }));
+        }
+      })
+      .catch((err) => console.warn("Failed to check local files status:", err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, [files]);
+
+  const handleRelink = async (file: FileData) => {
+    try {
+      if (!window.electronAPI?.invoke) {
+        toast.info("Relinking is supported in the desktop app");
+        return;
+      }
+
+      const result = await window.electronAPI.invoke("relink-local-file", {
+        oldUrl: file.url,
+        originalFileName: file.name,
+      });
+
+      if (!result || result.canceled) return;
+
+      if (result.error) {
+        toast.error(`Relink failed: ${result.error}`);
+        return;
+      }
+
+      const newUrl = result.newUrl;
+      const newName = result.fileName;
+      const newSize = result.fileSize;
+
+      // Migrate bookmarks if any
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const oldBookmark = await apiClient.getBookmark(token, file.url);
+          if (oldBookmark) {
+            await apiClient.upsertBookmark(token, {
+              ...oldBookmark,
+              fileUrl: newUrl,
+              fileName: newName,
+            });
+            await apiClient.deleteBookmark(token, file.url).catch(() => null);
+          }
+        } catch (bErr) {
+          console.warn("Could not migrate bookmark on relink:", bErr);
+        }
+
+        // Update file record in database if id exists
+        if (file.id) {
+          try {
+            await apiClient.updateFile(token, file.id, {
+              fileName: newName,
+              fileUrl: newUrl,
+              fileSize: newSize,
+            });
+          } catch (dbErr) {
+            console.warn("Could not update file in database:", dbErr);
+          }
+        }
+      }
+
+      // Update local state
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === file.id
+            ? {
+                ...f,
+                name: newName,
+                url: newUrl,
+                metadata: {
+                  ...f.metadata,
+                  size: newSize || f.metadata.size,
+                },
+              }
+            : f
+        )
+      );
+
+      // Clear offline state for this file
+      setOfflineFiles((prev) => {
+        const next = { ...prev };
+        delete next[file.url];
+        next[newUrl] = { exists: true, isLocal: true, readable: true, path: result.newPath };
+        return next;
+      });
+
+      toast.success(`Relinked successfully to "${newName}"`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to relink file");
     }
   };
 
@@ -347,35 +464,107 @@ export default function FilesPage() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 pb-12">
-              {files.map((file) => (
+              {files.map((file) => {
+                const isOffline = offlineFiles[file.url]?.exists === false;
+                const offlinePath = offlineFiles[file.url]?.path || file.url;
+
+                return (
                 <div
                   key={file.id}
-                  className="group relative bg-surface backdrop-blur-2xl rounded-3xl overflow-hidden flex flex-col shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:shadow-[0_15px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_15px_40px_rgb(0,0,0,0.4)] hover:-translate-y-2 transition-all duration-500 border border-border-subtle"
+                  className={`group relative bg-surface backdrop-blur-2xl rounded-3xl overflow-hidden flex flex-col shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:shadow-[0_15px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_15px_40px_rgb(0,0,0,0.4)] hover:-translate-y-2 transition-all duration-500 border ${
+                    isOffline ? "border-red-500/50 dark:border-red-500/40" : "border-border-subtle"
+                  }`}
                 >
                   <div className="aspect-3/4 relative bg-background overflow-hidden group-hover:scale-105 transition-transform duration-500">
                     <div className="w-full h-full">
-                      <FilePreview url={file.url} type={file.metadata.contentType} />
+                      {isOffline ? (
+                        <div className="w-full h-full bg-[#121316] relative flex flex-col items-center justify-center p-4 text-center overflow-hidden">
+                          {/* DaVinci Resolve Hazard Stripes Pattern */}
+                          <div
+                            className="absolute inset-0 opacity-15 pointer-events-none"
+                            style={{
+                              backgroundImage: `repeating-linear-gradient(45deg, #ef4444 0px, #ef4444 12px, transparent 12px, transparent 24px)`,
+                            }}
+                          />
+
+                          <div className="relative z-10 w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-500 mb-2 shadow-[0_0_20px_rgba(239,68,68,0.35)]">
+                            <AlertTriangle size={24} className="animate-pulse" />
+                          </div>
+
+                          <span className="relative z-10 text-[11px] font-black tracking-widest text-red-400 uppercase px-2.5 py-1 rounded bg-red-500/15 border border-red-500/30 mb-2">
+                            Media Offline
+                          </span>
+
+                          <p
+                            className="relative z-10 text-[11px] text-zinc-400 line-clamp-2 max-w-[200px] break-all font-mono mb-4 px-1"
+                            title={offlinePath}
+                          >
+                            {offlinePath.split("/").pop() || "File missing"}
+                          </p>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRelink(file);
+                            }}
+                            className="relative z-10 flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                            title="Locate and relink this file on disk"
+                          >
+                            <Link2 size={14} />
+                            <span>Relink Media</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <FilePreview url={file.url} type={file.metadata.contentType} />
+                      )}
                     </div>
 
                     <div className="absolute top-4 left-4 z-10">
-                      <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-surface-hover/90 backdrop-blur-md text-primary shadow-lg border border-border-subtle">
-                        {getFileIcon(file.metadata.contentType)}
-                      </span>
+                      {isOffline ? (
+                        <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-red-600/95 backdrop-blur-md text-white shadow-lg border border-red-400 flex items-center gap-1.5">
+                          <AlertCircle size={12} />
+                          OFFLINE
+                        </span>
+                      ) : (
+                        <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-surface-hover/90 backdrop-blur-md text-primary shadow-lg border border-border-subtle">
+                          {getFileIcon(file.metadata.contentType)}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
-                      <button
-                        onClick={() => handleRead(file)}
-                        className="bg-primary text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 font-medium text-sm"
-                      >
-                        Open
-                      </button>
-                      <button
-                        onClick={() => handleOpenInNewTab(file)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 font-medium text-sm"
-                      >
-                        + New Tab
-                      </button>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2 p-3">
+                      {isOffline ? (
+                        <>
+                          <button
+                            onClick={() => handleRelink(file)}
+                            className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl shadow-xl font-bold text-sm flex items-center gap-1.5 transform scale-90 group-hover:scale-100 transition-all duration-300 cursor-pointer"
+                          >
+                            <Link2 size={16} />
+                            Relink
+                          </button>
+                          <button
+                            onClick={() => handleRead(file)}
+                            className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs font-medium border border-white/20 transform scale-90 group-hover:scale-100 transition-all duration-300 cursor-pointer"
+                          >
+                            Inspect
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleRead(file)}
+                            className="bg-primary text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 font-medium text-sm"
+                          >
+                            Open
+                          </button>
+                          <button
+                            onClick={() => handleOpenInNewTab(file)}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 font-medium text-sm"
+                          >
+                            + New Tab
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -415,15 +604,30 @@ export default function FilesPage() {
                             <h3 className="font-bold text-lg text-foreground line-clamp-1 leading-tight mb-1" title={file.name}>
                               {file.name}
                             </h3>
-                            <p className="text-sm text-foreground-muted flex items-center gap-2">
-                              <span>{file.metadata.size}</span>
-                              {file.metadata.updated && (
-                                <>
-                                  <span className="w-1 h-1 rounded-full bg-border-subtle" />
-                                  <span>{new Date(file.metadata.updated).toLocaleDateString()}</span>
-                                </>
-                              )}
-                            </p>
+                            {isOffline ? (
+                              <div className="flex items-center justify-between mt-1 text-xs text-red-400 font-medium">
+                                <span className="flex items-center gap-1 truncate">
+                                  <AlertTriangle size={13} className="shrink-0 text-red-500" />
+                                  <span>Missing on disk</span>
+                                </span>
+                                <button
+                                  onClick={() => handleRelink(file)}
+                                  className="underline font-bold hover:text-red-300 cursor-pointer ml-2 shrink-0"
+                                >
+                                  Relink
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-foreground-muted flex items-center gap-2">
+                                <span>{file.metadata.size}</span>
+                                {file.metadata.updated && (
+                                  <>
+                                    <span className="w-1 h-1 rounded-full bg-border-subtle" />
+                                    <span>{new Date(file.metadata.updated).toLocaleDateString()}</span>
+                                  </>
+                                )}
+                              </p>
+                            )}
                           </>
                         )}
                       </div>
@@ -456,7 +660,8 @@ export default function FilesPage() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Pagination Controls */}

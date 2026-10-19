@@ -6,7 +6,9 @@ const VALID_INVOKE_CHANNELS = [
   'api-request',
   'upload-dropped-file',
   'open-local-file',
-  'check-file-permission'
+  'check-file-permission',
+  'check-local-files-status',
+  'relink-local-file'
 ];
 
 const VALID_SEND_CHANNELS = [
