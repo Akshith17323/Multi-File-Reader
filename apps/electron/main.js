@@ -1,44 +1,138 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, net, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
 const BACKEND_URL = 'http://localhost:2007';
 
-function createWindow() {
-  const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    frame: false,
-    titleBarStyle: 'hidden',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
+// Register custom secure protocol for local files BEFORE app is ready
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'mfr-local',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+      bypassCSP: true,
     },
+  },
+]);
+
+let isInitialized = false;
+
+function setupAppHandlers() {
+  if (isInitialized) return;
+  isInitialized = true;
+
+  // Handle native local file requests via custom protocol mfr-local://
+  protocol.handle('mfr-local', async (request) => {
+    let filePath = decodeURIComponent(request.url.replace(/^mfr-local:\/\//, ''));
+    if (process.platform === 'win32' && filePath.startsWith('/') && filePath[2] === ':') {
+      filePath = filePath.slice(1);
+    }
+
+    // Verify file existence and read permission
+    try {
+      fs.accessSync(filePath, fs.constants.R_OK);
+    } catch (err) {
+      console.error('File permission error for path:', filePath, err);
+      const win = BrowserWindow.getFocusedWindow();
+      if (win) {
+        dialog.showMessageBox(win, {
+          type: 'error',
+          title: 'Permission Denied',
+          message: 'Cannot access the local file.',
+          detail: `Multi-File Reader was denied read permission for:\n${filePath}\n\nPlease check system file permissions or select the file again.`,
+        });
+      }
+      return new Response('File read permission denied or file not found', { status: 403 });
+    }
+
+    return net.fetch('file://' + filePath);
   });
 
-  // Load the Next.js dev server during development
-  // Note: in production, you'd load a static file instead.
-  mainWindow.loadURL('http://localhost:3000');
-  
-  // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
+  // Explicit native file picker for local files (prompts OS dialog & grants file access)
+  ipcMain.handle('open-local-file', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: 'Select a Local Book or Document',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Supported Books & Documents', extensions: ['pdf', 'epub', 'txt'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
 
-  // IPC Handlers
-  ipcMain.on('window-minimize', () => {
-    mainWindow.minimize();
-  });
+    if (canceled || filePaths.length === 0) {
+      return { canceled: true };
+    }
 
-  ipcMain.on('window-maximize', () => {
-    if (mainWindow.isMaximized()) {
-      mainWindow.unmaximize();
-    } else {
-      mainWindow.maximize();
+    const filePath = filePaths[0];
+    const fileName = path.basename(filePath);
+    
+    // Check permission
+    try {
+      fs.accessSync(filePath, fs.constants.R_OK);
+      const stat = fs.statSync(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      let fileType = 'text/plain';
+      if (ext === '.pdf') fileType = 'application/pdf';
+      else if (ext === '.epub') fileType = 'application/epub+zip';
+
+      return {
+        canceled: false,
+        filePath,
+        fileName,
+        fileSize: stat.size,
+        fileType,
+        url: `mfr-local://${filePath}`
+      };
+    } catch (err) {
+      console.error('Permission check failed for selected file:', err);
+      if (win) {
+        dialog.showErrorBox(
+          'File Permission Error',
+          `Could not read ${fileName}: ${err.message}. Please check file permissions.`
+        );
+      }
+      return { canceled: false, error: err.message };
     }
   });
 
-  ipcMain.on('window-close', () => {
-    mainWindow.close();
+  // Check file permission IPC handler
+  ipcMain.handle('check-file-permission', async (event, filePath) => {
+    try {
+      if (!filePath || !fs.existsSync(filePath)) {
+        return { hasPermission: false, error: 'File does not exist' };
+      }
+      fs.accessSync(filePath, fs.constants.R_OK);
+      return { hasPermission: true };
+    } catch (err) {
+      return { hasPermission: false, error: err.message };
+    }
+  });
+
+  // Window Controls
+  ipcMain.on('window-minimize', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    if (win) win.minimize();
+  });
+
+  ipcMain.on('window-maximize', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    if (win) {
+      if (win.isMaximized()) {
+        win.unmaximize();
+      } else {
+        win.maximize();
+      }
+    }
+  });
+
+  ipcMain.on('window-close', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    if (win) win.close();
   });
 
   ipcMain.handle('get-version', () => {
@@ -70,10 +164,10 @@ function createWindow() {
     }
   });
 
-
   // Native file picker and upload to backend
   ipcMain.handle('select-and-upload-file', async (event, token) => {
-    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    const win = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
       title: 'Select a File to Upload',
       properties: ['openFile'],
       filters: [
@@ -106,24 +200,25 @@ function createWindow() {
       
       return { canceled: false, data };
     } catch (err) {
-      throw err;
+      console.error('File selection upload error:', err);
+      return { canceled: false, error: err.message };
     }
   });
 
   // Handle drag-and-drop file upload
   ipcMain.handle('upload-dropped-file', async (event, { token, filePath }) => {
-    if (!fs.existsSync(filePath)) {
-      throw new Error('File does not exist on disk');
-    }
-
-    const fileName = path.basename(filePath);
-    const fileBuffer = fs.readFileSync(filePath);
-    
-    const formData = new FormData();
-    const blob = new Blob([fileBuffer]);
-    formData.append('UploadingFile', blob, fileName);
-
     try {
+      if (!filePath || !fs.existsSync(filePath)) {
+        return { ok: false, error: 'File does not exist on disk' };
+      }
+
+      const fileName = path.basename(filePath);
+      const fileBuffer = fs.readFileSync(filePath);
+      
+      const formData = new FormData();
+      const blob = new Blob([fileBuffer]);
+      formData.append('UploadingFile', blob, fileName);
+
       const response = await fetch(`${BACKEND_URL}/fileUpload`, {
         method: 'POST',
         headers: {
@@ -133,17 +228,46 @@ function createWindow() {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || data.message || 'Upload failed');
+      if (!response.ok) {
+        return { ok: false, error: data.error || data.message || 'Upload failed' };
+      }
       
       return { ok: true, data };
     } catch (err) {
       console.error('Drop upload error:', err);
-      throw err;
+      return { ok: false, error: err.message || 'Upload failed' };
     }
   });
 }
 
+function createWindow() {
+  const mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    frame: false,
+    titleBarStyle: 'hidden',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  // Load the Next.js dev server during development
+  // Note: in production, you'd load a static file instead.
+  mainWindow.loadURL('http://localhost:3000');
+  return mainWindow;
+}
+
 app.whenReady().then(() => {
+  // Configure default session permissions
+  if (session && session.defaultSession) {
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+      callback(true);
+    });
+  }
+
+  setupAppHandlers();
   createWindow();
 
   app.on('activate', function () {

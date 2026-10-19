@@ -67,10 +67,10 @@ function FileUpload() {
     if (isElectron()) {
       setProgress(50);
       try {
-        const filePath = (selectedFile as any).path;
+        const filePath = window.electronAPI?.getFilePath?.(selectedFile) || (selectedFile as any).path;
         if (!filePath) throw new Error("Could not find file path for desktop upload. Try selecting the file again.");
         
-        const result = await (window as any).electronAPI.invoke('upload-dropped-file', {
+        const result = await window.electronAPI?.invoke('upload-dropped-file', {
           filePath,
           token
         });
@@ -122,6 +122,19 @@ function FileUpload() {
     xhr.send(fd);
   };
 
+  const handleOpenLocalDirect = async () => {
+    try {
+      const result = await window.electronAPI?.invoke('open-local-file');
+      if (result && !result.canceled && result.url) {
+        router.push(`/reader?files=${encodeURIComponent(result.url)}&active=0`);
+      } else if (result?.error) {
+        setError(`Permission/access error: ${result.error}`);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to open local file");
+    }
+  };
+
   const getFileIcon = () => {
     if (!selectedFile) return <Upload size={48} className="text-gray-400" />;
     const ext = selectedFile.name.split('.').pop()?.toLowerCase();
@@ -161,6 +174,19 @@ function FileUpload() {
             Upload documents to your secure digital library
           </p>
         </div>
+
+        {isElectron() && (
+          <div className="mb-6 flex justify-center">
+            <button
+              type="button"
+              onClick={handleOpenLocalDirect}
+              className="px-6 py-3.5 bg-surface hover:bg-surface-hover text-foreground border border-border-subtle hover:border-primary/50 rounded-2xl font-bold text-sm transition-all duration-300 shadow-sm flex items-center gap-2.5 cursor-pointer"
+            >
+              <FileText size={18} className="text-primary" />
+              <span>Or Open a Local File Directly (No Upload Required)</span>
+            </button>
+          </div>
+        )}
 
         <div className="bg-surface rounded-3xl p-10 shadow-2xl border border-border-subtle">
           {!resultUrl ? (

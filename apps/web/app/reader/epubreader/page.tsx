@@ -44,8 +44,15 @@ function ReaderContent() {
       try {
         setLoading(true);
 
-        const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
-        const book = ePub(proxiedUrl);
+        let bookUrl = url;
+        if (!url.startsWith("mfr-local://") && !url.startsWith("blob:") && !url.startsWith("data:")) {
+          if (url.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(url) || url.startsWith("file://")) {
+            bookUrl = `mfr-local://${url.replace(/^file:\/\//, "")}`;
+          } else {
+            bookUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
+          }
+        }
+        const book = ePub(bookUrl);
         bookRef.current = book;
         setIsBookReady(true);
 

@@ -15,6 +15,16 @@ function PDFReaderContent() {
   useEffect(() => {
     if (!url) return;
 
+    if (url.startsWith("mfr-local://") || url.startsWith("blob:")) {
+      setBlobUrl(url);
+      return;
+    }
+
+    if (url.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(url) || url.startsWith("file://")) {
+      setBlobUrl(`mfr-local://${url.replace(/^file:\/\//, "")}`);
+      return;
+    }
+
     const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
     fetch(proxiedUrl)
       .then((res) => res.blob())

@@ -14,15 +14,15 @@ export default function DesktopTitlebar() {
   if (!mounted || !isElectron) return null;
 
   const handleMinimize = () => {
-    (window as any).electronAPI?.send('window-minimize');
+    window.electronAPI?.send('window-minimize');
   };
 
   const handleMaximize = () => {
-    (window as any).electronAPI?.send('window-maximize');
+    window.electronAPI?.send('window-maximize');
   };
 
   const handleClose = () => {
-    (window as any).electronAPI?.send('window-close');
+    window.electronAPI?.send('window-close');
   };
 
   return (

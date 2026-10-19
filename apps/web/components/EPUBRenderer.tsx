@@ -55,8 +55,10 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
                 setLoading(true);
                 setError(null);
 
-                const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
-                const book = ePub(proxiedUrl);
+                const bookUrl = url.startsWith("mfr-local://") || url.startsWith("blob:") || url.startsWith("data:")
+                    ? url
+                    : `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
+                const book = ePub(bookUrl);
                 bookRef.current = book;
                 setIsBookReady(true);
 

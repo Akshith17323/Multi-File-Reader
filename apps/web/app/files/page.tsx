@@ -6,6 +6,7 @@ import { Trash2, BookOpen, AlertCircle, Edit2 } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { apiClient } from "@/services/apiClient";
+import { isElectron } from "@/hooks/useEnvironment";
 import dynamic from "next/dynamic";
 
 const FilePreview = dynamic(() => import("@/components/FilePreview"), { ssr: false });
@@ -162,6 +163,20 @@ export default function FilesPage() {
     router.push(`/reader?files=${encodeURIComponent(file.url)}&active=0`);
   };
 
+  const handleOpenLocalFile = async () => {
+    try {
+      const result = await window.electronAPI?.invoke('open-local-file');
+      if (result && !result.canceled && result.url) {
+        toast.success(`Opening local file: ${result.fileName}`);
+        router.push(`/reader?files=${encodeURIComponent(result.url)}&active=0`);
+      } else if (result?.error) {
+        toast.error(`Permission/access error: ${result.error}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to open local file');
+    }
+  };
+
   const handleOpenInNewTab = (file: FileData) => {
     // Check if reader is already open by trying to access sessionStorage
     const currentReaderFiles = sessionStorage.getItem("readerFiles");
@@ -222,14 +237,27 @@ export default function FilesPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => router.push("/fileupload")}
-            className="group flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <span className="text-2xl font-light leading-none relative z-10">+</span>
-            <span className="relative z-10">Upload New</span>
-          </button>
+          <div className="flex items-center gap-3">
+            {isElectron() && (
+              <button
+                onClick={handleOpenLocalFile}
+                className="group flex items-center gap-2 px-6 py-4 bg-surface hover:bg-surface-hover text-foreground border border-border-subtle hover:border-primary/50 rounded-2xl font-bold text-base transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
+                title="Select and read a local file from your disk with full OS permissions"
+              >
+                <BookOpen size={20} className="text-primary" />
+                <span>Open Local File</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => router.push("/fileupload")}
+              className="group flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="text-2xl font-light leading-none relative z-10">+</span>
+              <span className="relative z-10">Upload New</span>
+            </button>
+          </div>
         </div>
 
         {/* Controls Bar */}

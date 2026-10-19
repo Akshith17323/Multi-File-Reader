@@ -26,16 +26,28 @@ interface ReaderFactoryProps {
     fontSize: number;
 }
 
+function getReaderSourceUrl(url: string): string {
+    if (url.startsWith("mfr-local://") || url.startsWith("blob:") || url.startsWith("data:")) {
+        return url;
+    }
+    if (url.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(url) || url.startsWith("file://")) {
+        const cleanPath = url.replace(/^file:\/\//, "");
+        return `mfr-local://${cleanPath}`;
+    }
+    return `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
+}
+
 class ReaderFactory {
     static createReader(activeFile: FileTabData | undefined, props: ReaderFactoryProps) {
         if (!activeFile) return null;
+        const sourceUrl = getReaderSourceUrl(activeFile.url);
 
         switch (activeFile.type) {
             case "pdf":
                 return (
                     <PDFRenderer
                         key={activeFile.id}
-                        blobUrl={`${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(activeFile.url)}`}
+                        blobUrl={sourceUrl}
                         pageNumber={props.pdfPage}
                         onPageChange={props.handlePdfPageChange}
                         onLoadSuccess={props.handlePdfLoadSuccess}
@@ -49,7 +61,7 @@ class ReaderFactory {
                     <EPUBRenderer
                         key={activeFile.id}
                         ref={props.epubRef}
-                        url={activeFile.url}
+                        url={sourceUrl}
                         onLocationChange={props.handleEpubLocationChange}
                         onProgressChange={props.setEpubProgress}
                         viewMode={props.viewMode}
@@ -60,7 +72,7 @@ class ReaderFactory {
                 return (
                     <TextRenderer
                         key={activeFile.id}
-                        url={activeFile.url}
+                        url={sourceUrl}
                         fontSize={props.fontSize}
                         viewMode={props.viewMode}
                     />

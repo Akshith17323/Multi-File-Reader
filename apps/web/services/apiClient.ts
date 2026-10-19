@@ -9,20 +9,20 @@ type ApiOptions = {
 async function universalFetch(endpoint: string, options: ApiOptions = {}) {
   const { method = 'GET', headers = {}, body } = options;
   
-  if (isElectron()) {
-    // Desktop: proxy through IPC to avoid CORS
-    const result = await (window as any).electronAPI.invoke('api-request', {
-      endpoint,
-      method,
-      headers,
-      body,
-    });
-    
-    if (!result.ok) {
-      throw new Error(result.error || result.data?.Message || 'API request failed');
-    }
-    
-    return result.data;
+    if (isElectron() && window.electronAPI) {
+      // Desktop: proxy through IPC to avoid CORS
+      const result = await window.electronAPI.invoke('api-request', {
+        endpoint,
+        method,
+        headers,
+        body,
+      });
+      
+      if (!result.ok) {
+        throw new Error(result.error || result.data?.message || result.data?.Message || 'API request failed');
+      }
+      
+      return result.data;
   } else {
     // Web: normal fetch
     const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}${endpoint}`, {
