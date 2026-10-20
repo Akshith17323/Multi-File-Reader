@@ -14,8 +14,20 @@ interface FilePreviewProps {
     type: string;
 }
 
+function getPreviewSourceUrl(url: string): string {
+    if (!url) return "";
+    if (url.startsWith("mfr-local://") || url.startsWith("blob:") || url.startsWith("data:")) {
+        return url;
+    }
+    if (url.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(url) || url.startsWith("file://")) {
+        const cleanPath = url.replace(/^file:\/\//, "");
+        return `mfr-local://${cleanPath}`;
+    }
+    return `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
+}
+
 export default function FilePreview({ url, type }: FilePreviewProps) {
-    const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
+    const previewSourceUrl = getPreviewSourceUrl(url);
     const [coverUrl, setCoverUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -26,7 +38,7 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
         const fetchCover = async () => {
             if (type === "application/epub+zip") {
                 try {
-                    const book = ePub(proxiedUrl);
+                    const book = ePub(previewSourceUrl);
                     const cover = await book.coverUrl();
                     if (mounted && cover) {
                         setCoverUrl(cover);
@@ -53,7 +65,7 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
         return () => {
             mounted = false;
         };
-    }, [proxiedUrl, type]);
+    }, [previewSourceUrl, type]);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(0);
@@ -82,7 +94,7 @@ export default function FilePreview({ url, type }: FilePreviewProps) {
                     </div>
                 ) : (
                     <Document
-                        file={proxiedUrl}
+                        file={previewSourceUrl}
                         onLoadSuccess={() => {
                             setLoading(false);
                             console.log("PDF loaded successfully");

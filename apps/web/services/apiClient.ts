@@ -70,6 +70,16 @@ export const apiClient = {
     });
   },
 
+  registerLocalFile: (
+    token: string,
+    data: { fileName: string; fileUrl: string; fileSize?: string; fileType?: string }
+  ) =>
+    universalFetch('/files/local', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: data,
+    }),
+
   // --- Bookmarks ---
   getAllBookmarks: (token: string) => 
     universalFetch('/api/bookmarks/all', { headers: { Authorization: `Bearer ${token}` } }),

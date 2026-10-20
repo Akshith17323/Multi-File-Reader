@@ -11,6 +11,7 @@ export interface EPUBRendererRef {
 
 interface EPUBRendererProps {
     url: string;
+    initialLocation?: string;
     onLocationChange: (cfi: string) => void;
     onProgressChange?: (percentage: number) => void;
     viewMode: "single" | "continuous" | "two-page";
@@ -19,6 +20,7 @@ interface EPUBRendererProps {
 
 const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
     url,
+    initialLocation,
     onLocationChange,
     onProgressChange,
     viewMode,
@@ -151,7 +153,7 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
 
                 renditionRef.current = rendition;
 
-                await rendition.display(currentLoc || undefined);
+                await rendition.display(currentLoc || initialLocation || undefined);
                 rendition.themes.fontSize(`${fontSize}%`);
 
                 // Touch handling

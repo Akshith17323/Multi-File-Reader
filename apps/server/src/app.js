@@ -57,6 +57,10 @@ app.patch('/files/:id', middleware, updateFile)
 const { deleteFile } = require('./files/deleteFile')
 app.delete('/files/:filename', middleware, deleteFile)
 
+// mount local file registration handler
+const { registerLocalFile } = require('./files/registerLocalFile')
+app.post('/files/local', middleware, registerLocalFile)
+
 // mount upload router (it defines POST /fileUpload)
 
 

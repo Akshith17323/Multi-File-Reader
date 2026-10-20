@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, BookOpen, AlertCircle, Edit2, AlertTriangle, Link2 } from "lucide-react";
+import { Trash2, BookOpen, AlertCircle, Edit2, AlertTriangle, Link2, RotateCcw } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { apiClient } from "@/services/apiClient";
 import { isElectron } from "@/hooks/useEnvironment";
 import dynamic from "next/dynamic";
+import { getLocalLibraryFiles, saveLocalFileToLibrary, removeLocalLibraryFile } from "@/utils/localLibrary";
+import { getLastReaderSession, ReaderSessionData } from "@/utils/readerSession";
 
 const FilePreview = dynamic(() => import("@/components/FilePreview"), { ssr: false });
 
@@ -38,8 +40,16 @@ export default function FilesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState("desc");
+  const [lastSession, setLastSession] = useState<ReaderSessionData | null>(null);
 
   const router = useRouter();
+
+  useEffect(() => {
+    const session = getLastReaderSession();
+    if (session && session.fileUrls && session.fileUrls.length > 0) {
+      setLastSession(session);
+    }
+  }, []);
 
   useEffect(() => {
     setPage(1);
@@ -60,29 +70,60 @@ export default function FilesPage() {
       params.append("order", sortOrder);
 
       const token = localStorage.getItem("token");
-      if (!token) {
+      if (!token && !isElectron()) {
         toast.error("Please login to view files");
         router.push("/auth/login");
         setLoading(false);
         return;
       }
 
-      const data = await apiClient.getAllFiles(token, params.toString());
+      let serverFiles: FileData[] = [];
+      let totalP = 1;
 
-      // Handle paginated response
-      if (data.files && data.pagination) {
-        setFiles(data.files);
-        setTotalPages(data.pagination.totalPages);
-      }
-      // Fallback for non-paginated response (backward compatibility)
-      else if (Array.isArray(data)) {
-        setFiles(data);
-        setTotalPages(1);
-      }
-      else {
-        throw new Error('Invalid response format from server');
+      if (token) {
+        try {
+          const data = await apiClient.getAllFiles(token, params.toString());
+          if (data.files && data.pagination) {
+            serverFiles = data.files;
+            totalP = data.pagination.totalPages;
+          } else if (Array.isArray(data)) {
+            serverFiles = data;
+            totalP = 1;
+          }
+        } catch (fetchErr) {
+          console.warn("Could not fetch cloud files:", fetchErr);
+        }
       }
 
+      // Merge with local files stored in library
+      const localLibrary = getLocalLibraryFiles();
+      let filteredLocal = localLibrary;
+      if (search) {
+        const s = search.toLowerCase();
+        filteredLocal = filteredLocal.filter((f) => f.name.toLowerCase().includes(s));
+      }
+      if (typeFilter) {
+        const typeMap: Record<string, string> = {
+          pdf: "application/pdf",
+          epub: "application/epub+zip",
+          txt: "text/plain",
+        };
+        const expectedType = typeMap[typeFilter];
+        if (expectedType) {
+          filteredLocal = filteredLocal.filter((f) => f.metadata.contentType === expectedType);
+        }
+      }
+
+      const existingUrls = new Set(serverFiles.map((f) => f.url));
+      const combined = [...serverFiles];
+      for (const loc of filteredLocal) {
+        if (!existingUrls.has(loc.url)) {
+          combined.push(loc);
+        }
+      }
+
+      setFiles(combined);
+      setTotalPages(Math.max(totalP, 1));
     } catch (error: unknown) {
       console.error("❌ Error fetching files:", error);
       const msg = error instanceof Error ? error.message : "Failed to load files";
@@ -105,13 +146,15 @@ export default function FilesPage() {
     if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
 
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        toast.error("Please login");
-        return;
-      }
+      // Remove from local library persistence
+      removeLocalLibraryFile(fileId);
+      const targetObj = files.find((f) => f.id === fileId);
+      if (targetObj) removeLocalLibraryFile(targetObj.url);
 
-      await apiClient.deleteFile(token, fileId);
+      const token = localStorage.getItem("token");
+      if (token && fileId && !fileId.startsWith("local_")) {
+        await apiClient.deleteFile(token, fileId);
+      }
 
       toast.success("File deleted successfully");
 
@@ -170,6 +213,13 @@ export default function FilesPage() {
     try {
       const result = await window.electronAPI?.invoke('open-local-file');
       if (result && !result.canceled && result.url) {
+        // Save to local library so it persists in the library view!
+        await saveLocalFileToLibrary({
+          name: result.fileName,
+          url: result.url,
+          size: result.fileSize,
+          contentType: result.fileType
+        });
         toast.success(`Opening local file: ${result.fileName}`);
         router.push(`/reader?files=${encodeURIComponent(result.url)}&active=0`);
       } else if (result?.error) {
@@ -355,6 +405,20 @@ export default function FilesPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {lastSession && lastSession.fileUrls && lastSession.fileUrls.length > 0 && (
+              <button
+                onClick={() => {
+                  const encoded = lastSession.fileUrls.map((url) => encodeURIComponent(url)).join(",");
+                  router.push(`/reader?files=${encoded}&active=${lastSession.activeIndex}`);
+                }}
+                className="group flex items-center gap-2.5 px-6 py-4 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-2xl font-bold text-base transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
+                title={`Resume reading ${lastSession.fileUrls.length} file${lastSession.fileUrls.length === 1 ? "" : "s"}`}
+              >
+                <RotateCcw size={18} className="text-primary group-hover:-rotate-45 transition-transform" />
+                <span>Resume Reading ({lastSession.fileUrls.length})</span>
+              </button>
+            )}
+
             {isElectron() && (
               <button
                 onClick={handleOpenLocalFile}

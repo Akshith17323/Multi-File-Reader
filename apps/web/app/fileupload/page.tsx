@@ -126,6 +126,14 @@ function FileUpload() {
     try {
       const result = await window.electronAPI?.invoke('open-local-file');
       if (result && !result.canceled && result.url) {
+        // Persist local file to library
+        const { saveLocalFileToLibrary } = await import("@/utils/localLibrary");
+        await saveLocalFileToLibrary({
+          name: result.fileName,
+          url: result.url,
+          size: result.fileSize,
+          contentType: result.fileType,
+        });
         router.push(`/reader?files=${encodeURIComponent(result.url)}&active=0`);
       } else if (result?.error) {
         setError(`Permission/access error: ${result.error}`);

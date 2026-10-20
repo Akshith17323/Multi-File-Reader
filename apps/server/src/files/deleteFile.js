@@ -15,8 +15,11 @@ async function deleteFile(req, res) {
         // 1. Check if file exists in DB and belongs to user
         const dbFile = await prisma.file.findFirst({
             where: {
-                fileName: filename,
-                userId: userId
+                userId: userId,
+                OR: [
+                    { id: filename },
+                    { fileName: filename }
+                ]
             }
         });
 
@@ -25,25 +28,21 @@ async function deleteFile(req, res) {
             return res.status(404).json({ message: "File not found or access denied" });
         }
 
-        // 2. Delete from GCS
-        const file = bucket.file(filename);
-        // We can check existence in GCS, but often we just try to delete. 
-        // If GCS file is missing but DB has it, we should still delete from DB.
-        try {
-            const [exists] = await file.exists();
-            if (exists) {
-                await file.delete();
-                console.log("✅ Deleted from GCS");
-            } else {
-                console.warn("⚠️ File not found in GCS, skipping GCS delete");
+        // 2. Delete from GCS only if it is a cloud file
+        if (!dbFile.fileUrl.startsWith("mfr-local://")) {
+            const gcsFileName = dbFile.fileName;
+            const file = bucket.file(gcsFileName);
+            try {
+                const [exists] = await file.exists();
+                if (exists) {
+                    await file.delete();
+                    console.log("✅ Deleted from GCS");
+                } else {
+                    console.warn("⚠️ File not found in GCS, skipping GCS delete");
+                }
+            } catch (gcsErr) {
+                console.error("❌ Error deleting from GCS:", gcsErr);
             }
-        } catch (gcsErr) {
-            console.error("❌ Error deleting from GCS:", gcsErr);
-            // Optionally decide if we should abort or continue to delete from DB
-            // Usually if GCS fail, we might want to keep DB record? 
-            // Or maybe just force delete? 
-            // Let's assume strict consistency is less critical than cleanup, but let's notify user.
-            // For now, let's proceed to delete from DB so the user doesn't see a broken link.
         }
 
         // 3. Delete from DB

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, ReactNode } from "react";
-import { ChevronLeft, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronLeft, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown, PanelLeftClose, PanelLeftOpen, BookOpen, Plus, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import FileTab, { FileTabData } from "./FileTab";
 
@@ -14,6 +14,7 @@ interface UnifiedReaderLayoutProps {
     activeFileIndex: number;
     onTabChange: (index: number) => void;
     onTabClose: (index: number) => void;
+    onOpenLocalFile?: () => void;
 
     // Reader controls
     currentPage?: number;
@@ -37,6 +38,12 @@ interface UnifiedReaderLayoutProps {
     fontSize?: number;
     onFontSizeIncrease?: () => void;
     onFontSizeDecrease?: () => void;
+
+    // Feature 6 Extensibility (Search & Annotations)
+    isSearchOpen?: boolean;
+    onToggleSearch?: () => void;
+    activeSidebarTab?: "files" | "annotations" | "bookmarks";
+    onSidebarTabChange?: (tab: "files" | "annotations" | "bookmarks") => void;
 }
 
 export default function UnifiedReaderLayout({
@@ -45,6 +52,7 @@ export default function UnifiedReaderLayout({
     activeFileIndex,
     onTabChange,
     onTabClose,
+    onOpenLocalFile,
     currentPage,
     totalPages,
     epubProgress,
@@ -60,6 +68,10 @@ export default function UnifiedReaderLayout({
     fontSize,
     onFontSizeIncrease,
     onFontSizeDecrease,
+    isSearchOpen,
+    onToggleSearch,
+    activeSidebarTab = "files",
+    onSidebarTabChange,
 }: UnifiedReaderLayoutProps) {
     const router = useRouter();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -254,6 +266,21 @@ export default function UnifiedReaderLayout({
                                 </button>
                             </div>
                         )}
+
+                        {/* Search Toggle (Feature 6 Extensibility) */}
+                        {onToggleSearch && (
+                            <button
+                                onClick={onToggleSearch}
+                                className={`p-2 rounded-lg border transition-colors ${
+                                    isSearchOpen
+                                        ? "bg-primary/20 text-primary border-primary/40"
+                                        : "bg-surface hover:bg-surface-hover text-foreground-muted hover:text-foreground border-border-subtle"
+                                }`}
+                                title="Search in document (Ctrl+F / Cmd+F)"
+                            >
+                                <Search size={16} />
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -270,13 +297,49 @@ export default function UnifiedReaderLayout({
                 >
                     {!isSidebarCollapsed && (
                         <>
-                            <div className="p-4 border-b border-border-subtle">
-                                <h3 className="text-xs font-semibold text-foreground-muted uppercase tracking-wider mb-1">
-                                    Open Files
-                                </h3>
-                                <p className="text-xs text-foreground-muted">
-                                    {openFiles.length} {openFiles.length === 1 ? "file" : "files"} open
-                                </p>
+                            <div className="p-4 border-b border-border-subtle flex items-center justify-between">
+                                {onSidebarTabChange ? (
+                                    <div className="flex items-center gap-1 bg-background/50 p-1 rounded-xl border border-border-subtle">
+                                        <button
+                                            onClick={() => onSidebarTabChange("files")}
+                                            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
+                                                activeSidebarTab === "files"
+                                                    ? "bg-primary text-white shadow-sm"
+                                                    : "text-foreground-muted hover:text-foreground"
+                                            }`}
+                                        >
+                                            Files ({openFiles.length})
+                                        </button>
+                                        <button
+                                            onClick={() => onSidebarTabChange("bookmarks")}
+                                            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
+                                                activeSidebarTab === "bookmarks"
+                                                    ? "bg-primary text-white shadow-sm"
+                                                    : "text-foreground-muted hover:text-foreground"
+                                            }`}
+                                        >
+                                            Bookmarks
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <h3 className="text-xs font-semibold text-foreground-muted uppercase tracking-wider mb-0.5">
+                                            Open Files
+                                        </h3>
+                                        <p className="text-xs text-foreground-muted">
+                                            {openFiles.length} {openFiles.length === 1 ? "file" : "files"} open
+                                        </p>
+                                    </div>
+                                )}
+                                {onOpenLocalFile && (
+                                    <button
+                                        onClick={onOpenLocalFile}
+                                        className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors cursor-pointer"
+                                        title="Open local file from disk into a new tab"
+                                    >
+                                        <Plus size={16} />
+                                    </button>
+                                )}
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -291,14 +354,28 @@ export default function UnifiedReaderLayout({
                                 ))}
                             </div>
 
-                            {/* Add New File Button */}
-                            <div className="p-3 border-t border-border-subtle">
+                            {/* Add File Actions */}
+                            <div className="p-3 border-t border-border-subtle flex flex-col gap-2">
+                                {onOpenLocalFile && (
+                                    <button
+                                        onClick={onOpenLocalFile}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg cursor-pointer"
+                                        title="Open a local book or document from disk into a new tab"
+                                    >
+                                        <BookOpen size={16} />
+                                        <span>Open Local File</span>
+                                    </button>
+                                )}
                                 <button
                                     onClick={handleBackToLibrary}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-medium transition-colors shadow-md hover:shadow-lg"
+                                    className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer ${
+                                        onOpenLocalFile
+                                            ? "bg-surface hover:bg-surface-hover text-foreground border border-border-subtle"
+                                            : "bg-primary hover:bg-primary-hover text-white shadow-md hover:shadow-lg"
+                                    }`}
                                 >
-                                    <span className="text-xl">+</span>
-                                    <span>Add File</span>
+                                    <span>+</span>
+                                    <span>Browse Library</span>
                                 </button>
                             </div>
 

@@ -1,53 +1,42 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
+import { useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 
-const PDFViewer = dynamic(() => import("../../../components/PDFViewer"), { ssr: false });
-
-function PDFReaderContent() {
+function PDFReaderRedirect() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const rawUrl = searchParams.get("url");
-  const url = rawUrl ? decodeURIComponent(rawUrl) : null;
 
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (!url) return;
-
-    if (url.startsWith("mfr-local://") || url.startsWith("blob:")) {
-      setBlobUrl(url);
-      return;
+    if (rawUrl) {
+      const decodedUrl = decodeURIComponent(rawUrl);
+      router.replace(`/reader?files=${encodeURIComponent(decodedUrl)}&active=0`);
+    } else {
+      router.replace("/files");
     }
-
-    if (url.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(url) || url.startsWith("file://")) {
-      setBlobUrl(`mfr-local://${url.replace(/^file:\/\//, "")}`);
-      return;
-    }
-
-    const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
-    fetch(proxiedUrl)
-      .then((res) => res.blob())
-      .then((blob) => {
-        const local = URL.createObjectURL(blob);
-        setBlobUrl(local);
-      })
-      .catch((err) => console.error("❌ PDF fetch error:", err));
-  }, [url]);
-
-  if (!url) return <p>No URL provided</p>;
+  }, [rawUrl, router]);
 
   return (
-    <div className="h-dvh flex flex-col bg-background">
-      {blobUrl && <PDFViewer blobUrl={blobUrl} fileUrl={url || undefined} />}
+    <div className="h-screen flex items-center justify-center bg-background text-foreground">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-foreground-muted">Opening in unified reader...</p>
+      </div>
     </div>
   );
 }
 
 export default function PDFReaderPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <PDFReaderContent />
+    <Suspense
+      fallback={
+        <div className="h-screen bg-background flex items-center justify-center text-foreground">
+          Loading Reader...
+        </div>
+      }
+    >
+      <PDFReaderRedirect />
     </Suspense>
   );
 }

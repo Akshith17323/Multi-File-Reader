@@ -5,8 +5,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import UnifiedReaderLayout, { ViewMode, FitMode } from "@/components/UnifiedReaderLayout";
 import { FileTabData } from "@/components/FileTab";
 import dynamic from "next/dynamic";
-import { apiClient } from "@/services/apiClient";
 import { isElectron } from "@/hooks/useEnvironment";
+import { saveLocalFileToLibrary } from "@/utils/localLibrary";
+import { getBookmarkUnified, saveBookmarkUnified, deleteBookmarkUnified } from "@/utils/localBookmarks";
+import { saveReaderSession, getLastReaderSession, clearReaderSession } from "@/utils/readerSession";
+import { migrateLocalAnnotations } from "@/utils/localAnnotations";
 import { AlertTriangle, Link2 } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -29,6 +32,7 @@ interface ActiveFileReaderProps {
     handleEpubLocationChange: (cfi: string) => void;
     setEpubProgress: (progress: number) => void;
     fontSize: number;
+    initialEpubLocation?: string;
 }
 
 function getReaderSourceUrl(url: string): string {
@@ -54,6 +58,7 @@ function ActiveFileReader({
     handleEpubLocationChange,
     setEpubProgress,
     fontSize,
+    initialEpubLocation,
 }: ActiveFileReaderProps) {
     if (!activeFile) return null;
     const sourceUrl = getReaderSourceUrl(activeFile.url);
@@ -78,6 +83,7 @@ function ActiveFileReader({
                     key={activeFile.id}
                     ref={epubRef}
                     url={sourceUrl}
+                    initialLocation={initialEpubLocation}
                     onLocationChange={handleEpubLocationChange}
                     onProgressChange={setEpubProgress}
                     viewMode={viewMode}
@@ -127,10 +133,21 @@ function ReaderContent() {
     // EPUB-specific state
     const epubRef = useRef<EPUBRendererRef>(null);
     const [epubProgress, setEpubProgress] = useState<number>(0);
+    const [epubLocation, setEpubLocation] = useState<string | undefined>(undefined);
 
-    // Initialize files from URL params
+    // Feature 6 Extensibility State (Search & Annotations)
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+    // Initialize files from URL params or restore last session (Feature 7)
     useEffect(() => {
         if (!filesParam) {
+            // Check if there is a saved previous session to resume
+            const lastSession = getLastReaderSession();
+            if (lastSession && lastSession.fileUrls.length > 0) {
+                const encodedFiles = lastSession.fileUrls.map((url) => encodeURIComponent(url)).join(",");
+                router.replace(`/reader?files=${encodedFiles}&active=${lastSession.activeIndex}`);
+                return;
+            }
             router.push("/files");
             return;
         }
@@ -165,22 +182,25 @@ function ReaderContent() {
         }
     }, [filesParam, activeParam, router]);
 
-    // Update URL when tabs or active file changes
+    // Update URL and persist session when tabs or active file changes (Feature 7)
     useEffect(() => {
         if (!isInitialized || openFiles.length === 0) return;
 
-        const fileUrls = openFiles.map((f) => f.url).join(",");
-        const encodedFileUrls = openFiles.map((f) => encodeURIComponent(f.url)).join(",");
+        const fileUrls = openFiles.map((f) => f.url);
+        const encodedFileUrls = fileUrls.map((url) => encodeURIComponent(url)).join(",");
         const newUrl = `/reader?files=${encodedFileUrls}&active=${activeFileIndex}`;
 
-        // Save to sessionStorage so files page can detect reader is open
-        sessionStorage.setItem("readerFiles", fileUrls);
+        // Save to sessionStorage for cross-tab awareness
+        sessionStorage.setItem("readerFiles", fileUrls.join(","));
 
-        // Use replaceState to avoid adding to history on every tab switch
+        // Persist session for Feature 7 (Session Restore on next launch / reload)
+        saveReaderSession(fileUrls, activeFileIndex);
+
+        // Use replaceState to avoid cluttering history
         window.history.replaceState({}, "", newUrl);
     }, [openFiles, activeFileIndex, isInitialized]);
 
-    // Load bookmark for active file
+    // Load bookmark for active file (Feature 4: Local-first with cloud fallback/merge)
     useEffect(() => {
         if (!isInitialized || openFiles.length === 0) return;
 
@@ -189,16 +209,16 @@ function ReaderContent() {
 
         const loadBookmark = async () => {
             try {
-                const token = localStorage.getItem("token");
-                if (!token) return;
-
-                const data = await apiClient.getBookmark(token, activeFile.url);
+                const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+                const data = await getBookmarkUnified(token, activeFile.url);
 
                 if (data) {
                     if (activeFile.type === "pdf" && data.pageNumber) {
                         setPdfPage(data.pageNumber);
                     }
-                    // For EPUB, the renderer will handle loading the CFI
+                    if (activeFile.type === "epub" && data.cfi) {
+                        setEpubLocation(data.cfi);
+                    }
                 }
             } catch (err) {
                 console.error("Failed to load bookmark", err);
@@ -208,28 +228,29 @@ function ReaderContent() {
         loadBookmark();
     }, [activeFileIndex, openFiles, isInitialized]);
 
-    // Save bookmark
-    const saveBookmark = async (pageNumber?: number, cfi?: string) => {
+    // Save bookmark (Feature 4: Always persists locally for offline/guest, syncs to cloud if token present)
+    const saveBookmark = async (pageNumber?: number, cfi?: string, customProgress?: number) => {
         if (!isInitialized || openFiles.length === 0) return;
 
         const activeFile = openFiles[activeFileIndex];
         if (!activeFile) return;
 
         try {
-            const token = localStorage.getItem("token");
-            if (!token) return;
+            const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-            let progress = 0;
-            if (activeFile.type === "pdf" && pageNumber && pdfTotalPages) {
+            let progress = customProgress ?? 0;
+            if (activeFile.type === "pdf" && pageNumber && pdfTotalPages > 0) {
                 progress = Math.round((pageNumber / pdfTotalPages) * 100);
+            } else if (activeFile.type === "epub" && customProgress !== undefined) {
+                progress = Math.round(customProgress * 100);
             }
 
-            await apiClient.upsertBookmark(token, {
+            await saveBookmarkUnified(token, {
                 fileUrl: activeFile.url,
                 fileName: activeFile.name,
-                pageNumber: pageNumber || undefined,
+                pageNumber: pageNumber || (activeFile.type === "pdf" ? pdfPage : undefined),
                 totalPages: pdfTotalPages || undefined,
-                cfi: cfi || undefined,
+                cfi: cfi || (activeFile.type === "epub" ? epubLocation : undefined),
                 progress,
             });
         } catch (err) {
@@ -296,23 +317,24 @@ function ReaderContent() {
             const newUrl = result.newUrl;
             const newName = result.fileName;
 
-            // Migrate bookmarks
-            const token = localStorage.getItem("token");
-            if (token) {
-                try {
-                    const oldBookmark = await apiClient.getBookmark(token, oldUrl);
-                    if (oldBookmark) {
-                        await apiClient.upsertBookmark(token, {
-                            ...oldBookmark,
-                            fileUrl: newUrl,
-                            fileName: newName,
-                        });
-                        await apiClient.deleteBookmark(token, oldUrl).catch(() => null);
-                    }
-                } catch (bErr) {
-                    console.warn("Could not migrate bookmark on relink:", bErr);
+            // Migrate bookmarks (local + cloud)
+            const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+            try {
+                const oldBookmark = await getBookmarkUnified(token, oldUrl);
+                if (oldBookmark) {
+                    await saveBookmarkUnified(token, {
+                        ...oldBookmark,
+                        fileUrl: newUrl,
+                        fileName: newName,
+                    });
+                    await deleteBookmarkUnified(token, oldUrl);
                 }
+            } catch (bErr) {
+                console.warn("Could not migrate bookmark on relink:", bErr);
             }
+
+            // Migrate local annotations (Feature 6 forward compatibility)
+            migrateLocalAnnotations(oldUrl, newUrl);
 
             // Update openFiles state with the new URL and name
             const updatedFiles = openFiles.map((file, index) => {
@@ -347,19 +369,73 @@ function ReaderContent() {
         }
     };
 
+    const handleOpenLocalFile = async () => {
+        try {
+            if (!window.electronAPI?.invoke) {
+                toast.info("Local file access is available in desktop app");
+                return;
+            }
+
+            const result = await window.electronAPI.invoke("open-local-file");
+            if (!result || result.canceled || !result.url) return;
+
+            if (result.error) {
+                toast.error(`Permission/access error: ${result.error}`);
+                return;
+            }
+
+            // Persist to user's library
+            await saveLocalFileToLibrary({
+                name: result.fileName,
+                url: result.url,
+                size: result.fileSize,
+                contentType: result.fileType,
+            });
+
+            // Check if already open
+            const existingIndex = openFiles.findIndex((f) => f.url === result.url);
+            if (existingIndex >= 0) {
+                setActiveFileIndex(existingIndex);
+                toast.info(`Switched to "${result.fileName}"`);
+                return;
+            }
+
+            // Append as new tab
+            const lowerUrl = result.url.toLowerCase();
+            const fileType = lowerUrl.endsWith(".pdf") ? "pdf" : lowerUrl.endsWith(".txt") ? "txt" : "epub";
+
+            const newTabData: FileTabData = {
+                id: `file_${openFiles.length}_${Date.now()}`,
+                url: result.url,
+                name: result.fileName,
+                type: fileType as any,
+            };
+
+            const updatedFiles = [...openFiles, newTabData];
+            setOpenFiles(updatedFiles);
+            setActiveFileIndex(updatedFiles.length - 1);
+            toast.success(`Opened "${result.fileName}" in new tab`);
+        } catch (err: any) {
+            toast.error(err.message || "Failed to open local file");
+        }
+    };
+
     // Handlers
     const handleTabChange = (index: number) => {
         setActiveFileIndex(index);
         // Reset reader state when switching files
         setPdfPage(1);
         setPdfTotalPages(0);
+        setEpubLocation(undefined);
     };
 
     const handleTabClose = (index: number) => {
         const newFiles = openFiles.filter((_, i) => i !== index);
 
         if (newFiles.length === 0) {
-            // No files left, go back to library
+            // No files left, clear session and return to library
+            clearReaderSession();
+            sessionStorage.removeItem("readerFiles");
             router.push("/files");
             return;
         }
@@ -384,6 +460,7 @@ function ReaderContent() {
     };
 
     const handleEpubLocationChange = (cfi: string) => {
+        setEpubLocation(cfi);
         saveBookmark(undefined, cfi);
     };
 
@@ -413,9 +490,14 @@ function ReaderContent() {
         }
     };
 
-    // Keyboard navigation
+    // Keyboard navigation & search shortcut
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+                e.preventDefault();
+                setIsSearchOpen((prev) => !prev);
+                return;
+            }
             if (e.key === "ArrowRight") {
                 handleNextPage();
             } else if (e.key === "ArrowLeft") {
@@ -426,7 +508,7 @@ function ReaderContent() {
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeFile, viewMode, pdfTotalPages]); // Re-bind when dependencies change
+    }, [activeFile, viewMode, pdfTotalPages]);
 
     if (!isInitialized || openFiles.length === 0) {
         return (
@@ -442,6 +524,7 @@ function ReaderContent() {
             activeFileIndex={activeFileIndex}
             onTabChange={handleTabChange}
             onTabClose={handleTabClose}
+            onOpenLocalFile={isElectron() ? handleOpenLocalFile : undefined}
             currentPage={activeFile?.type === "pdf" && !isOffline ? pdfPage : undefined}
             totalPages={activeFile?.type === "pdf" && !isOffline ? pdfTotalPages : undefined}
             epubProgress={activeFile?.type === "epub" && !isOffline ? epubProgress : undefined}
@@ -457,6 +540,8 @@ function ReaderContent() {
             fontSize={fontSize}
             onFontSizeIncrease={() => setFontSize((s) => Math.min(200, s + 20))}
             onFontSizeDecrease={() => setFontSize((s) => Math.max(50, s - 20))}
+            isSearchOpen={isSearchOpen}
+            onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
         >
             <ToastContainer position="top-right" theme="dark" />
             {isOffline ? (
@@ -532,6 +617,7 @@ function ReaderContent() {
                     handleEpubLocationChange={handleEpubLocationChange}
                     setEpubProgress={setEpubProgress}
                     fontSize={fontSize}
+                    initialEpubLocation={epubLocation}
                 />
             )}
         </UnifiedReaderLayout>
