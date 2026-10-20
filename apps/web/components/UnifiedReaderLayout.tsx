@@ -1,12 +1,23 @@
 "use client";
 
 import { useState, ReactNode } from "react";
-import { ChevronLeft, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown, PanelLeftClose, PanelLeftOpen, BookOpen, Plus, Search } from "lucide-react";
+import { ChevronLeft, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown, PanelLeftClose, PanelLeftOpen, BookOpen, Plus, Search, Cloud, HardDrive } from "lucide-react";
 import { useRouter } from "next/navigation";
 import FileTab, { FileTabData } from "./FileTab";
 
 export type ViewMode = "single" | "continuous" | "two-page";
 export type FitMode = "width" | "height" | "none";
+
+function isLocalFile(url: string, id?: string): boolean {
+    if (id && id.startsWith("local_")) return true;
+    if (!url) return false;
+    return (
+        url.startsWith("mfr-local://") ||
+        url.startsWith("file://") ||
+        url.startsWith("/") ||
+        /^[a-zA-Z]:[\\/]/.test(url)
+    );
+}
 
 interface UnifiedReaderLayoutProps {
     children: ReactNode;
@@ -130,9 +141,25 @@ export default function UnifiedReaderLayout({
                                     <h2 className="text-sm font-semibold text-foreground truncate max-w-[300px]">
                                         {activeFile.name}
                                     </h2>
-                                    <p className="text-xs text-foreground-muted">
-                                        {activeFile.type.toUpperCase()}
-                                    </p>
+                                    <div className="flex items-center gap-1.5 text-xs text-foreground-muted">
+                                        <span>{activeFile.type.toUpperCase()}</span>
+                                        <span>•</span>
+                                        <span className={`inline-flex items-center gap-1 font-medium ${
+                                            isLocalFile(activeFile.url, activeFile.id) ? "text-emerald-400" : "text-sky-400"
+                                        }`}>
+                                            {isLocalFile(activeFile.url, activeFile.id) ? (
+                                                <>
+                                                    <HardDrive size={11} />
+                                                    <span>Local Disk</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Cloud size={11} />
+                                                    <span>Cloud</span>
+                                                </>
+                                            )}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         )}

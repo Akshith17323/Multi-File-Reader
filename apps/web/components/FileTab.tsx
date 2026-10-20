@@ -1,6 +1,6 @@
 "use client";
 
-import { X, FileText, BookOpen } from "lucide-react";
+import { X, FileText, BookOpen, Cloud, HardDrive } from "lucide-react";
 
 export interface FileTabData {
     id: string;
@@ -16,8 +16,20 @@ interface FileTabProps {
     onClose: (e: React.MouseEvent) => void;
 }
 
+function isLocalFile(url: string, id?: string): boolean {
+    if (id && id.startsWith("local_")) return true;
+    if (!url) return false;
+    return (
+        url.startsWith("mfr-local://") ||
+        url.startsWith("file://") ||
+        url.startsWith("/") ||
+        /^[a-zA-Z]:[\\/]/.test(url)
+    );
+}
+
 export default function FileTab({ file, isActive, onClick, onClose }: FileTabProps) {
     const Icon = file.type === "epub" ? BookOpen : FileText;
+    const isLocal = isLocalFile(file.url, file.id);
 
     const getTypeBadge = () => {
         return file.type.toUpperCase();
@@ -26,7 +38,7 @@ export default function FileTab({ file, isActive, onClick, onClose }: FileTabPro
     return (
         <button
             onClick={onClick}
-            title={file.name}
+            title={`${file.name} (${isLocal ? "Local Disk" : "Cloud"})`}
             className={`
         group relative w-full flex items-center gap-3 px-4 py-3 rounded-xl
         transition-all duration-200 text-left
@@ -46,16 +58,26 @@ export default function FileTab({ file, isActive, onClick, onClose }: FileTabPro
                 <Icon size={16} className={isActive ? "text-primary" : "text-foreground-muted"} />
             </div>
 
-            {/* File Name */}
+            {/* File Name & Badges */}
             <div className="flex-1 min-w-0 flex flex-col">
                 <span className="text-sm font-medium truncate">{file.name}</span>
-                <span
-                    className={`text-xs transition-colors ${
-                        isActive ? "text-primary" : "text-foreground-muted"
-                    }`}
-                >
-                    {getTypeBadge()}
-                </span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                    <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors ${
+                            isActive ? "bg-primary/20 text-primary" : "bg-surface text-foreground-muted"
+                        }`}
+                    >
+                        {getTypeBadge()}
+                    </span>
+                    <span
+                        className={`text-[10px] font-semibold flex items-center gap-1 ${
+                            isLocal ? "text-emerald-400" : "text-sky-400"
+                        }`}
+                    >
+                        {isLocal ? <HardDrive size={10} /> : <Cloud size={10} />}
+                        <span>{isLocal ? "Local" : "Cloud"}</span>
+                    </span>
+                </div>
             </div>
 
             {/* Close Button */}
@@ -71,6 +93,7 @@ export default function FileTab({ file, isActive, onClick, onClose }: FileTabPro
                         : "hover:bg-border-subtle text-foreground-muted hover:text-foreground"
                     }
         `}
+                title="Close Tab"
             >
                 <X size={14} />
             </button>

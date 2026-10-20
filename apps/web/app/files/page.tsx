@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, BookOpen, AlertCircle, Edit2, AlertTriangle, Link2, RotateCcw } from "lucide-react";
+import { Trash2, BookOpen, AlertCircle, Edit2, AlertTriangle, Link2, RotateCcw, Cloud, HardDrive } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { apiClient } from "@/services/apiClient";
@@ -12,6 +12,17 @@ import { getLocalLibraryFiles, saveLocalFileToLibrary, removeLocalLibraryFile } 
 import { getLastReaderSession, ReaderSessionData } from "@/utils/readerSession";
 
 const FilePreview = dynamic(() => import("@/components/FilePreview"), { ssr: false });
+
+export function isLocalFile(url: string, id?: string): boolean {
+  if (id && id.startsWith("local_")) return true;
+  if (!url) return false;
+  return (
+    url.startsWith("mfr-local://") ||
+    url.startsWith("file://") ||
+    url.startsWith("/") ||
+    /^[a-zA-Z]:[\\/]/.test(url)
+  );
+}
 
 interface FileData {
   name: string;
@@ -30,6 +41,7 @@ export default function FilesPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<"" | "cloud" | "local">("");
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [newFileName, setNewFileName] = useState("");
   const [offlineFiles, setOfflineFiles] = useState<
@@ -53,7 +65,7 @@ export default function FilesPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, typeFilter, sortBy, sortOrder]);
+  }, [search, typeFilter, sourceFilter, sortBy, sortOrder]);
 
   const fetchFiles = async () => {
     setLoading(true);
@@ -122,7 +134,15 @@ export default function FilesPage() {
         }
       }
 
-      setFiles(combined);
+      // Filter by Source (Cloud vs Local)
+      let finalFiles = combined;
+      if (sourceFilter === "cloud") {
+        finalFiles = finalFiles.filter((f) => !isLocalFile(f.url, f.id));
+      } else if (sourceFilter === "local") {
+        finalFiles = finalFiles.filter((f) => isLocalFile(f.url, f.id));
+      }
+
+      setFiles(finalFiles);
       setTotalPages(Math.max(totalP, 1));
     } catch (error: unknown) {
       console.error("❌ Error fetching files:", error);
@@ -140,7 +160,7 @@ export default function FilesPage() {
     }, 500);
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, typeFilter, page, sortBy, sortOrder]);
+  }, [search, typeFilter, sourceFilter, page, sortBy, sortOrder]);
 
   const handleDelete = async (filename: string, fileId: string) => {
     if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
@@ -451,7 +471,20 @@ export default function FilesPage() {
             className="flex-1 px-6 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all text-foreground placeholder-foreground-muted"
           />
 
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
+            <div className="relative">
+              <select
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value as any)}
+                className="h-full px-8 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all text-foreground cursor-pointer appearance-none min-w-40"
+              >
+                <option value="">All Sources</option>
+                <option value="cloud">Cloud Storage</option>
+                <option value="local">Local Disk</option>
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">▼</div>
+            </div>
+
             <div className="relative">
               <select
                 value={typeFilter}
@@ -531,6 +564,7 @@ export default function FilesPage() {
               {files.map((file) => {
                 const isOffline = offlineFiles[file.url]?.exists === false;
                 const offlinePath = offlineFiles[file.url]?.path || file.url;
+                const isLocal = isLocalFile(file.url, file.id);
 
                 return (
                 <div
@@ -583,6 +617,7 @@ export default function FilesPage() {
                       )}
                     </div>
 
+                    {/* Top Left: Type Badge or Offline Warning */}
                     <div className="absolute top-4 left-4 z-10">
                       {isOffline ? (
                         <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-red-600/95 backdrop-blur-md text-white shadow-lg border border-red-400 flex items-center gap-1.5">
@@ -592,6 +627,27 @@ export default function FilesPage() {
                       ) : (
                         <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-surface-hover/90 backdrop-blur-md text-primary shadow-lg border border-border-subtle">
                           {getFileIcon(file.metadata.contentType)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Top Right: Cloud vs Local Storage Badge */}
+                    <div className="absolute top-4 right-4 z-10">
+                      {isLocal ? (
+                        <span
+                          className="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500/20 backdrop-blur-md text-emerald-400 shadow-lg border border-emerald-500/30 flex items-center gap-1.5"
+                          title="Local Disk File"
+                        >
+                          <HardDrive size={13} className="text-emerald-400" />
+                          <span>Local</span>
+                        </span>
+                      ) : (
+                        <span
+                          className="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-sky-500/20 backdrop-blur-md text-sky-400 shadow-lg border border-sky-500/30 flex items-center gap-1.5"
+                          title="Cloud Stored File"
+                        >
+                          <Cloud size={13} className="text-sky-400" />
+                          <span>Cloud</span>
                         </span>
                       )}
                     </div>
@@ -682,7 +738,12 @@ export default function FilesPage() {
                                 </button>
                               </div>
                             ) : (
-                              <p className="text-sm text-foreground-muted flex items-center gap-2">
+                              <div className="text-xs text-foreground-muted flex items-center gap-2 flex-wrap">
+                                <span className={`inline-flex items-center gap-1 font-semibold ${isLocal ? "text-emerald-400" : "text-sky-400"}`}>
+                                  {isLocal ? <HardDrive size={12} /> : <Cloud size={12} />}
+                                  <span>{isLocal ? "Local Disk" : "Cloud"}</span>
+                                </span>
+                                <span className="w-1 h-1 rounded-full bg-border-subtle" />
                                 <span>{file.metadata.size}</span>
                                 {file.metadata.updated && (
                                   <>
@@ -690,7 +751,7 @@ export default function FilesPage() {
                                     <span>{new Date(file.metadata.updated).toLocaleDateString()}</span>
                                   </>
                                 )}
-                              </p>
+                              </div>
                             )}
                           </>
                         )}
