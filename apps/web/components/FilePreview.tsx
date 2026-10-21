@@ -23,7 +23,8 @@ function getPreviewSourceUrl(url: string): string {
         const cleanPath = url.replace(/^file:\/\//, "");
         return `mfr-local://${cleanPath}`;
     }
-    return `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:2007';
+    return `${backendUrl}/proxy?url=${encodeURIComponent(url)}`;
 }
 
 export default function FilePreview({ url, type }: FilePreviewProps) {

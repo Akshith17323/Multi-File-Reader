@@ -1,7 +1,7 @@
 require('dotenv').config();
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
-const SECRET_KEY = process.env.JWT_SECRET
+const SECRET_KEY = process.env.JWT_SECRET || 'Rover';
 const prisma = require("../prisma");
 
 

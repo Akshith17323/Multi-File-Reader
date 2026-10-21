@@ -16,7 +16,6 @@ function Signuppage() {
     const [confirmPassword, setConfirmPassword] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>("");
-    const url = process.env.NEXT_PUBLIC_BACKEND_URL;
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();

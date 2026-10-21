@@ -12,7 +12,6 @@ function Loginpage() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
-  const url = process.env.NEXT_PUBLIC_BACKEND_URL;
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {

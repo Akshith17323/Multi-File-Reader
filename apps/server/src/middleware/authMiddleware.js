@@ -1,31 +1,30 @@
-require('dotenv').config
-const jwt = require('jsonwebtoken')
+require('dotenv').config();
+const jwt = require('jsonwebtoken');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'Rover';
 
 async function middleware(req, res, next) {
     try {
-        const header = req.headers.authorization
+        const header = req.headers.authorization;
         if (!header) {
-            return res.status(401).json({ Message: "please login you account" })
+            return res.status(401).json({ Message: "Please log in to your account" });
         }
 
-        const header_token = header.startsWith("Bearer") ? header.split(" ")[1] : ""
+        const header_token = header.startsWith("Bearer ") ? header.split(" ")[1] : (header.startsWith("Bearer") ? header.substring(6).trim() : header.trim());
 
         if (!header_token) {
-            return res.status(401).json({ Message: "please login you account" })
+            return res.status(401).json({ Message: "Please log in to your account" });
         }
 
-        const verified = await jwt.verify(header_token, process.env.JWT_SECRET)
+        const verified = jwt.verify(header_token, JWT_SECRET);
         if (verified) {
-            req.user = verified
-            return next()
+            req.user = verified;
+            return next();
         }
-        return res.status(401).json({ Message: "token not found" })
-
+        return res.status(401).json({ Message: "Invalid authentication token" });
     }
     catch (err) {
-        console.log(err)
-        return res.status(500).json({ Message: "something wrong with the server" })
+        return res.status(401).json({ Message: "Invalid or expired token, please log in again" });
     }
 }
 

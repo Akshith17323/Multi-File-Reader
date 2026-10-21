@@ -11,7 +11,7 @@ function FileUpload() {
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const url = process.env.NEXT_PUBLIC_BACKEND_URL;
+  const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:2007";
   const router = useRouter();
 
   const uploadEndpoint = `${url}/fileUpload`;

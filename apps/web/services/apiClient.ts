@@ -25,7 +25,8 @@ async function universalFetch(endpoint: string, options: ApiOptions = {}) {
       return result.data;
   } else {
     // Web: normal fetch
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}${endpoint}`, {
+    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:2007';
+    const response = await fetch(`${baseUrl}${endpoint}`, {
       method,
       headers: {
         'Content-Type': 'application/json',

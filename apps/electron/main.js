@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, protocol, net, session } = require(
 const path = require('path');
 const fs = require('fs');
 
-const BACKEND_URL = 'http://localhost:2007';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:2007';
 
 // Register custom secure protocol for local files BEFORE app is ready
 protocol.registerSchemesAsPrivileged([
@@ -389,7 +389,7 @@ function createWindow() {
 
   // Load the Next.js dev server during development
   // Note: in production, you'd load a static file instead.
-  mainWindow.loadURL('http://localhost:3000');
+  mainWindow.loadURL(process.env.FRONTEND_URL || 'http://localhost:3000');
   return mainWindow;
 }
 

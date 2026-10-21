@@ -28,15 +28,25 @@ console.log('imported authRoutes:', authRoutes && typeof authRoutes)
 console.log('imported fileUploadRouter:', fileUploadRouter && typeof fileUploadRouter)
 console.log('imported get_all_files:', get_all_files && typeof get_all_files)
 
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.FRONTEND_N_URL,
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "https://multi-file-reader.vercel.app",
+  "https://multi-file-reader-srue.vercel.app"
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: [
-      `${process.env.FRONTEND_URL}`,
-      `${process.env.FRONTEND_N_URL}`,
-      "https://multi-file-reader.vercel.app",
-      "https://multi-file-reader-srue.vercel.app"
-    ],
-    methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like Electron desktop, curl, etc.)
+      if (!origin || allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     credentials: true
   })
 );
