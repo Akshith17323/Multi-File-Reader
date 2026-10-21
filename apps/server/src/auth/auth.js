@@ -15,7 +15,8 @@ async function login(req, res) {
       return res.status(400).json({ message: "Password required" });
     }
 
-    const user_details = await prisma.user.findUnique({ where: { email } });
+    const cleanEmail = email.trim().toLowerCase();
+    const user_details = await prisma.user.findUnique({ where: { email: cleanEmail } });
 
     if (!user_details) {
       return res.status(404).json({ message: "User does not exist" });
@@ -56,16 +57,29 @@ async function signup(req, res) {
       return res.status(400).json({ message: "Password required" });
     }
 
-    let existingemail = await prisma.user.findUnique({ where: { email } });
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+
+    let existingemail = await prisma.user.findUnique({ where: { email: cleanEmail } });
 
     if (existingemail) {
       return res.status(409).json({ message: "Email already exists" });
     }
     const hashed_password = await bcrypt.hash(password, 10);
 
-    const data = await prisma.user.create({ data: { name, email, password: hashed_password } });
-    console.log("Created user:", data.id);
-    return res.status(201).json({ message: "User created successfully" });
+    const data = await prisma.user.create({ data: { name: cleanName, email: cleanEmail, password: hashed_password } });
+    console.log("[Auth] Created user:", data.id);
+
+    const token = jwt.sign(
+      { userId: data.id, userName: data.name, userEmail: data.email },
+      SECRET_KEY,
+      { expiresIn: "14d" }
+    );
+
+    return res
+      .cookie("token", token, { httpOnly: true, secure: true, sameSite: 'none' })
+      .status(201)
+      .json({ message: "User created successfully", user: data.name, token });
   } catch (err) {
     console.error("Signup error:", err);
     return res.status(500).json({ message: "Internal Server Error" });

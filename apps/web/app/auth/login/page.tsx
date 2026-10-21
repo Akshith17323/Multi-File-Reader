@@ -38,7 +38,7 @@ function Loginpage() {
         }
       }
 
-      router.push("/fileupload");
+      router.push("/files");
 
       if (data) {
         setEmail("");

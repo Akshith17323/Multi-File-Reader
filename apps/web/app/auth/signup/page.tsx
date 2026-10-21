@@ -41,7 +41,16 @@ function Signuppage() {
             const data = await apiClient.signup({ name, email, password });
 
             toast.success(`Welcome, ${name}! Account created successfully.`);
-            router.push('/fileupload');
+
+            if (data.token) {
+                localStorage.setItem("token", data.token);
+                if (data.user) {
+                    localStorage.setItem("user", data.user);
+                    window.dispatchEvent(new Event("auth-change"));
+                }
+            }
+
+            router.push('/files');
 
             if (data) {
                 setName("");
