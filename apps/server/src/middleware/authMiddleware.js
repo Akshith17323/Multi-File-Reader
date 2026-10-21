@@ -6,25 +6,38 @@ const JWT_SECRET = process.env.JWT_SECRET || 'Rover';
 async function middleware(req, res, next) {
     try {
         const header = req.headers.authorization;
-        if (!header) {
-            return res.status(401).json({ Message: "Please log in to your account" });
+        let token = null;
+
+        if (header) {
+            token = header.startsWith("Bearer ")
+                ? header.split(" ")[1]
+                : (header.startsWith("Bearer") ? header.substring(6).trim() : header.trim());
+        } else if (req.cookies && req.cookies.token) {
+            token = req.cookies.token;
         }
 
-        const header_token = header.startsWith("Bearer ") ? header.split(" ")[1] : (header.startsWith("Bearer") ? header.substring(6).trim() : header.trim());
-
-        if (!header_token) {
-            return res.status(401).json({ Message: "Please log in to your account" });
+        if (!token) {
+            return res.status(401).json({
+                message: "Please log in to your account",
+                Message: "Please log in to your account"
+            });
         }
 
-        const verified = jwt.verify(header_token, JWT_SECRET);
+        const verified = jwt.verify(token, JWT_SECRET);
         if (verified) {
             req.user = verified;
             return next();
         }
-        return res.status(401).json({ Message: "Invalid authentication token" });
+        return res.status(401).json({
+            message: "Invalid authentication token",
+            Message: "Invalid authentication token"
+        });
     }
-    catch (err) {
-        return res.status(401).json({ Message: "Invalid or expired token, please log in again" });
+    catch {
+        return res.status(401).json({
+            message: "Invalid or expired token, please log in again",
+            Message: "Invalid or expired token, please log in again"
+        });
     }
 }
 

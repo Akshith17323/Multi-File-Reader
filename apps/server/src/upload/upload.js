@@ -41,45 +41,45 @@ function formatBytes(bytes, decimals = 2) {
 }
 
 async function uploadFile(req, res) {
-  console.log("🚀 uploadFile handler called");
+  console.log("[Upload] uploadFile handler called");
   try {
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
     if (!req.file) {
-      console.error("❌ No file found in req.file");
+      console.error("[Upload] No file found in req.file");
       return res.status(400).json({ message: "No file" });
     }
-    console.log("📂 File received:", req.file.originalname, "Size:", req.file.size, "Mime:", req.file.mimetype);
+    console.log("[Upload] File received:", req.file.originalname, "Size:", req.file.size, "Mime:", req.file.mimetype);
 
     const fileName = `${req.user.userId}/${Date.now()}-${req.file.originalname}`;
 
-    console.log("📝 Generated filename with path:", fileName);
+    console.log("[Upload] Generated filename with path:", fileName);
 
     const file = bucket.file(fileName);
-    console.log("🔗 Created bucket file reference");
+    console.log("[Upload] Created bucket file reference");
 
     const stream = file.createWriteStream({
       resumable: false,
       metadata: { contentType: req.file.mimetype },
     });
-    console.log("🌊 Created write stream");
+    console.log("[Upload] Created write stream");
 
     stream.on("error", (err) => {
-      console.error("❌ Stream Error:", err);
+      console.error("[Upload] Stream Error:", err);
       res.status(500).json({ error: err.message });
     });
 
     stream.on("finish", async () => {
-      console.log("✅ Stream finished. Making public...");
+      console.log("[Upload] Stream finished. Making public...");
       try {
         await file.makePublic();
-        console.log("🌍 File made public.");
+        console.log("[Upload] File made public.");
 
         // The URL will now include the folder structure automatically
         const url = `https://storage.googleapis.com/${bucketName}/${fileName}`;
-        console.log("✅ Upload success. URL:", url);
+        console.log("[Upload] Success. URL:", url);
 
         const PrismaFile = await prisma.file.create({
           data: {
@@ -94,15 +94,15 @@ async function uploadFile(req, res) {
 
         res.status(200).json({ message: "Uploaded", url });
       } catch (publicErr) {
-        console.error("❌ Error making public:", publicErr);
+        console.error("[Upload] Error making public:", publicErr);
         res.status(500).json({ error: "File uploaded but failed to make public: " + publicErr.message });
       }
     });
 
-    console.log("Process: Piping buffer to stream...");
+    console.log("[Upload] Piping buffer to stream...");
     stream.end(req.file.buffer);
   } catch (err) {
-    console.error("❌ uploadFile Catch Error:", err);
+    console.error("[Upload] Catch Error:", err);
     res.status(500).json({ error: err.message });
   }
 }

@@ -38,7 +38,7 @@ async function universalFetch(endpoint: string, options: ApiOptions = {}) {
     const data = await response.json().catch(() => null);
     
     if (!response.ok) {
-      throw new Error(data?.Message || data?.error || 'API request failed');
+      throw new Error(data?.message || data?.Message || data?.error || 'API request failed');
     }
     
     return data;

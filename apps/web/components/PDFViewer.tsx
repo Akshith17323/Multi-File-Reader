@@ -111,6 +111,15 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
         setTouchEnd(e.targetTouches[0].clientX);
     };
 
+    // Helper to change page respecting view mode
+    const changePage = (delta: number) => {
+        setPageNumber(prev => {
+            const increment = viewMode === "two-page" ? delta * 2 : delta;
+            const next = prev + increment;
+            return Math.min(Math.max(1, next), numPages);
+        });
+    };
+
     const onTouchEnd = () => {
         if (!touchStart || !touchEnd) return;
         const distance = touchStart - touchEnd;
@@ -125,15 +134,6 @@ export default function PDFViewer({ blobUrl, title = "PDF Reader", fileUrl }: PD
                 changePage(-1);
             }
         }
-    };
-
-    // Helper to change page respecting view mode
-    const changePage = (delta: number) => {
-        setPageNumber(prev => {
-            const increment = viewMode === "two-page" ? delta * 2 : delta;
-            const next = prev + increment;
-            return Math.min(Math.max(1, next), numPages);
-        });
     };
 
     // Calculate Page Dimensions based on Fit Mode

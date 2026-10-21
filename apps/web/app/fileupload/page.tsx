@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef, useState } from "react";
-import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, File } from "lucide-react";
+import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, File, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { isElectron } from "@/hooks/useEnvironment";
 
@@ -15,6 +15,22 @@ function FileUpload() {
   const router = useRouter();
 
   const uploadEndpoint = `${url}/fileUpload`;
+
+  const handleFileSelection = (file: File) => {
+    setError(null);
+    setResultUrl(null);
+    setProgress(0);
+
+    const validTypes = ['.pdf', '.epub', '.txt'];
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+
+    if (!validTypes.includes(fileExtension)) {
+      setError("Invalid file type. Please upload PDF, EPUB, or TXT files.");
+      return;
+    }
+
+    setSelectedFile(file);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -33,22 +49,6 @@ function FileUpload() {
     if (files && files.length > 0) {
       handleFileSelection(files[0]);
     }
-  };
-
-  const handleFileSelection = (file: File) => {
-    setError(null);
-    setResultUrl(null);
-    setProgress(0);
-
-    const validTypes = ['.pdf', '.epub', '.txt'];
-    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-
-    if (!validTypes.includes(fileExtension)) {
-      setError("Invalid file type. Please upload PDF, EPUB, or TXT files.");
-      return;
-    }
-
-    setSelectedFile(file);
   };
 
   const uploadFile = async (e: React.FormEvent) => {
@@ -112,7 +112,7 @@ function FileUpload() {
         try {
           const errBody = JSON.parse(xhr.responseText);
           setError(errBody.error || errBody.message || `Upload failed: ${xhr.status}`);
-        } catch (e) {
+        } catch {
           setError(`Upload failed: ${xhr.status} ${xhr.statusText}`);
         }
       }
@@ -169,7 +169,7 @@ function FileUpload() {
           className="group mb-10 text-foreground-muted hover:text-foreground flex items-center gap-2 transition-colors font-bold text-sm tracking-wide"
         >
           <div className="w-8 h-8 rounded-full border border-border-subtle flex items-center justify-center group-hover:border-foreground transition-colors">
-            ←
+            <ArrowLeft size={16} />
           </div>
           Back to Library
         </button>

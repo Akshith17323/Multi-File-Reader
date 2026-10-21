@@ -158,9 +158,15 @@ function ReaderContent() {
             const fileUrls = filesParam.split(",").map((url) => decodeURIComponent(url));
 
             const files: FileTabData[] = fileUrls.map((url, index) => {
-                const fileName = url.split("/").pop() || `File ${index + 1}`;
-                const lowerUrl = url.toLowerCase();
-                const fileType = lowerUrl.endsWith(".pdf") ? "pdf" : lowerUrl.endsWith(".txt") ? "txt" : "epub";
+                const rawSegment = url.split("?")[0].split("/").pop() || `File ${index + 1}`;
+                const decodedName = decodeURIComponent(rawSegment);
+                const fileName = decodedName.replace(/^\d{10,14}-/, "");
+                const cleanUrl = url.split("?")[0].toLowerCase();
+                const fileType = cleanUrl.endsWith(".pdf")
+                    ? "pdf"
+                    : cleanUrl.endsWith(".txt")
+                    ? "txt"
+                    : "epub";
 
                 return {
                     id: `file_${index}_${Date.now()}`,

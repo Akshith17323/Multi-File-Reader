@@ -58,7 +58,7 @@ async function updateFile(req, res) {
         });
 
     } catch (error) {
-        console.error('❌ Update file error:', error);
+        console.error('[Files] Update file error:', error);
         return res.status(500).json({ message: 'Failed to update file' });
     }
 }

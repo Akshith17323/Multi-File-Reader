@@ -64,7 +64,7 @@ async function registerLocalFile(req, res) {
         });
 
     } catch (err) {
-        console.error("❌ registerLocalFile error:", err);
+        console.error("[LocalFile] Error:", err);
         return res.status(500).json({ message: "Failed to register local file", error: err.message });
     }
 }

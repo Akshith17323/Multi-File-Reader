@@ -120,9 +120,6 @@ export default function Navbar() {
         }
     };
 
-    // Debugging
-    console.log("Navbar Rendering. Pathname:", pathname);
-
     // Safety check for pathname
     if (!pathname) return null;
 
@@ -170,6 +167,19 @@ export default function Navbar() {
                         >
                             MY BOOKMARKS
                             {pathname === '/bookmarks' && (
+                                <span className="absolute bottom-0 left-0 w-full h-[2px] bg-primary shadow-[0_0_8px_var(--color-primary)]" />
+                            )}
+                        </Link>
+
+                        <Link
+                            href="/fileupload"
+                            className={`relative text-sm font-bold tracking-wide py-2 px-3 rounded-lg transition-all duration-300 overflow-hidden group/link ${pathname === '/fileupload'
+                                ? 'text-primary bg-primary/10'
+                                : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
+                                }`}
+                        >
+                            UPLOAD
+                            {pathname === '/fileupload' && (
                                 <span className="absolute bottom-0 left-0 w-full h-[2px] bg-primary shadow-[0_0_8px_var(--color-primary)]" />
                             )}
                         </Link>
@@ -262,6 +272,13 @@ export default function Navbar() {
                             className="block px-4 py-3 text-foreground font-medium bg-surface-hover rounded-xl border border-border-subtle"
                         >
                             My Bookmarks
+                        </Link>
+                        <Link
+                            href="/fileupload"
+                            onClick={() => setIsOpen(false)}
+                            className="block px-4 py-3 text-foreground font-medium bg-surface-hover rounded-xl border border-border-subtle"
+                        >
+                            Upload File
                         </Link>
                         {user ? (
                             <div className="space-y-2">

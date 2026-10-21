@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useEnvironment } from '../hooks/useEnvironment';
+import { Minus, Square, X } from 'lucide-react';
 
 export default function DesktopTitlebar() {
   const { isElectron } = useEnvironment();
@@ -45,20 +46,23 @@ export default function DesktopTitlebar() {
           <button 
             onClick={handleMinimize} 
             className="hover:bg-surface-hover w-7 h-7 flex items-center justify-center rounded transition-colors text-foreground-muted hover:text-foreground"
+            title="Minimize"
           >
-            ─
+            <Minus size={13} />
           </button>
           <button 
             onClick={handleMaximize} 
             className="hover:bg-surface-hover w-7 h-7 flex items-center justify-center rounded transition-colors text-foreground-muted hover:text-foreground"
+            title="Maximize"
           >
-            □
+            <Square size={11} />
           </button>
           <button 
             onClick={handleClose} 
             className="hover:bg-red-500 w-7 h-7 flex items-center justify-center rounded transition-colors hover:text-white text-foreground-muted"
+            title="Close"
           >
-            ✕
+            <X size={14} />
           </button>
         </div>
       </div>

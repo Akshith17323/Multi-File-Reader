@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/services/apiClient";
-import { BookOpen, Trash2, Clock, AlertCircle } from "lucide-react";
+import { BookOpen, Trash2, Clock, AlertCircle, Cloud, HardDrive } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
+import { getLocalBookmarksMap, deleteBookmarkUnified } from "@/utils/localBookmarks";
+import { isLocalFile } from "@/app/files/page";
 
 interface Bookmark {
     id: string;
@@ -29,20 +32,42 @@ export default function BookmarksPage() {
         setError(null);
 
         try {
+            const localMap = getLocalBookmarksMap();
+            const localList: Bookmark[] = Object.values(localMap).map((b) => ({
+                id: b.fileUrl,
+                fileUrl: b.fileUrl,
+                fileName: b.fileName || b.fileUrl.split("/").pop() || "Untitled",
+                pageNumber: b.pageNumber,
+                totalPages: b.totalPages,
+                cfi: b.cfi,
+                progress: b.progress,
+                lastRead: b.lastRead || new Date().toISOString(),
+            }));
+
             const token = localStorage.getItem("token");
             if (!token) {
-                toast.error("Please login to view bookmarks");
-                router.push("/auth/login");
+                setBookmarks(localList);
                 setLoading(false);
                 return;
             }
 
-            const data = await apiClient.getAllBookmarks(token);
-            setBookmarks(data.bookmarks || []);
+            let cloudList: Bookmark[] = [];
+            try {
+                const data = await apiClient.getAllBookmarks(token);
+                cloudList = data.bookmarks || [];
+            } catch (cErr) {
+                console.warn("Could not fetch remote bookmarks, showing local:", cErr);
+            }
 
+            // Merge local and cloud bookmarks
+            const mergedMap = new Map<string, Bookmark>();
+            localList.forEach((b) => mergedMap.set(b.fileUrl, b));
+            cloudList.forEach((b) => mergedMap.set(b.fileUrl, b));
+
+            setBookmarks(Array.from(mergedMap.values()));
         } catch (error: unknown) {
             const err = error as Error;
-            console.error("❌ Error fetching bookmarks:", err);
+            console.error("Error fetching bookmarks:", err);
             setError(err.message || "Failed to load bookmarks");
             toast.error(err.message || "Failed to load bookmarks");
         } finally {
@@ -52,7 +77,6 @@ export default function BookmarksPage() {
 
     useEffect(() => {
         fetchBookmarks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleDelete = async (bookmark: Bookmark) => {
@@ -60,38 +84,20 @@ export default function BookmarksPage() {
 
         try {
             const token = localStorage.getItem("token");
-            if (!token) {
-                toast.error("Please login");
-                return;
-            }
-
-            await apiClient.deleteBookmark(token, bookmark.fileUrl);
+            await deleteBookmarkUnified(token, bookmark.fileUrl);
 
             toast.success("Progress cleared successfully");
-            setBookmarks(prev => prev.filter(b => b.id !== bookmark.id));
+            setBookmarks(prev => prev.filter(b => b.fileUrl !== bookmark.fileUrl));
 
         } catch (error: unknown) {
             const err = error as Error;
-            console.error("❌ Error deleting bookmark:", err);
+            console.error("Error deleting bookmark:", err);
             toast.error(err.message || "Failed to delete bookmark");
         }
     };
 
     const handleContinueReading = (bookmark: Bookmark) => {
-        // Determine file type from fileName or fileUrl
-        const fileNameLower = bookmark.fileName?.toLowerCase() || '';
-        const fileUrlLower = bookmark.fileUrl?.toLowerCase() || '';
-
-        const isPDF = fileNameLower.endsWith('.pdf') || fileUrlLower.includes('.pdf');
-        const isEPUB = fileNameLower.endsWith('.epub') || fileUrlLower.includes('.epub');
-
-        if (isPDF) {
-            router.push(`/reader/pdfreader?url=${encodeURIComponent(bookmark.fileUrl)}`);
-        } else if (isEPUB) {
-            router.push(`/reader/epubreader?url=${encodeURIComponent(bookmark.fileUrl)}`);
-        } else {
-            toast.info(`Unable to determine file type. FileName: ${bookmark.fileName}, URL: ${bookmark.fileUrl}`);
-        }
+        router.push(`/reader?files=${encodeURIComponent(bookmark.fileUrl)}&active=0`);
     };
 
     const getProgressText = (bookmark: Bookmark) => {
@@ -176,6 +182,12 @@ export default function BookmarksPage() {
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="text-xs font-bold px-2 py-1 rounded-md bg-surface-hover text-primary border border-border-subtle">
                                                 {getFileType(bookmark.fileName || '')}
+                                            </span>
+                                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                                                isLocalFile(bookmark.fileUrl) ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" : "bg-sky-500/15 text-sky-400 border border-sky-500/30"
+                                            }`}>
+                                                {isLocalFile(bookmark.fileUrl) ? <HardDrive size={10} /> : <Cloud size={10} />}
+                                                <span>{isLocalFile(bookmark.fileUrl) ? "Local" : "Cloud"}</span>
                                             </span>
                                             <span className="text-xs text-foreground-muted flex items-center gap-1">
                                                 <Clock size={12} />

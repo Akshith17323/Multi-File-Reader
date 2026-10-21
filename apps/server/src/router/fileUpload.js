@@ -6,23 +6,29 @@ const { uploadFile } = require('../upload/upload')
 const middleware = require('../middleware/authMiddleware')
 
 const upload = multer({
-  // storage: multer.memoryStorage(),
+  storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    const allowed = ['text/plain', 'application/pdf', 'application/epub+zip']
-    if (allowed.includes(file.mimetype)) cb(null, true)
-    else cb(new Error('Only txt, epub, pdf files allowed'), false)
+    const allowed = ['text/plain', 'application/pdf', 'application/epub+zip'];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only txt, epub, and pdf files are allowed'), false);
+    }
   }
-})
-
+});
 
 router.post('/fileUpload',
   middleware,
   (req, res, next) => {
-    console.log(">>> POST /fileUpload hit");
-    next();
+    upload.single('UploadingFile')(req, res, (err) => {
+      if (err) {
+        console.error("Multer Upload Error:", err.message);
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
   },
-  upload.single('UploadingFile'),
   uploadFile
-)
+);
 
 module.exports = router

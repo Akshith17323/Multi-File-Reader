@@ -50,6 +50,8 @@ app.use(
     credentials: true
   })
 );
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
 app.use(express.json());
 // proxy route to stream external resources (useful if GCS CORS can't be changed)
 app.use('/', proxyRouter)

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, BookOpen, AlertCircle, Edit2, AlertTriangle, Link2, RotateCcw, Cloud, HardDrive } from "lucide-react";
+import { Trash2, BookOpen, AlertCircle, Edit2, AlertTriangle, Link2, RotateCcw, Cloud, HardDrive, ChevronDown } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { apiClient } from "@/services/apiClient";
@@ -145,7 +145,7 @@ export default function FilesPage() {
       setFiles(finalFiles);
       setTotalPages(Math.max(totalP, 1));
     } catch (error: unknown) {
-      console.error("❌ Error fetching files:", error);
+      console.error("Error fetching files:", error);
       const msg = error instanceof Error ? error.message : "Failed to load files";
       setError(msg);
       toast.error(msg);
@@ -185,7 +185,7 @@ export default function FilesPage() {
       setTimeout(() => fetchFiles(), 500);
 
     } catch (error: unknown) {
-      console.error("❌ Error deleting file:", error);
+      console.error("Error deleting file:", error);
       const msg = error instanceof Error ? error.message : "Failed to delete file";
       toast.error(msg);
     }
@@ -218,7 +218,7 @@ export default function FilesPage() {
       setNewFileName("");
 
     } catch (error: unknown) {
-      console.error("❌ Error renaming file:", error);
+      console.error("Error renaming file:", error);
       const msg = error instanceof Error ? error.message : "Failed to rename file";
       toast.error(msg);
     }
@@ -482,7 +482,9 @@ export default function FilesPage() {
                 <option value="cloud">Cloud Storage</option>
                 <option value="local">Local Disk</option>
               </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">▼</div>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">
+                <ChevronDown size={14} />
+              </div>
             </div>
 
             <div className="relative">
@@ -495,7 +497,9 @@ export default function FilesPage() {
                 <option value="pdf">PDF</option>
                 <option value="epub">EPUB</option>
               </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">▼</div>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">
+                <ChevronDown size={14} />
+              </div>
             </div>
 
             <div className="relative">
@@ -508,7 +512,9 @@ export default function FilesPage() {
                 <option value="a-z">Name (A-Z)</option>
                 <option value="z-a">Name (Z-A)</option>
               </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">▼</div>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">
+                <ChevronDown size={14} />
+              </div>
             </div>
           </div>
         </div>
