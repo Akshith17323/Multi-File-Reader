@@ -58,9 +58,9 @@ async function get_all_files(req, res) {
         const transformedFiles = files.map(file => {
             let url = file.fileUrl;
             if (file.source === 'LOCAL' && file.localId) {
-                url = `local://${file.localId}`;
+                url = file.fileUrl || (file.localId.startsWith('mfr-local://') ? file.localId : `mfr-local://${file.localId}`);
             } else if ((file.source === 'GOOGLE_DRIVE' || file.source === 'ONEDRIVE') && file.driveId) {
-                url = `drive://${file.source}/${file.driveId}`;
+                url = file.fileUrl || `drive://${file.source}/${file.driveId}`;
             }
 
             return {

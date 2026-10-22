@@ -14,7 +14,7 @@ export class FileAdapter {
       const result = await (window as any).electronAPI.invoke('open-local-file-dialog', token);
       if (result.ok) {
         return {
-          url: `local://${result.data.file.localId}`,
+          url: result.data.file.fileUrl || `mfr-local://${result.data.file.localId}`,
           fileName: result.data.file.fileName
         };
       } else if (result.error === "Canceled") {

@@ -28,7 +28,7 @@ async function deleteFile(req, res) {
         }
 
         // 2. Delete from GCS only if it is a cloud file
-        if (!dbFile.fileUrl.startsWith("mfr-local://")) {
+        if (dbFile.source !== "LOCAL" && dbFile.fileUrl && !dbFile.fileUrl.startsWith("mfr-local://") && !dbFile.fileUrl.startsWith("local://")) {
             let gcsPath = dbFile.fileName;
             try {
                 const urlObj = new URL(dbFile.fileUrl);
