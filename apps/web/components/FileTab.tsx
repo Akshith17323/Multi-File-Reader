@@ -1,12 +1,12 @@
 "use client";
 
-import { X, FileText, BookOpen, Cloud, HardDrive } from "lucide-react";
+import { X, FileText, BookOpen, Code, FileQuestion, AlignLeft, Cloud, HardDrive } from "lucide-react";
 
 export interface FileTabData {
     id: string;
     url: string;
     name: string;
-    type: "pdf" | "epub" | "txt";
+    type: string;
 }
 
 interface FileTabProps {
@@ -28,8 +28,30 @@ function isLocalFile(url: string, id?: string): boolean {
 }
 
 export default function FileTab({ file, isActive, onClick, onClose }: FileTabProps) {
-    const Icon = file.type === "epub" ? BookOpen : FileText;
     const isLocal = isLocalFile(file.url, file.id);
+
+    const getIconAndColor = () => {
+        switch (file.type.toLowerCase()) {
+            case "pdf":
+                return { Icon: FileText, color: "text-blue-400", activeBg: "bg-blue-500/20" };
+            case "epub":
+                return { Icon: BookOpen, color: "text-purple-400", activeBg: "bg-purple-500/20" };
+            case "code":
+            case "js":
+            case "ts":
+            case "py":
+            case "json":
+                return { Icon: Code, color: "text-emerald-400", activeBg: "bg-emerald-500/20" };
+            case "txt":
+            case "text":
+            case "md":
+                return { Icon: AlignLeft, color: "text-amber-400", activeBg: "bg-amber-500/20" };
+            default:
+                return { Icon: FileQuestion, color: "text-gray-400", activeBg: "bg-gray-500/20" };
+        }
+    };
+
+    const { Icon, color, activeBg } = getIconAndColor();
 
     const getTypeBadge = () => {
         return file.type.toUpperCase();
@@ -52,10 +74,10 @@ export default function FileTab({ file, isActive, onClick, onClose }: FileTabPro
             <div
                 className={`
         shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
-        ${isActive ? "bg-primary/20" : "bg-surface"}
+        ${isActive ? activeBg : "bg-surface"}
       `}
             >
-                <Icon size={16} className={isActive ? "text-primary" : "text-foreground-muted"} />
+                <Icon size={16} className={isActive ? color : "text-foreground-muted"} />
             </div>
 
             {/* File Name & Badges */}

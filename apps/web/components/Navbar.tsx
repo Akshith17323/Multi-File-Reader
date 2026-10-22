@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LogOut, User, Library, Menu, X, Sun, Moon, MoonStar } from "lucide-react";
+import { LogOut, Library, Menu, X, Sun, Moon, MoonStar } from "lucide-react";
 import { toast } from "react-toastify";
 import { apiClient } from "@/services/apiClient";
 
@@ -129,25 +129,25 @@ export default function Navbar() {
     }
 
     return (
-        <nav className="sticky top-4 z-50 mx-4 md:mx-auto max-w-5xl">
-            <div className="bg-surface backdrop-blur-2xl border border-border-subtle rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] px-6 py-3 transition-all duration-300">
+        <nav className="sticky top-2 z-50 mx-4 md:mx-auto max-w-[1700px] w-[calc(100%-2rem)]">
+            <div className="bg-surface/90 backdrop-blur-2xl border border-border-subtle rounded-2xl shadow-sm px-4 py-2 transition-all duration-300">
                 <div className="flex items-center justify-between">
                     {/* Logo */}
-                    <Link href="/files" className="flex items-center gap-3 group">
-                        <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-linear-to-br from-primary to-purple-600 shadow-lg group-hover:shadow-primary-glow transition-all duration-500 overflow-hidden">
-                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            <Library size={22} className="text-white relative z-10 group-hover:scale-110 transition-transform duration-500" />
+                    <Link href="/files" className="flex items-center gap-2.5 group">
+                        <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-linear-to-br from-primary to-purple-600 shadow-sm group-hover:shadow-primary-glow transition-all duration-300 overflow-hidden">
+                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <Library size={18} className="text-white relative z-10 group-hover:scale-105 transition-transform duration-300" />
                         </div>
-                        <span className="font-extrabold text-xl tracking-tight bg-clip-text text-transparent bg-linear-to-r from-foreground to-foreground-muted group-hover:to-primary transition-all duration-500">
+                        <span className="font-extrabold text-base tracking-tight bg-clip-text text-transparent bg-linear-to-r from-foreground to-foreground-muted group-hover:to-primary transition-all duration-300">
                             MultiReader
                         </span>
                     </Link>
 
                     {/* Desktop Menu */}
-                    <div className="hidden md:flex items-center gap-4 group/nav">
+                    <div className="hidden md:flex items-center gap-3 group/nav">
                         <Link
                             href="/files"
-                            className={`relative text-sm font-bold tracking-wide py-2 px-3 rounded-lg transition-all duration-300 overflow-hidden group/link ${pathname === '/files'
+                            className={`relative text-xs font-bold tracking-wide py-1.5 px-2.5 rounded-lg transition-all duration-200 overflow-hidden group/link ${pathname === '/files'
                                 ? 'text-primary bg-primary/10'
                                 : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
                                 }`}
@@ -160,7 +160,7 @@ export default function Navbar() {
 
                         <Link
                             href="/bookmarks"
-                            className={`relative text-sm font-bold tracking-wide py-2 px-3 rounded-lg transition-all duration-300 overflow-hidden group/link ${pathname === '/bookmarks'
+                            className={`relative text-xs font-bold tracking-wide py-1.5 px-2.5 rounded-lg transition-all duration-200 overflow-hidden group/link ${pathname === '/bookmarks'
                                 ? 'text-primary bg-primary/10'
                                 : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
                                 }`}
@@ -185,45 +185,45 @@ export default function Navbar() {
                         </Link>
 
                         {/* Divider */}
-                        <div className="h-5 w-px bg-border-subtle group-hover/nav:opacity-50 transition-all duration-300"></div>
+                        <div className="h-4 w-px bg-border-subtle group-hover/nav:opacity-50 transition-all duration-200"></div>
 
                         {/* Theme Toggle (macOS style) */}
                         <button
                             onClick={toggleTheme}
-                            className="relative inline-flex h-8 w-14 items-center rounded-full bg-surface-hover hover:bg-border-subtle transition-colors focus:outline-none group-hover/nav:opacity-50 hover:!opacity-100!"
+                            className="relative inline-flex h-7 w-12 items-center rounded-full bg-surface-hover hover:bg-border-subtle transition-colors focus:outline-none group-hover/nav:opacity-50 hover:!opacity-100!"
                         >
                             <span className="sr-only">Toggle dark mode</span>
                             <span
-                                className={`inline-flex h-6 w-6 transform items-center justify-center rounded-full bg-white transition-transform duration-300 ease-in-out shadow-md ${theme === "dark" ? "translate-x-7" : "translate-x-1"
+                                className={`inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white transition-transform duration-300 ease-in-out shadow-sm ${theme === "dark" ? "translate-x-6" : "translate-x-1"
                                     }`}
                             >
                                 {theme === "dark" ? (
-                                    <MoonStar size={14} className="text-blue-600 fill-current" />
+                                    <MoonStar size={12} className="text-blue-600 fill-current" />
                                 ) : (
-                                    <Sun size={14} className="text-amber-500 fill-current" />
+                                    <Sun size={12} className="text-amber-500 fill-current" />
                                 )}
                             </span>
                         </button>
 
-                        <div className="h-5 w-px bg-border-subtle group-hover/nav:opacity-50 transition-all duration-300"></div>
+                        <div className="h-4 w-px bg-border-subtle group-hover/nav:opacity-50 transition-all duration-200"></div>
 
                         {user ? (
-                            <div className="relative group/user group-hover/nav:opacity-50 hover:!opacity-100! transition-all duration-300">
-                                <button className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-full hover:bg-surface-hover transition-colors">
-                                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-inner">
+                            <div className="relative group/user group-hover/nav:opacity-50 hover:!opacity-100! transition-all duration-200">
+                                <button className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full hover:bg-surface-hover transition-colors">
+                                    <div className="w-7 h-7 rounded-full bg-linear-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-inner">
                                         {user.charAt(0).toUpperCase()}
                                     </div>
-                                    <span className="text-sm font-medium text-foreground">{user}</span>
+                                    <span className="text-xs font-medium text-foreground">{user}</span>
                                 </button>
 
                                 {/* Dropdown with hover bridge */}
-                                <div className="absolute right-0 top-full pt-2 w-48 opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible transition-all duration-200 transform origin-top-right z-50">
-                                    <div className="bg-surface border border-border-subtle rounded-xl shadow-xl p-2">
+                                <div className="absolute right-0 top-full pt-2 w-44 opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible transition-all duration-200 transform origin-top-right z-50">
+                                    <div className="bg-surface backdrop-blur-2xl border border-border-subtle rounded-xl shadow-xl p-1.5">
                                         <button
                                             onClick={handleLogout}
-                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-all cursor-pointer"
+                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-all cursor-pointer"
                                         >
-                                            <LogOut size={16} />
+                                            <LogOut size={14} />
                                             Sign Out
                                         </button>
                                     </div>
@@ -232,7 +232,7 @@ export default function Navbar() {
                         ) : (
                             <Link
                                 href="/auth/login"
-                                className="text-sm font-bold text-foreground bg-surface-hover hover:bg-border-subtle px-5 py-2 rounded-xl transition-all shadow-sm hover:shadow-md group-hover/nav:opacity-50 hover:!opacity-100! duration-300"
+                                className="text-xs font-bold text-foreground bg-surface-hover hover:bg-border-subtle px-4 py-1.5 rounded-lg transition-all shadow-xs hover:shadow-sm group-hover/nav:opacity-50 hover:!opacity-100! duration-200"
                             >
                                 Login
                             </Link>
@@ -260,18 +260,18 @@ export default function Navbar() {
 
                 {/* Mobile Menu */}
                 {isOpen && (
-                    <div className="md:hidden mt-4 pt-4 border-t border-border-subtle space-y-4 animate-in fade-in slide-in-from-top-4 duration-200">
+                    <div className="md:hidden mt-4 pt-4 border-t border-border-subtle space-y-3 animate-in fade-in slide-in-from-top-4 duration-200">
                         <Link
                             href="/files"
                             onClick={() => setIsOpen(false)}
-                            className="block px-4 py-3 text-foreground font-medium bg-surface-hover rounded-xl border border-border-subtle"
+                            className="block px-4 py-3 text-foreground font-semibold bg-surface/70 backdrop-blur-xl hover:bg-surface-hover rounded-2xl border border-border-subtle transition-all shadow-xs"
                         >
                             My Library
                         </Link>
                         <Link
                             href="/bookmarks"
                             onClick={() => setIsOpen(false)}
-                            className="block px-4 py-3 text-foreground font-medium bg-surface-hover rounded-xl border border-border-subtle"
+                            className="block px-4 py-3 text-foreground font-semibold bg-surface/70 backdrop-blur-xl hover:bg-surface-hover rounded-2xl border border-border-subtle transition-all shadow-xs"
                         >
                             My Bookmarks
                         </Link>
@@ -283,23 +283,25 @@ export default function Navbar() {
                             Upload File
                         </Link>
                         {user ? (
-                            <div className="space-y-2">
-                                <div className="px-4 py-2 flex items-center gap-3 text-foreground-muted">
-                                    <User size={18} />
-                                    <span>Signed in as <span className="text-foreground font-bold">{user}</span></span>
+                            <div className="space-y-3 pt-1">
+                                <div className="px-4 py-2.5 flex items-center gap-3 text-foreground-muted bg-surface/50 backdrop-blur-md rounded-2xl border border-border-subtle">
+                                    <div className="w-7 h-7 rounded-full bg-linear-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-inner">
+                                        {user.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className="text-sm">Signed in as <span className="text-foreground font-bold">{user}</span></span>
                                 </div>
                                 <button
                                     onClick={handleLogout}
-                                    className="w-full flex items-center gap-3 px-4 py-3 text-white font-bold bg-primary hover:bg-primary-hover rounded-xl transition-colors shadow-sm"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-white font-bold bg-primary hover:bg-primary-hover rounded-2xl transition-all shadow-md"
                                 >
-                                    <LogOut size={20} />
+                                    <LogOut size={18} />
                                     Logout
                                 </button>
                             </div>
                         ) : (
                             <Link
                                 href="/auth/login"
-                                className="block w-full text-center px-4 py-3 text-white font-bold bg-primary hover:bg-primary-hover rounded-xl transition-colors shadow-sm"
+                                className="block w-full text-center px-4 py-3 text-white font-bold bg-primary hover:bg-primary-hover rounded-2xl transition-all shadow-md"
                             >
                                 Login
                             </Link>

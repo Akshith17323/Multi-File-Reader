@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useEnvironment } from '../hooks/useEnvironment';
 import { Minus, Square, X } from 'lucide-react';
+import { WindowAdapter } from '../services/windowAdapter';
 
 export default function DesktopTitlebar() {
   const { isElectron } = useEnvironment();
@@ -15,15 +16,15 @@ export default function DesktopTitlebar() {
   if (!mounted || !isElectron) return null;
 
   const handleMinimize = () => {
-    window.electronAPI?.send('window-minimize');
+    WindowAdapter.minimize();
   };
 
   const handleMaximize = () => {
-    window.electronAPI?.send('window-maximize');
+    WindowAdapter.maximize();
   };
 
   const handleClose = () => {
-    window.electronAPI?.send('window-close');
+    WindowAdapter.close();
   };
 
   return (
@@ -33,7 +34,7 @@ export default function DesktopTitlebar() {
       
       {/* Fixed Titlebar */}
       <div 
-        className="flex justify-between items-center h-8 w-full fixed top-0 z-[100] px-3 select-none backdrop-blur-xl bg-surface/80 border-b border-border-subtle"
+        className="flex justify-between items-center h-8 w-full fixed top-0 z-[100] px-3 select-none backdrop-blur-2xl bg-surface/75 border-b border-border-subtle shadow-xs"
         style={{ WebkitAppRegion: 'drag' } as any}
       >
         <div className="text-xs font-bold tracking-wider text-foreground-muted flex items-center gap-2">

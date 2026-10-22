@@ -28,6 +28,7 @@ interface FileData {
   name: string;
   url: string;
   id: string;
+  thumbnailUrl?: string;
   metadata: {
     size: string;
     updated: string;
@@ -47,6 +48,7 @@ export default function FilesPage() {
   const [offlineFiles, setOfflineFiles] = useState<
     Record<string, { exists: boolean; path: string; error?: string; readable?: boolean; isLocal?: boolean }>
   >({});
+  const [fileToDelete, setFileToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -77,7 +79,7 @@ export default function FilesPage() {
       if (typeFilter) params.append("type", typeFilter);
 
       params.append("page", page.toString());
-      params.append("limit", "12");
+      params.append("limit", "24");
       params.append("sortBy", sortBy);
       params.append("order", sortOrder);
 
@@ -162,11 +164,16 @@ export default function FilesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, typeFilter, sourceFilter, page, sortBy, sortOrder]);
 
-  const handleDelete = async (filename: string, fileId: string) => {
-    if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
+  const handleDelete = (filename: string, fileId: string) => {
+    setFileToDelete({ id: fileId, name: filename });
+  };
+
+  const confirmDelete = async () => {
+    if (!fileToDelete) return;
+    const { id: fileId } = fileToDelete;
+    setFileToDelete(null);
 
     try {
-      // Remove from local library persistence
       removeLocalLibraryFile(fileId);
       const targetObj = files.find((f) => f.id === fileId);
       if (targetObj) removeLocalLibraryFile(targetObj.url);
@@ -177,13 +184,8 @@ export default function FilesPage() {
       }
 
       toast.success("File deleted successfully");
-
-      // Remove from local state immediately for better UX
       setFiles(prev => prev.filter((f) => f.id !== fileId));
-
-      // Re-fetch to update pagination
       setTimeout(() => fetchFiles(), 500);
-
     } catch (error: unknown) {
       console.error("Error deleting file:", error);
       const msg = error instanceof Error ? error.message : "Failed to delete file";
@@ -205,18 +207,14 @@ export default function FilesPage() {
       }
 
       await apiClient.updateFile(token, fileId, newFileName.trim());
-
       toast.success("File renamed successfully");
 
-      // Update local state
       setFiles(prev => prev.map(f =>
         f.id === fileId ? { ...f, name: newFileName.trim() } : f
       ));
 
-      // Reset edit state
       setEditingFileId(null);
       setNewFileName("");
-
     } catch (error: unknown) {
       console.error("Error renaming file:", error);
       const msg = error instanceof Error ? error.message : "Failed to rename file";
@@ -225,15 +223,13 @@ export default function FilesPage() {
   };
 
   const handleRead = (file: FileData) => {
-    // Route to unified reader with file URL
     router.push(`/reader?files=${encodeURIComponent(file.url)}&active=0`);
   };
 
   const handleOpenLocalFile = async () => {
     try {
-      const result = await window.electronAPI?.invoke('open-local-file');
+      const result = await (window as any).electronAPI?.invoke('open-local-file');
       if (result && !result.canceled && result.url) {
-        // Save to local library so it persists in the library view!
         await saveLocalFileToLibrary({
           name: result.fileName,
           url: result.url,
@@ -252,7 +248,7 @@ export default function FilesPage() {
 
   // Scan local files for DaVinci Resolve-style Media Offline status
   useEffect(() => {
-    if (!isElectron() || !window.electronAPI?.invoke || files.length === 0) return;
+    if (!isElectron() || !(window as any).electronAPI?.invoke || files.length === 0) return;
 
     const localFiles = files.filter(
       (f) =>
@@ -265,14 +261,14 @@ export default function FilesPage() {
     if (localFiles.length === 0) return;
 
     let isMounted = true;
-    window.electronAPI
+    (window as any).electronAPI
       .invoke("check-local-files-status", localFiles.map((f) => f.url))
       .then((statusMap: Record<string, { exists: boolean; path: string; error?: string }>) => {
         if (isMounted && statusMap) {
           setOfflineFiles((prev) => ({ ...prev, ...statusMap }));
         }
       })
-      .catch((err) => console.warn("Failed to check local files status:", err));
+      .catch((err: any) => console.warn("Failed to check local files status:", err));
 
     return () => {
       isMounted = false;
@@ -281,12 +277,12 @@ export default function FilesPage() {
 
   const handleRelink = async (file: FileData) => {
     try {
-      if (!window.electronAPI?.invoke) {
+      if (!(window as any).electronAPI?.invoke) {
         toast.info("Relinking is supported in the desktop app");
         return;
       }
 
-      const result = await window.electronAPI.invoke("relink-local-file", {
+      const result = await (window as any).electronAPI.invoke("relink-local-file", {
         oldUrl: file.url,
         originalFileName: file.name,
       });
@@ -302,7 +298,6 @@ export default function FilesPage() {
       const newName = result.fileName;
       const newSize = result.fileSize;
 
-      // Migrate bookmarks if any
       const token = localStorage.getItem("token");
       if (token) {
         try {
@@ -319,8 +314,7 @@ export default function FilesPage() {
           console.warn("Could not migrate bookmark on relink:", bErr);
         }
 
-        // Update file record in database if id exists
-        if (file.id) {
+        if (file.id && !file.id.startsWith("local_")) {
           try {
             await apiClient.updateFile(token, file.id, {
               fileName: newName,
@@ -333,7 +327,6 @@ export default function FilesPage() {
         }
       }
 
-      // Update local state
       setFiles((prev) =>
         prev.map((f) =>
           f.id === file.id
@@ -350,7 +343,6 @@ export default function FilesPage() {
         )
       );
 
-      // Clear offline state for this file
       setOfflineFiles((prev) => {
         const next = { ...prev };
         delete next[file.url];
@@ -365,34 +357,26 @@ export default function FilesPage() {
   };
 
   const handleOpenInNewTab = (file: FileData) => {
-    // Check if reader is already open by trying to access sessionStorage
     const currentReaderFiles = sessionStorage.getItem("readerFiles");
 
     if (currentReaderFiles) {
-      // Reader is open, append the new file
       const existingUrls = currentReaderFiles.split(",");
 
-      // Check if file is already open
       if (existingUrls.includes(file.url)) {
         toast.info("File is already open");
-        // Navigate to reader and set this as active
         const activeIndex = existingUrls.indexOf(file.url);
         const encodedFiles = existingUrls.map(encodeURIComponent).join(",");
         router.push(`/reader?files=${encodedFiles}&active=${activeIndex}`);
         return;
       }
 
-      // Add new file to the list
       const newFilesList = [...existingUrls, file.url].map(encodeURIComponent).join(",");
-      const newActiveIndex = existingUrls.length; // New file will be last
-
+      const newActiveIndex = existingUrls.length;
       router.push(`/reader?files=${newFilesList}&active=${newActiveIndex}`);
     } else {
-      // No reader open, just open this file
       handleRead(file);
     }
   };
-
 
   const getFileIcon = (type: string) => {
     if (type === "application/pdf") return "PDF";
@@ -409,80 +393,86 @@ export default function FilesPage() {
   };
 
   return (
-    <div className="min-h-screen p-8 md:p-12 relative bg-background">
+    <div className="min-h-screen px-4 sm:px-6 lg:px-8 py-4 sm:py-6 relative bg-background overflow-hidden">
       <ToastContainer position="top-right" theme="light" />
 
-      <div className="max-w-7xl mx-auto">
+      {/* Ambient Glowing Orbs */}
+      <div className="absolute top-20 left-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none -z-0" />
+      <div className="absolute top-1/3 right-10 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-3xl pointer-events-none -z-0" />
+      <div className="absolute bottom-20 left-1/3 w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-3xl pointer-events-none -z-0" />
+
+      <div className="w-full max-w-[1700px] mx-auto relative z-10">
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
-          <div className="space-y-1">
-            <h1 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
+        <div className="flex flex-row justify-between items-center mb-5 gap-4">
+          <div className="space-y-0.5">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
               My Library
             </h1>
-            <p className="text-foreground-muted text-base font-medium">
+            <p className="text-foreground-muted text-xs sm:text-sm font-medium">
               Manage your digital collection
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {lastSession && lastSession.fileUrls && lastSession.fileUrls.length > 0 && (
               <button
                 onClick={() => {
                   const encoded = lastSession.fileUrls.map((url) => encodeURIComponent(url)).join(",");
                   router.push(`/reader?files=${encoded}&active=${lastSession.activeIndex}`);
                 }}
-                className="group flex items-center gap-2.5 px-6 py-4 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-2xl font-bold text-base transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
+                className="hidden sm:flex items-center gap-2 px-3.5 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-xl font-bold text-xs transition-all duration-200 shadow-xs cursor-pointer"
                 title={`Resume reading ${lastSession.fileUrls.length} file${lastSession.fileUrls.length === 1 ? "" : "s"}`}
               >
-                <RotateCcw size={18} className="text-primary group-hover:-rotate-45 transition-transform" />
-                <span>Resume Reading ({lastSession.fileUrls.length})</span>
+                <RotateCcw size={14} className="text-primary" />
+                <span>Resume ({lastSession.fileUrls.length})</span>
               </button>
             )}
 
             {isElectron() && (
               <button
                 onClick={handleOpenLocalFile}
-                className="group flex items-center gap-2 px-6 py-4 bg-surface hover:bg-surface-hover text-foreground border border-border-subtle hover:border-primary/50 rounded-2xl font-bold text-base transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer"
-                title="Select and read a local file from your disk with full OS permissions"
+                className="flex items-center gap-2 px-3.5 py-2 bg-surface hover:bg-surface-hover text-foreground border border-border-subtle hover:border-primary/50 rounded-xl font-bold text-xs transition-all duration-200 shadow-xs cursor-pointer"
+                title="Select and read a local file from your disk"
               >
-                <BookOpen size={20} className="text-primary" />
-                <span>Open Local File</span>
+                <BookOpen size={15} className="text-primary" />
+                <span className="hidden sm:inline">Open Local File</span>
+                <span className="sm:hidden">Local</span>
               </button>
             )}
 
             <button
               onClick={() => router.push("/fileupload")}
-              className="group flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl font-bold text-lg shadow-[0_8px_20px_var(--color-primary-glow)] hover:shadow-[0_12px_25px_var(--color-primary-glow)] hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
+              className="group flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl font-bold text-xs sm:text-sm shadow-[0_4px_15px_var(--color-primary-glow)] hover:shadow-[0_8px_20px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-200 ease-out relative overflow-hidden shrink-0"
             >
-              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <span className="text-2xl font-light leading-none relative z-10">+</span>
+              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-in-out" />
+              <span className="text-base font-light leading-none relative z-10">+</span>
               <span className="relative z-10">Upload New</span>
             </button>
           </div>
         </div>
 
         {/* Controls Bar */}
-        <div className="bg-surface backdrop-blur-2xl p-5 rounded-3xl border border-border-subtle shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] mb-12 flex flex-col lg:flex-row gap-4 transition-all duration-300">
+        <div className="bg-surface/80 backdrop-blur-2xl p-2.5 rounded-2xl border border-border-subtle shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-[0_4px_20px_rgb(0,0,0,0.2)] mb-5 flex flex-col md:flex-row gap-2.5 transition-all duration-300">
           <input
             type="text"
             placeholder="Search by title..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-6 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all text-foreground placeholder-foreground-muted"
+            className="flex-1 px-4 py-2 bg-surface/60 backdrop-blur-md border border-border-subtle rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-glow focus:bg-surface/90 transition-all duration-200 text-sm text-foreground placeholder-foreground-muted"
           />
 
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-2">
             <div className="relative">
               <select
                 value={sourceFilter}
                 onChange={(e) => setSourceFilter(e.target.value as any)}
-                className="h-full px-8 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all text-foreground cursor-pointer appearance-none min-w-40"
+                className="h-full px-4 pr-8 py-2 bg-surface/60 backdrop-blur-md border border-border-subtle rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-glow focus:bg-surface/90 transition-all duration-200 text-sm text-foreground cursor-pointer appearance-none min-w-28"
               >
                 <option value="">All Sources</option>
-                <option value="cloud">Cloud Storage</option>
-                <option value="local">Local Disk</option>
+                <option value="cloud">Cloud</option>
+                <option value="local">Local</option>
               </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">
                 <ChevronDown size={14} />
               </div>
             </div>
@@ -491,13 +481,13 @@ export default function FilesPage() {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="h-full px-8 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all text-foreground cursor-pointer appearance-none min-w-40"
+                className="h-full px-4 pr-8 py-2 bg-surface/60 backdrop-blur-md border border-border-subtle rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-glow focus:bg-surface/90 transition-all duration-200 text-sm text-foreground cursor-pointer appearance-none min-w-28"
               >
                 <option value="">All Types</option>
                 <option value="pdf">PDF</option>
                 <option value="epub">EPUB</option>
               </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">
                 <ChevronDown size={14} />
               </div>
             </div>
@@ -505,14 +495,14 @@ export default function FilesPage() {
             <div className="relative">
               <select
                 onChange={handleSortChange}
-                className="h-full px-8 py-4 bg-background/50 border border-border-subtle rounded-2xl focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-glow transition-all text-foreground cursor-pointer appearance-none min-w-40"
+                className="h-full px-4 pr-8 py-2 bg-surface/60 backdrop-blur-md border border-border-subtle rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-glow focus:bg-surface/90 transition-all duration-200 text-sm text-foreground cursor-pointer appearance-none min-w-32"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
                 <option value="a-z">Name (A-Z)</option>
                 <option value="z-a">Name (Z-A)</option>
               </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted">
                 <ChevronDown size={14} />
               </div>
             </div>
@@ -544,21 +534,21 @@ export default function FilesPage() {
             </div>
           </div>
         ) : files.length === 0 ? (
-          <div className="text-center py-32 px-4 rounded-3xl bg-surface border border-border-subtle border-dashed">
-            <BookOpen size={80} className="mx-auto mb-6 text-border-subtle" />
-            <h3 className="text-3xl font-bold text-foreground mb-3">
-              {search || typeFilter ? "No files found" : "Your library is empty"}
+          <div className="text-center py-20 px-4 rounded-3xl bg-surface backdrop-blur-2xl border border-border-subtle border-dashed">
+            <BookOpen size={64} className="mx-auto mb-4 text-border-subtle" />
+            <h3 className="text-2xl font-bold text-foreground mb-2">
+              {search || typeFilter || sourceFilter ? "No files found" : "Your library is empty"}
             </h3>
-            <p className="text-foreground-muted text-lg mb-10 max-w-md mx-auto">
-              {search || typeFilter
+            <p className="text-foreground-muted text-sm mb-6 max-w-md mx-auto">
+              {search || typeFilter || sourceFilter
                 ? "Try adjusting your filters or search terms"
                 : "Ready to start reading? Upload your first book to begin building your collection."
               }
             </p>
-            {!search && !typeFilter && (
+            {!search && !typeFilter && !sourceFilter && (
               <button
                 onClick={() => router.push("/fileupload")}
-                className="px-10 py-4 bg-primary text-white hover:bg-primary-hover rounded-xl transition-all font-bold text-lg shadow-xl hover:shadow-2xl hover:-translate-y-1"
+                className="px-6 py-2.5 bg-primary text-white hover:bg-primary-hover rounded-xl font-bold text-sm shadow-[0_4px_15px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-200"
               >
                 Start Uploading
               </button>
@@ -566,252 +556,242 @@ export default function FilesPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 pb-12">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3.5 pb-8">
               {files.map((file) => {
                 const isOffline = offlineFiles[file.url]?.exists === false;
                 const offlinePath = offlineFiles[file.url]?.path || file.url;
                 const isLocal = isLocalFile(file.url, file.id);
 
                 return (
-                <div
-                  key={file.id}
-                  className={`group relative bg-surface backdrop-blur-2xl rounded-3xl overflow-hidden flex flex-col shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:shadow-[0_15px_40px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_15px_40px_rgb(0,0,0,0.4)] hover:-translate-y-2 transition-all duration-500 border ${
-                    isOffline ? "border-red-500/50 dark:border-red-500/40" : "border-border-subtle"
-                  }`}
-                >
-                  <div className="aspect-3/4 relative bg-background overflow-hidden group-hover:scale-105 transition-transform duration-500">
-                    <div className="w-full h-full">
-                      {isOffline ? (
-                        <div className="w-full h-full bg-[#121316] relative flex flex-col items-center justify-center p-4 text-center overflow-hidden">
-                          {/* DaVinci Resolve Hazard Stripes Pattern */}
-                          <div
-                            className="absolute inset-0 opacity-15 pointer-events-none"
-                            style={{
-                              backgroundImage: `repeating-linear-gradient(45deg, #ef4444 0px, #ef4444 12px, transparent 12px, transparent 24px)`,
-                            }}
-                          />
-
-                          <div className="relative z-10 w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-500 mb-2 shadow-[0_0_20px_rgba(239,68,68,0.35)]">
-                            <AlertTriangle size={24} className="animate-pulse" />
-                          </div>
-
-                          <span className="relative z-10 text-[11px] font-black tracking-widest text-red-400 uppercase px-2.5 py-1 rounded bg-red-500/15 border border-red-500/30 mb-2">
-                            Media Offline
-                          </span>
-
-                          <p
-                            className="relative z-10 text-[11px] text-zinc-400 line-clamp-2 max-w-[200px] break-all font-mono mb-4 px-1"
-                            title={offlinePath}
-                          >
-                            {offlinePath.split("/").pop() || "File missing"}
-                          </p>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRelink(file);
-                            }}
-                            className="relative z-10 flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                            title="Locate and relink this file on disk"
-                          >
-                            <Link2 size={14} />
-                            <span>Relink Media</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <FilePreview url={file.url} type={file.metadata.contentType} />
-                      )}
-                    </div>
-
-                    {/* Top Left: Type Badge or Offline Warning */}
-                    <div className="absolute top-4 left-4 z-10">
-                      {isOffline ? (
-                        <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-red-600/95 backdrop-blur-md text-white shadow-lg border border-red-400 flex items-center gap-1.5">
-                          <AlertCircle size={12} />
-                          OFFLINE
-                        </span>
-                      ) : (
-                        <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-surface-hover/90 backdrop-blur-md text-primary shadow-lg border border-border-subtle">
-                          {getFileIcon(file.metadata.contentType)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Top Right: Cloud vs Local Storage Badge */}
-                    <div className="absolute top-4 right-4 z-10">
-                      {isLocal ? (
-                        <span
-                          className="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500/20 backdrop-blur-md text-emerald-400 shadow-lg border border-emerald-500/30 flex items-center gap-1.5"
-                          title="Local Disk File"
-                        >
-                          <HardDrive size={13} className="text-emerald-400" />
-                          <span>Local</span>
-                        </span>
-                      ) : (
-                        <span
-                          className="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-sky-500/20 backdrop-blur-md text-sky-400 shadow-lg border border-sky-500/30 flex items-center gap-1.5"
-                          title="Cloud Stored File"
-                        >
-                          <Cloud size={13} className="text-sky-400" />
-                          <span>Cloud</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2 p-3">
-                      {isOffline ? (
-                        <>
-                          <button
-                            onClick={() => handleRelink(file)}
-                            className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl shadow-xl font-bold text-sm flex items-center gap-1.5 transform scale-90 group-hover:scale-100 transition-all duration-300 cursor-pointer"
-                          >
-                            <Link2 size={16} />
-                            Relink
-                          </button>
-                          <button
-                            onClick={() => handleRead(file)}
-                            className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs font-medium border border-white/20 transform scale-90 group-hover:scale-100 transition-all duration-300 cursor-pointer"
-                          >
-                            Inspect
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => handleRead(file)}
-                            className="bg-primary text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 font-medium text-sm"
-                          >
-                            Open
-                          </button>
-                          <button
-                            onClick={() => handleOpenInNewTab(file)}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 font-medium text-sm"
-                          >
-                            + New Tab
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="p-5 flex-1 flex flex-col bg-surface">
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        {editingFileId === file.id ? (
-                          <div className="space-y-2">
-                            <input
-                              type="text"
-                              value={newFileName}
-                              onChange={(e) => setNewFileName(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleRename(file.id);
-                                if (e.key === 'Escape') { setEditingFileId(null); setNewFileName(""); }
+                  <div
+                    key={file.id}
+                    className={`group relative bg-surface/85 backdrop-blur-2xl rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-lg dark:shadow-[0_4px_20px_rgb(0,0,0,0.3)] hover:-translate-y-1 transition-all duration-300 ease-out border ${
+                      isOffline ? "border-red-500/60 dark:border-red-500/50" : "border-border-subtle"
+                    }`}
+                  >
+                    <div className="aspect-[3/4] relative bg-background overflow-hidden group-hover:scale-102 transition-transform duration-300">
+                      <div className="w-full h-full">
+                        {isOffline ? (
+                          <div className="w-full h-full bg-[#121316] relative flex flex-col items-center justify-center p-3 text-center overflow-hidden">
+                            <div
+                              className="absolute inset-0 opacity-15 pointer-events-none"
+                              style={{
+                                backgroundImage: `repeating-linear-gradient(45deg, #ef4444 0px, #ef4444 12px, transparent 12px, transparent 24px)`,
                               }}
-                              className="w-full px-3 py-2 bg-background border border-primary rounded-lg text-foreground text-sm focus:outline-none"
-                              autoFocus
                             />
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleRename(file.id)}
-                                className="flex-1 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-bold transition-colors"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={() => { setEditingFileId(null); setNewFileName(""); }}
-                                className="flex-1 px-3 py-1.5 bg-border-subtle hover:bg-foreground-muted text-white rounded-lg text-xs font-bold transition-colors"
-                              >
-                                Cancel
-                              </button>
+                            <div className="relative z-10 w-9 h-9 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-500 mb-1.5 shadow-[0_0_15px_rgba(239,68,68,0.35)]">
+                              <AlertTriangle size={18} className="animate-pulse" />
                             </div>
+                            <span className="relative z-10 text-[9px] font-black tracking-widest text-red-400 uppercase px-2 py-0.5 rounded bg-red-500/15 border border-red-500/30 mb-1">
+                              Media Offline
+                            </span>
+                            <p
+                              className="relative z-10 text-[10px] text-zinc-400 line-clamp-1 max-w-[140px] break-all font-mono mb-2 px-1"
+                              title={offlinePath}
+                            >
+                              {offlinePath.split("/").pop() || "File missing"}
+                            </p>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRelink(file);
+                              }}
+                              className="relative z-10 flex items-center gap-1 px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg text-[10px] font-bold shadow-md shadow-red-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                              title="Locate and relink this file on disk"
+                            >
+                              <Link2 size={12} />
+                              <span>Relink</span>
+                            </button>
                           </div>
                         ) : (
-                          <>
-                            <h3 className="font-bold text-lg text-foreground line-clamp-1 leading-tight mb-1" title={file.name}>
-                              {file.name}
-                            </h3>
-                            {isOffline ? (
-                              <div className="flex items-center justify-between mt-1 text-xs text-red-400 font-medium">
-                                <span className="flex items-center gap-1 truncate">
-                                  <AlertTriangle size={13} className="shrink-0 text-red-500" />
-                                  <span>Missing on disk</span>
-                                </span>
-                                <button
-                                  onClick={() => handleRelink(file)}
-                                  className="underline font-bold hover:text-red-300 cursor-pointer ml-2 shrink-0"
-                                >
-                                  Relink
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="text-xs text-foreground-muted flex items-center gap-2 flex-wrap">
-                                <span className={`inline-flex items-center gap-1 font-semibold ${isLocal ? "text-emerald-400" : "text-sky-400"}`}>
-                                  {isLocal ? <HardDrive size={12} /> : <Cloud size={12} />}
-                                  <span>{isLocal ? "Local Disk" : "Cloud"}</span>
-                                </span>
-                                <span className="w-1 h-1 rounded-full bg-border-subtle" />
-                                <span>{file.metadata.size}</span>
-                                {file.metadata.updated && (
-                                  <>
-                                    <span className="w-1 h-1 rounded-full bg-border-subtle" />
-                                    <span>{new Date(file.metadata.updated).toLocaleDateString()}</span>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </>
+                          <FilePreview url={file.url} type={file.metadata.contentType} thumbnailUrl={file.thumbnailUrl} />
                         )}
                       </div>
 
-                      {editingFileId !== file.id && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingFileId(file.id);
-                              setNewFileName(file.name);
-                            }}
-                            className="text-foreground-muted hover:text-primary transition-colors p-1 shrink-0"
-                            title="Rename File"
+                      {/* Top Left: Type Badge */}
+                      <div className="absolute top-2 left-2 z-10">
+                        {isOffline ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-red-600/95 backdrop-blur-md text-white shadow-sm border border-red-400 flex items-center gap-1">
+                            <AlertCircle size={10} />
+                            OFFLINE
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-surface-hover/90 backdrop-blur-md text-primary shadow-sm border border-border-subtle">
+                            {getFileIcon(file.metadata.contentType)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Top Right: Cloud vs Local */}
+                      <div className="absolute top-2 right-2 z-10">
+                        {isLocal ? (
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/20 backdrop-blur-md text-emerald-400 shadow-sm border border-emerald-500/30 flex items-center gap-1"
+                            title="Local Disk File"
                           >
-                            <Edit2 size={18} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(file.name, file.id);
-                            }}
-                            className="text-foreground-muted hover:text-[#ef4444] transition-colors p-1 shrink-0"
-                            title="Delete File"
+                            <HardDrive size={10} />
+                            <span>Local</span>
+                          </span>
+                        ) : (
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-sky-500/20 backdrop-blur-md text-sky-400 shadow-sm border border-sky-500/30 flex items-center gap-1"
+                            title="Cloud Stored File"
                           >
-                            <Trash2 size={18} />
-                          </button>
+                            <Cloud size={10} />
+                            <span>Cloud</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-in-out flex items-center justify-center gap-1.5 p-2">
+                        {isOffline ? (
+                          <>
+                            <button
+                              onClick={() => handleRelink(file)}
+                              className="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg shadow-md font-bold text-xs flex items-center gap-1 cursor-pointer"
+                            >
+                              <Link2 size={13} />
+                              Relink
+                            </button>
+                            <button
+                              onClick={() => handleRead(file)}
+                              className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium border border-white/20 cursor-pointer"
+                            >
+                              Inspect
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleRead(file)}
+                              className="bg-primary/95 text-white border border-white/20 px-3 py-1.5 rounded-lg shadow-md transform scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-primary font-semibold text-xs"
+                            >
+                              Open
+                            </button>
+                            <button
+                              onClick={() => handleOpenInNewTab(file)}
+                              className="bg-blue-600/95 text-white border border-white/20 px-2.5 py-1.5 rounded-lg shadow-md transform scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-blue-600 font-semibold text-xs"
+                            >
+                              + Tab
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3 flex-1 flex flex-col bg-surface/80 backdrop-blur-md">
+                      <div className="flex justify-between items-start gap-1.5">
+                        <div className="flex-1 min-w-0">
+                          {editingFileId === file.id ? (
+                            <div className="space-y-1.5">
+                              <input
+                                type="text"
+                                value={newFileName}
+                                onChange={(e) => setNewFileName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleRename(file.id);
+                                  if (e.key === 'Escape') { setEditingFileId(null); setNewFileName(""); }
+                                }}
+                                className="w-full px-2 py-1 bg-background border border-primary rounded text-foreground text-xs focus:outline-none"
+                                autoFocus
+                              />
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => handleRename(file.id)}
+                                  className="flex-1 px-2 py-1 bg-primary hover:bg-primary-hover text-white rounded text-[10px] font-bold transition-all"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => { setEditingFileId(null); setNewFileName(""); }}
+                                  className="flex-1 px-2 py-1 bg-border-subtle hover:bg-foreground-muted text-white rounded text-[10px] font-bold transition-all"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-bold text-xs sm:text-sm text-foreground line-clamp-1 leading-tight mb-0.5" title={file.name}>
+                                {file.name}
+                              </h3>
+                              {isOffline ? (
+                                <div className="flex items-center justify-between text-[11px] text-red-400 font-medium">
+                                  <span className="flex items-center gap-1 truncate">
+                                    <AlertTriangle size={11} className="shrink-0 text-red-500" />
+                                    <span>Missing</span>
+                                  </span>
+                                  <button
+                                    onClick={() => handleRelink(file)}
+                                    className="underline font-bold hover:text-red-300 cursor-pointer ml-1.5 shrink-0"
+                                  >
+                                    Relink
+                                  </button>
+                                </div>
+                              ) : (
+                                <p className="text-[11px] text-foreground-muted flex items-center gap-1.5 truncate">
+                                  <span>{file.metadata.size}</span>
+                                  {file.metadata.updated && (
+                                    <>
+                                      <span className="w-1 h-1 rounded-full bg-border-subtle shrink-0" />
+                                      <span className="truncate">{new Date(file.metadata.updated).toLocaleDateString()}</span>
+                                    </>
+                                  )}
+                                </p>
+                              )}
+                            </>
+                          )}
                         </div>
-                      )}
+
+                        {editingFileId !== file.id && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingFileId(file.id);
+                                setNewFileName(file.name);
+                              }}
+                              className="text-foreground-muted hover:text-primary transition-colors p-1"
+                              title="Rename File"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(file.name, file.id);
+                              }}
+                              className="text-foreground-muted hover:text-[#ef4444] transition-colors p-1"
+                              title="Delete File"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
                 );
               })}
             </div>
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-4 pb-20">
+              <div className="flex justify-center items-center gap-3 pb-8">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-6 py-3 bg-border-subtle text-foreground rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-foreground-muted transition-colors"
+                  className="px-4 py-1.5 bg-surface/80 backdrop-blur-xl border border-border-subtle text-foreground rounded-xl text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-hover hover:border-primary/40 shadow-sm transition-all"
                 >
                   Previous
                 </button>
-                <span className="text-foreground-muted font-medium">
-                  Page <span className="text-foreground">{page}</span> of <span className="text-foreground">{totalPages}</span>
-                </span>
+                <div className="px-3.5 py-1.5 bg-surface/70 backdrop-blur-xl border border-border-subtle rounded-xl text-foreground-muted text-xs font-medium shadow-sm">
+                  Page <span className="text-foreground font-bold">{page}</span> of <span className="text-foreground font-bold">{totalPages}</span>
+                </div>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-6 py-3 bg-border-subtle text-foreground rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-foreground-muted transition-colors"
+                  className="px-4 py-1.5 bg-surface/80 backdrop-blur-xl border border-border-subtle text-foreground rounded-xl text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-hover hover:border-primary/40 shadow-sm transition-all"
                 >
                   Next
                 </button>
@@ -820,6 +800,37 @@ export default function FilesPage() {
           </>
         )}
       </div>
+
+      {/* Glassmorphic Delete Confirmation Modal */}
+      {fileToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-surface/90 backdrop-blur-2xl border border-border-subtle rounded-2xl p-5 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-4">
+            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center">
+              <Trash2 size={20} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-foreground mb-1">Delete File</h3>
+              <p className="text-foreground-muted text-xs">
+                Are you sure you want to delete <span className="font-semibold text-foreground">&quot;{fileToDelete.name}&quot;</span>? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-2.5 pt-1">
+              <button
+                onClick={() => setFileToDelete(null)}
+                className="flex-1 py-2 px-3 bg-surface-hover/80 hover:bg-surface-hover text-foreground font-semibold text-xs rounded-xl border border-border-subtle transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 py-2 px-3 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-xl shadow-md hover:shadow-red-600/30 transition-all duration-200"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

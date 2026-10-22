@@ -7,9 +7,8 @@ if (!fetchFn) {
   try {
     // node-fetch v2 compat; v3 is ESM-only and may not be available via require
     // this will work if node-fetch v2 is installed
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     fetchFn = require('node-fetch')
-  } catch (e) {
+  } catch {
     // leave fetchFn undefined and let attempts fail with a clear error
   }
 }

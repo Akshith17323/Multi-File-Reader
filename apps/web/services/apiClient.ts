@@ -6,12 +6,13 @@ type ApiOptions = {
   body?: any;
 };
 
-async function universalFetch(endpoint: string, options: ApiOptions = {}) {
-  const { method = 'GET', headers = {}, body } = options;
-  
-    if (isElectron() && window.electronAPI) {
+export class ApiAdapter {
+  static async fetch(endpoint: string, options: ApiOptions = {}) {
+    const { method = 'GET', headers = {}, body } = options;
+    
+    if (isElectron() && typeof window !== 'undefined' && (window as any).electronAPI) {
       // Desktop: proxy through IPC to avoid CORS
-      const result = await window.electronAPI.invoke('api-request', {
+      const result = await (window as any).electronAPI.invoke('api-request', {
         endpoint,
         method,
         headers,
@@ -23,40 +24,42 @@ async function universalFetch(endpoint: string, options: ApiOptions = {}) {
       }
       
       return result.data;
-  } else {
-    // Web: normal fetch
-    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:2007';
-    const response = await fetch(`${baseUrl}${endpoint}`, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    
-    const data = await response.json().catch(() => null);
-    
-    if (!response.ok) {
-      throw new Error(data?.message || data?.Message || data?.error || 'API request failed');
+    } else {
+      // Web: normal fetch
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:2007';
+      const response = await fetch(`${baseUrl}${endpoint}`, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      
+      const data = await response.json().catch(() => null);
+      
+      if (!response.ok) {
+        throw new Error(data?.message || data?.Message || data?.error || 'API request failed');
+      }
+      
+      return data;
     }
-    
-    return data;
   }
 }
 
 export const apiClient = {
   // --- Auth ---
-  login: (data: any) => universalFetch('/api/auth/login', { method: 'POST', body: data }),
-  signup: (data: any) => universalFetch('/api/auth/signup', { method: 'POST', body: data }),
-  logout: () => universalFetch('/api/auth/logout', { method: 'POST' }),
+  login: (data: any) => ApiAdapter.fetch('/api/auth/login', { method: 'POST', body: data }),
+  signup: (data: any) => ApiAdapter.fetch('/api/auth/signup', { method: 'POST', body: data }),
+  googleLogin: (token: string) => ApiAdapter.fetch('/api/auth/google', { method: 'POST', body: { token } }),
+  logout: () => ApiAdapter.fetch('/api/auth/logout', { method: 'POST' }),
 
   // --- Files ---
   getAllFiles: (token: string, params: string) => 
-    universalFetch(`/files?${params}`, { headers: { Authorization: `Bearer ${token}` } }),
+    ApiAdapter.fetch(`/files?${params}`, { headers: { Authorization: `Bearer ${token}` } }),
     
   deleteFile: (token: string, fileId: string) => 
-    universalFetch(`/files/${fileId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }),
+    ApiAdapter.fetch(`/files/${encodeURIComponent(fileId)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }),
     
   updateFile: (
     token: string,
@@ -64,7 +67,7 @@ export const apiClient = {
     updateData: string | { fileName?: string; fileUrl?: string; fileSize?: string; fileType?: string }
   ) => {
     const body = typeof updateData === "string" ? { fileName: updateData } : updateData;
-    return universalFetch(`/files/${fileId}`, {
+    return ApiAdapter.fetch(`/files/${encodeURIComponent(fileId)}`, {
       method: "PATCH",
       headers: { Authorization: `Bearer ${token}` },
       body,
@@ -75,7 +78,7 @@ export const apiClient = {
     token: string,
     data: { fileName: string; fileUrl: string; fileSize?: string; fileType?: string }
   ) =>
-    universalFetch('/files/local', {
+    ApiAdapter.fetch('/files/local', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
       body: data,
@@ -83,14 +86,14 @@ export const apiClient = {
 
   // --- Bookmarks ---
   getAllBookmarks: (token: string) => 
-    universalFetch('/api/bookmarks/all', { headers: { Authorization: `Bearer ${token}` } }),
+    ApiAdapter.fetch('/api/bookmarks/all', { headers: { Authorization: `Bearer ${token}` } }),
     
   getBookmark: (token: string, fileUrl: string) => 
-    universalFetch(`/api/bookmarks?fileUrl=${encodeURIComponent(fileUrl)}`, { headers: { Authorization: `Bearer ${token}` } }),
+    ApiAdapter.fetch(`/api/bookmarks?fileUrl=${encodeURIComponent(fileUrl)}`, { headers: { Authorization: `Bearer ${token}` } }),
     
   upsertBookmark: (token: string, data: any) => 
-    universalFetch('/api/bookmarks', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: data }),
+    ApiAdapter.fetch('/api/bookmarks', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: data }),
     
   deleteBookmark: (token: string, fileUrl: string) => 
-    universalFetch(`/api/bookmarks?fileUrl=${encodeURIComponent(fileUrl)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }),
+    ApiAdapter.fetch(`/api/bookmarks?fileUrl=${encodeURIComponent(fileUrl)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }),
 };

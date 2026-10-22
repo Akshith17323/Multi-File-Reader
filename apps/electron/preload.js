@@ -5,6 +5,7 @@ const VALID_INVOKE_CHANNELS = [
   'select-and-upload-file',
   'api-request',
   'upload-dropped-file',
+  'open-local-file-dialog',
   'open-local-file',
   'check-file-permission',
   'check-local-files-status',

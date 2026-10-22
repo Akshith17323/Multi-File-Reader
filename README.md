@@ -1,7 +1,7 @@
-# 📚 Multi-File-Reader  
+# Multi-File-Reader  
 *A unified platform to read and manage multiple file types in one place.*
 
-## 🚀 Overview
+## Overview
 Modern users work with a variety of file types — PDF, EPUB, TXT, and more.  
 Each format requires a different application to read, manage, or edit, which increases **RAM usage**, **storage consumption**, and complicates the user workflow.  
 
@@ -9,7 +9,7 @@ Each format requires a different application to read, manage, or edit, which inc
 
 ---
 
-## 🧩 Problem Statement
+## Problem Statement
 - Different file types require different apps to open (PDF apps, EPUB apps, text editors).  
 - These apps consume resources and make file management inconvenient.  
 - There is no centralized solution to read, organize, and manage files of multiple formats.  
@@ -18,7 +18,7 @@ Each format requires a different application to read, manage, or edit, which inc
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ### High-Level Architecture
 
@@ -34,32 +34,32 @@ Each format requires a different application to read, manage, or edit, which inc
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-### 🔐 Authentication & Authorization
+### Authentication & Authorization
 - User registration & login  
 - Role-based access control (Admin/User)  
 - JWT-secured session handling  
 
-### 📂 File Management (CRUD)
+### File Management (CRUD)
 - Upload files  
 - Read files within integrated readers  
 - Update or modify file metadata  
 - Delete files  
 
-### 🧭 User Interface Features
+### User Interface Features
 - Homepage, Profile, Files page, Auth pages  
 - Integrated **pagination** for long documents  
 - **Search** for specific files  
 - **Sort** files by type or alphabetical order  
 - **Filter** files by type (PDF, EPUB, TXT, etc.)  
 
-### ☁️ Hosting
+### Hosting
 - Fully deployed frontend and backend on Vercel  
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technologies |
 |-------|--------------|
@@ -71,7 +71,7 @@ Each format requires a different application to read, manage, or edit, which inc
 
 ---
 
-## 🧪 API Overview
+## API Overview
 
 | Endpoint | Method | Description | Access |
 |---------|--------|-------------|--------|
@@ -85,7 +85,7 @@ Each format requires a different application to read, manage, or edit, which inc
 
 ---
 
-## 📦 Future Enhancements (Optional Section)
+## Future Enhancements (Optional Section)
 You may add these if you plan to expand:
 - AI-powered text summarization for files  
 - Notes & bookmarking inside readers  
@@ -95,7 +95,7 @@ You may add these if you plan to expand:
 
 ---
 
-## 🧑‍💻 Installation & Setup (Optional)
+## Installation & Setup (Optional)
 If you'd like, I can generate full setup instructions.  
 For now, here’s a basic template:
 
