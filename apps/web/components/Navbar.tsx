@@ -3,9 +3,40 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LogOut, User, Library, Menu, X, Sun, Moon, MoonStar } from "lucide-react";
+import { LogOut, Library, Menu, X, Sun, MoonStar } from "lucide-react";
 import { toast } from "react-toastify";
 import { apiClient } from "@/services/apiClient";
+
+function ThemeToggle({
+    theme,
+    onToggle,
+}: {
+    theme: "light" | "dark";
+    onToggle: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+    const isDark = theme === "dark";
+
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            aria-pressed={isDark}
+            className="relative inline-flex h-7 w-12 shrink-0 items-center rounded-full bg-surface-hover transition-colors duration-300 hover:bg-border-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+            <span className="sr-only">Toggle dark mode</span>
+            <span
+                className={`inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm transition-transform duration-300 ease-out ${isDark ? "translate-x-6" : "translate-x-1"
+                    }`}
+            >
+                {isDark ? (
+                    <MoonStar size={12} className="text-blue-600 fill-current" />
+                ) : (
+                    <Sun size={12} className="text-amber-500 fill-current" />
+                )}
+            </span>
+        </button>
+    );
+}
 
 export default function Navbar() {
     const router = useRouter();
@@ -52,7 +83,7 @@ export default function Navbar() {
         };
     }, []);
 
-    const toggleTheme = (e: React.MouseEvent) => {
+    const toggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
         const isDark = theme === "dark";
         const nextTheme = isDark ? "light" : "dark";
 
@@ -68,7 +99,7 @@ export default function Navbar() {
 
         const doc = document as Document & { startViewTransition?: (callback: () => void) => { ready: Promise<void> } };
 
-        if (!doc.startViewTransition) {
+        if (!doc.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
             switchTheme();
             return;
         }
@@ -102,6 +133,8 @@ export default function Navbar() {
                         : "::view-transition-new(root)",
                 }
             );
+        }).catch(() => {
+            switchTheme();
         });
     };
 
@@ -119,9 +152,6 @@ export default function Navbar() {
             router.push("/auth/login");
         }
     };
-
-    // Debugging
-    console.log("Navbar Rendering. Pathname:", pathname);
 
     // Safety check for pathname
     if (!pathname) return null;
@@ -177,23 +207,7 @@ export default function Navbar() {
                         {/* Divider */}
                         <div className="h-4 w-px bg-border-subtle group-hover/nav:opacity-50 transition-all duration-200"></div>
 
-                        {/* Theme Toggle (macOS style) */}
-                        <button
-                            onClick={toggleTheme}
-                            className="relative inline-flex h-7 w-12 items-center rounded-full bg-surface-hover hover:bg-border-subtle transition-colors focus:outline-none group-hover/nav:opacity-50 hover:!opacity-100!"
-                        >
-                            <span className="sr-only">Toggle dark mode</span>
-                            <span
-                                className={`inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white transition-transform duration-300 ease-in-out shadow-sm ${theme === "dark" ? "translate-x-6" : "translate-x-1"
-                                    }`}
-                            >
-                                {theme === "dark" ? (
-                                    <MoonStar size={12} className="text-blue-600 fill-current" />
-                                ) : (
-                                    <Sun size={12} className="text-amber-500 fill-current" />
-                                )}
-                            </span>
-                        </button>
+                        <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
                         <div className="h-4 w-px bg-border-subtle group-hover/nav:opacity-50 transition-all duration-200"></div>
 
@@ -229,13 +243,7 @@ export default function Navbar() {
 
                     {/* Mobile menu button */}
                     <div className="flex md:hidden items-center gap-3">
-                        {/* Theme Toggle Mobile */}
-                        <button
-                            onClick={toggleTheme}
-                            className="p-1.5 rounded-full bg-surface-hover text-foreground-muted hover:text-foreground transition-colors"
-                        >
-                            {theme === "dark" ? <Moon size={20} className="fill-current" /> : <Sun size={20} className="fill-current" />}
-                        </button>
+                        <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
                         <button
                             onClick={() => setIsOpen(!isOpen)}

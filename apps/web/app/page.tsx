@@ -1,7 +1,31 @@
 "use client";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { FileText, BookOpen, Layers, BookmarkCheck, Sparkles } from "lucide-react";
+import type { ReactNode } from "react";
+
+function FormatCard({
+  icon,
+  label,
+  detail,
+  color,
+}: {
+  icon: ReactNode;
+  label: string;
+  detail: string;
+  color: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-surface-hover/65 border border-border-subtle p-3 transition-colors duration-200 hover:bg-surface-hover">
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-background border border-border-subtle ${color}`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-foreground">{label}</p>
+        <p className="text-[11px] text-foreground-muted truncate">{detail}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const router = useRouter();
@@ -15,7 +39,7 @@ export default function Home() {
 
       <div className="w-full max-w-[1500px] mx-auto flex flex-col lg:flex-row items-center justify-between gap-8 z-10">
         {/* Left Content Section */}
-        <div className="flex-1 flex flex-col justify-center items-start space-y-4 lg:space-y-5 max-w-xl">
+        <div className="w-full lg:flex-1 flex flex-col justify-center items-start space-y-4 lg:space-y-5 max-w-xl">
           {/* Glassmorphic Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface/80 backdrop-blur-2xl border border-border-subtle shadow-xs">
             <Sparkles size={14} className="text-primary animate-pulse" />
@@ -76,26 +100,35 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Right Image Section with Glassmorphic Frame */}
-        <div className="flex-1 flex justify-center items-center relative w-full h-[360px] lg:h-[440px]">
-          {/* Frosted Glass Container Frame */}
-          <div className="relative overflow-hidden rounded-2xl w-full h-full max-w-md lg:max-w-lg bg-surface/40 backdrop-blur-2xl border border-border-subtle shadow-xl p-3 flex items-center justify-center">
-            <div className="relative w-full h-full overflow-hidden rounded-xl" style={{ clipPath: 'inset(0 0 12% 0)' }}>
-              <Image
-                src={`https://res.cloudinary.com/dgyrjxh05/image/upload/v1762949634/Gemini_Generated_Image_gx7d60gx7d60gx7d_mzqjup.png`}
-                alt="Multi File Reader Illustration"
-                fill
-                priority
-                loading="eager"
-                className="object-contain drop-shadow-xl relative z-10"
-                unoptimized
-              />
+        {/* Format showcase */}
+        <div className="w-full lg:flex-1 flex justify-center items-center relative h-[360px] lg:h-[440px] shrink-0">
+          <div className="relative w-full max-w-lg rounded-3xl bg-surface/65 backdrop-blur-2xl border border-border-subtle shadow-xl p-5 sm:p-7">
+            <div className="flex items-center justify-between gap-3 mb-5">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
+                  One reader
+                </p>
+                <h2 className="text-lg sm:text-xl font-bold text-foreground">
+                  Every file, one place
+                </h2>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20">
+                <Layers size={20} />
+              </div>
             </div>
 
-            {/* Floating Glass Pill */}
-            <div className="absolute bottom-4 right-4 z-20 px-3 py-1.5 bg-surface/90 backdrop-blur-2xl border border-border-subtle rounded-xl shadow-md flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[11px] font-bold text-foreground">Syncs Across Devices</span>
+            <div className="grid grid-cols-2 gap-3">
+              <FormatCard icon={<FileText size={22} />} label="PDF" detail="Documents" color="text-red-500" />
+              <FormatCard icon={<BookOpen size={22} />} label="EPUB" detail="Books" color="text-emerald-500" />
+              <FormatCard icon={<FileText size={22} />} label="TXT" detail="Plain text" color="text-sky-500" />
+              <FormatCard icon={<Layers size={22} />} label="Multi-tab" detail="Read together" color="text-violet-500" />
+            </div>
+
+            <div className="mt-4 flex items-center gap-2 rounded-xl bg-surface-hover/70 border border-border-subtle px-3 py-2.5">
+              <BookmarkCheck size={16} className="text-primary shrink-0" />
+              <span className="text-xs font-semibold text-foreground-muted">
+                Your reading progress stays saved
+              </span>
             </div>
           </div>
         </div>
