@@ -10,7 +10,7 @@ export class ApiAdapter {
   static async fetch(endpoint: string, options: ApiOptions = {}) {
     const { method = 'GET', headers = {}, body } = options;
     
-    if (isElectron()) {
+    if (isElectron() && typeof window !== 'undefined' && (window as any).electronAPI) {
       // Desktop: proxy through IPC to avoid CORS
       const result = await (window as any).electronAPI.invoke('api-request', {
         endpoint,
@@ -20,13 +20,14 @@ export class ApiAdapter {
       });
       
       if (!result.ok) {
-        throw new Error(result.error || result.data?.Message || 'API request failed');
+        throw new Error(result.error || result.data?.message || result.data?.Message || 'API request failed');
       }
       
       return result.data;
     } else {
       // Web: normal fetch
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}${endpoint}`, {
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:2007';
+      const response = await fetch(`${baseUrl}${endpoint}`, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -38,7 +39,7 @@ export class ApiAdapter {
       const data = await response.json().catch(() => null);
       
       if (!response.ok) {
-        throw new Error(data?.Message || data?.error || 'API request failed');
+        throw new Error(data?.message || data?.Message || data?.error || 'API request failed');
       }
       
       return data;
@@ -58,13 +59,29 @@ export const apiClient = {
     ApiAdapter.fetch(`/files?${params}`, { headers: { Authorization: `Bearer ${token}` } }),
     
   deleteFile: (token: string, fileId: string) => 
-    ApiAdapter.fetch(`/files/${fileId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }),
+    ApiAdapter.fetch(`/files/${encodeURIComponent(fileId)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }),
     
-  updateFile: (token: string, filename: string, newFilename: string) => 
-    ApiAdapter.fetch(`/files/${encodeURIComponent(filename)}`, { 
-      method: 'PUT', 
+  updateFile: (
+    token: string,
+    fileId: string,
+    updateData: string | { fileName?: string; fileUrl?: string; fileSize?: string; fileType?: string }
+  ) => {
+    const body = typeof updateData === "string" ? { fileName: updateData } : updateData;
+    return ApiAdapter.fetch(`/files/${encodeURIComponent(fileId)}`, {
+      method: "PATCH",
       headers: { Authorization: `Bearer ${token}` },
-      body: { newFilename } 
+      body,
+    });
+  },
+
+  registerLocalFile: (
+    token: string,
+    data: { fileName: string; fileUrl: string; fileSize?: string; fileType?: string }
+  ) =>
+    ApiAdapter.fetch('/files/local', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: data,
     }),
 
   // --- Bookmarks ---

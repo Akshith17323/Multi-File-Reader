@@ -15,8 +15,7 @@
   "type": "commonjs",
   "main": "apps/electron/main.js",
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "apps/*"
   ],
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run web\" --names \"SERVER,WEB\" --prefix-colors \"blue,green\"",
@@ -31,8 +30,5 @@
   "devDependencies": {
     "concurrently": "^9.2.1",
     "electron": "^44.4.5"
-  },
-  "dependencies": {
-    "tree": "^0.1.3"
   }
 }

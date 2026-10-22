@@ -1,35 +1,5 @@
-// const express = require('express')
-// const multer = require('multer')
-// const { Storage } = require('@google-cloud/storage')
-// const path = require('path')
-
-// const router = express.Router()
-
-// // multer in-memory storage
-
-
-// // Resolve credentials file reliably relative to this file, but allow
-// // overriding via GOOGLE_APPLICATION_CREDENTIALS environment variable.
-// const defaultKeyFile = path.join(__dirname, '..', 'multi-file-reader-308b489c168b.json')
-// const keyFile = process.env.GOOGLE_APPLICATION_CREDENTIALS || defaultKeyFile
-// const storage = new Storage({ keyFilename: keyFile })
-
-// const bucketName = 'multi-file-reader-storage'
-// const bucket = storage.bucket(bucketName)
-
-// // Diagnostic check: log which credentials file is used and verify the bucket exists.
-// // This helps surface misconfiguration early (wrong key file, wrong project, or missing bucket).
-// console.log('GCS key file (resolved):', keyFile)
-
-
-const express = require("express");
-const multer = require("multer");
 const { bucket, bucketName } = require("../gcs");
 const prisma = require('../prisma');
-
-
-const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
 
 function formatBytes(bytes, decimals = 2) {
   if (!+bytes) return '0 Bytes';
@@ -64,20 +34,20 @@ async function uploadToGCS(fileBuffer, fileName, mimeType) {
 }
 
 async function uploadFile(req, res) {
-  console.log("🚀 uploadFile handler called");
+  console.log("[Upload] uploadFile handler called");
   try {
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
     const files = req.files;
-    if (!files || !files.UploadingFile || files.UploadingFile.length === 0) {
+    const documentFile = (files && files.UploadingFile && files.UploadingFile[0]) || req.file;
+    if (!documentFile) {
       console.error("❌ No document file found");
       return res.status(400).json({ message: "No document file provided" });
     }
 
-    const documentFile = files.UploadingFile[0];
-    const thumbnailFile = files.thumbnail && files.thumbnail.length > 0 ? files.thumbnail[0] : null;
+    const thumbnailFile = files && files.thumbnail && files.thumbnail.length > 0 ? files.thumbnail[0] : null;
 
     console.log("📂 Document received:", documentFile.originalname, "Size:", documentFile.size);
     if (thumbnailFile) {
@@ -95,7 +65,7 @@ async function uploadFile(req, res) {
       console.log("✅ Thumbnail upload success. URL:", thumbnailUrl);
     }
 
-    const PrismaFile = await prisma.file.create({
+    await prisma.file.create({
       data: {
         userId: req.user.userId,
         fileName: documentFile.originalname,

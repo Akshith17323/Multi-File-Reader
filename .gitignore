@@ -1,4 +1,72 @@
-node_modules
-backend/src/multi-file-reader-308b489c168b.json
+# Dependencies
+node_modules/
+**/node_modules/
+.pnp
+.pnp.*
+
+# Environment variables & Secrets
+.env
+.env*
+*.env
+**/.env
+**/.env*
+**/*.env
+!**/.env.example
+*.pem
+
+# Credentials & Service Account Keys
+**/*multi-file-reader*.json
+**/*service-account*.json
+**/*.key.json
+**/credentials.json
+
+# Next.js & Build outputs
+.next/
+**/.next/
+out/
+**/out/
+build/
+**/build/
+dist/
+**/dist/
+
+# TypeScript & Cache
+*.tsbuildinfo
+**/*.tsbuildinfo
+.turbo/
+**/.turbo/
+.vercel/
+**/.vercel/
+next-env.d.ts
+**/next-env.d.ts
+
+# Testing & Coverage
+coverage/
+**/coverage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Database & Generated Prisma
+**/generated/prisma/
+
+# OS metadata
 .DS_Store
+**/.DS_Store
+Thumbs.db
+**/*.swp
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Project Docs (if local)
 PROJECT_DOCS.md
+UI_Imporvemetns.md
+EXPECTED_FEATURES.md    

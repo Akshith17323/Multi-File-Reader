@@ -7,18 +7,18 @@ if (!fetchFn) {
   try {
     // node-fetch v2 compat; v3 is ESM-only and may not be available via require
     // this will work if node-fetch v2 is installed
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     fetchFn = require('node-fetch')
-  } catch (e) {
+  } catch {
     // leave fetchFn undefined and let attempts fail with a clear error
   }
 }
 
 router.options('/proxy', (req, res) => {
-  const origin = process.env.FRONTEND_URL || 'http://localhost:3000'
+  const origin = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:3000'
   res.setHeader('Access-Control-Allow-Origin', origin)
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
   return res.sendStatus(204)
 })
 
@@ -72,9 +72,10 @@ router.get('/proxy', async (req, res) => {
     try {
       const [metadata] = await file.getMetadata();
 
-      const origin = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const origin = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:3000';
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
 
       if (metadata.contentType) {
         res.setHeader('Content-Type', metadata.contentType);

@@ -11,18 +11,22 @@ export interface EPUBRendererRef {
 
 interface EPUBRendererProps {
     url: string;
+    initialLocation?: string;
     onLocationChange: (cfi: string) => void;
     onProgressChange?: (percentage: number) => void;
     viewMode: "single" | "continuous" | "two-page";
     fontSize: number;
+    initialCfi?: string;
 }
 
 const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
     url,
+    initialLocation,
     onLocationChange,
     onProgressChange,
     viewMode,
     fontSize,
+    initialCfi,
 }, ref) => {
     const viewerRef = useRef<HTMLDivElement | null>(null);
     const renditionRef = useRef<Rendition | null>(null);
@@ -30,8 +34,17 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [currentLocation, setCurrentLocation] = useState<string>("");
+    const [currentLocation, setCurrentLocation] = useState<string>(initialCfi || "");
     const [isBookReady, setIsBookReady] = useState(false);
+
+    useEffect(() => {
+        if (initialCfi && initialCfi !== currentLocation) {
+            setCurrentLocation(initialCfi);
+            if (renditionRef.current) {
+                renditionRef.current.display(initialCfi);
+            }
+        }
+    }, [initialCfi, currentLocation]);
 
     const touchStartRef = useRef<number | null>(null);
 
@@ -55,17 +68,22 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
                 setLoading(true);
                 setError(null);
 
-                const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
-                const book = ePub(proxiedUrl);
+                const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:2007";
+                const bookUrl = url.startsWith("mfr-local://") || url.startsWith("blob:") || url.startsWith("data:")
+                    ? url
+                    : `${backendUrl}/proxy?url=${encodeURIComponent(url)}`;
+                const book = ePub(bookUrl);
                 bookRef.current = book;
                 setIsBookReady(true);
 
                 await book.ready;
                 if (!cancelled && book.locations.length() === 0) {
-                    await book.locations.generate(1000);
+                    book.locations.generate(1000).catch((err: unknown) => {
+                        console.error("Error generating locations:", err);
+                    });
                 }
             } catch (err: unknown) {
-                console.error("❌ Error initializing EPUB:", err);
+                console.error("Error initializing EPUB:", err);
                 if (!cancelled) {
                     setError((err as Error).message || "Failed to load EPUB.");
                     setLoading(false);
@@ -149,7 +167,7 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
 
                 renditionRef.current = rendition;
 
-                await rendition.display(currentLoc || undefined);
+                await rendition.display(currentLoc || initialLocation || undefined);
                 rendition.themes.fontSize(`${fontSize}%`);
 
                 // Touch handling
