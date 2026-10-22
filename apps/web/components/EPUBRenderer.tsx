@@ -11,6 +11,7 @@ export interface EPUBRendererRef {
 
 interface EPUBRendererProps {
     url: string;
+    initialLocation?: string;
     onLocationChange: (cfi: string) => void;
     onProgressChange?: (percentage: number) => void;
     viewMode: "single" | "continuous" | "two-page";
@@ -20,6 +21,7 @@ interface EPUBRendererProps {
 
 const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
     url,
+    initialLocation,
     onLocationChange,
     onProgressChange,
     viewMode,
@@ -66,8 +68,11 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
                 setLoading(true);
                 setError(null);
 
-                const proxiedUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(url)}`;
-                const book = ePub(proxiedUrl);
+                const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:2007";
+                const bookUrl = url.startsWith("mfr-local://") || url.startsWith("blob:") || url.startsWith("data:")
+                    ? url
+                    : `${backendUrl}/proxy?url=${encodeURIComponent(url)}`;
+                const book = ePub(bookUrl);
                 bookRef.current = book;
                 setIsBookReady(true);
 
@@ -78,7 +83,7 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
                     });
                 }
             } catch (err: unknown) {
-                console.error("❌ Error initializing EPUB:", err);
+                console.error("Error initializing EPUB:", err);
                 if (!cancelled) {
                     setError((err as Error).message || "Failed to load EPUB.");
                     setLoading(false);
@@ -162,7 +167,7 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
 
                 renditionRef.current = rendition;
 
-                await rendition.display(currentLoc || undefined);
+                await rendition.display(currentLoc || initialLocation || undefined);
                 rendition.themes.fontSize(`${fontSize}%`);
 
                 // Touch handling

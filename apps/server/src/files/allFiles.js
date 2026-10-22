@@ -88,7 +88,7 @@ async function get_all_files(req, res) {
         });
 
     } catch (error) {
-        console.error('❌ Error fetching files:', error);
+        console.error('[Files] Error fetching files:', error);
         res.status(500).json({ error: 'Failed to fetch files' });
     }
 }

@@ -1,9 +1,24 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, session } = require('electron');
 const path = require('path');
 const { registerFileHandlers } = require('./adapters/FileHandlerAdapter');
 const { registerApiProxy } = require('./services/ApiProxyService');
 
-const BACKEND_URL = 'http://localhost:2007';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:2007';
+
+// Register custom secure protocol for local files BEFORE app is ready
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'mfr-local',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+      bypassCSP: true,
+    },
+  },
+]);
 
 let isInitialized = false;
 
@@ -56,11 +71,18 @@ function createWindow() {
   });
 
   // Load the Next.js dev server during development
-  mainWindow.loadURL('http://localhost:3000');
+  mainWindow.loadURL(process.env.FRONTEND_URL || 'http://localhost:3000');
   return mainWindow;
 }
 
 app.whenReady().then(() => {
+  // Configure default session permissions
+  if (session && session.defaultSession) {
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+      callback(true);
+    });
+  }
+
   setupAppHandlers();
   createWindow();
 

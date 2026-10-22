@@ -1,9 +1,8 @@
 "use client";
 import React, { useRef, useState } from "react";
-import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, File, X } from "lucide-react";
+import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, File, ArrowLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { isElectron } from "@/hooks/useEnvironment";
-
 import { FileAdapter } from "@/services/fileAdapter";
 
 function FileUpload() {
@@ -13,7 +12,7 @@ function FileUpload() {
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const url = process.env.NEXT_PUBLIC_BACKEND_URL;
+  const url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:2007";
   const router = useRouter();
 
   const uploadEndpoint = `${url}/fileUpload`;
@@ -95,6 +94,27 @@ function FileUpload() {
     }
   };
 
+  const handleOpenLocalDirect = async () => {
+    try {
+      const result = await (window as any).electronAPI?.invoke('open-local-file');
+      if (result && !result.canceled && result.url) {
+        // Persist local file to library
+        const { saveLocalFileToLibrary } = await import("@/utils/localLibrary");
+        await saveLocalFileToLibrary({
+          name: result.fileName,
+          url: result.url,
+          size: result.fileSize,
+          contentType: result.fileType,
+        });
+        router.push(`/reader?files=${encodeURIComponent(result.url)}&active=0`);
+      } else if (result?.error) {
+        setError(`Permission/access error: ${result.error}`);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to open local file");
+    }
+  };
+
   const getFileIcon = () => {
     if (!selectedFile) return <Upload size={32} className="text-gray-400" />;
     const ext = selectedFile.name.split('.').pop()?.toLowerCase();
@@ -119,7 +139,7 @@ function FileUpload() {
           className="group mb-4 px-3 py-1.5 bg-surface/70 backdrop-blur-2xl border border-border-subtle rounded-xl text-foreground-muted hover:text-foreground hover:bg-surface-hover hover:border-primary/40 inline-flex items-center gap-2 transition-all duration-300 font-semibold text-xs tracking-wide shadow-xs"
         >
           <div className="w-6 h-6 rounded-full bg-surface-hover/80 border border-border-subtle flex items-center justify-center group-hover:border-primary transition-colors text-xs">
-            ←
+            <ArrowLeft size={14} />
           </div>
           Back to Library
         </button>
@@ -132,6 +152,19 @@ function FileUpload() {
             Upload documents to your secure digital library
           </p>
         </div>
+
+        {isElectron() && (
+          <div className="mb-4 flex justify-center">
+            <button
+              type="button"
+              onClick={handleOpenLocalDirect}
+              className="px-4 py-2 bg-surface hover:bg-surface-hover text-foreground border border-border-subtle hover:border-primary/50 rounded-xl font-bold text-xs transition-all duration-300 shadow-xs flex items-center gap-2 cursor-pointer"
+            >
+              <FileText size={16} className="text-primary" />
+              <span>Or Open a Local File Directly (No Upload Required)</span>
+            </button>
+          </div>
+        )}
 
         <div className="bg-surface/85 backdrop-blur-2xl rounded-2xl p-6 md:p-8 shadow-xl border border-border-subtle">
           {!resultUrl ? (

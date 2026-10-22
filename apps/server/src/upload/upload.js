@@ -1,4 +1,4 @@
-const { bucket } = require("../gcs");
+const { bucket, bucketName } = require("../gcs");
 const prisma = require('../prisma');
 
 function formatBytes(bytes, decimals = 2) {
@@ -34,20 +34,20 @@ async function uploadToGCS(fileBuffer, fileName, mimeType) {
 }
 
 async function uploadFile(req, res) {
-  console.log("🚀 uploadFile handler called");
+  console.log("[Upload] uploadFile handler called");
   try {
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
     const files = req.files;
-    if (!files || !files.UploadingFile || files.UploadingFile.length === 0) {
+    const documentFile = (files && files.UploadingFile && files.UploadingFile[0]) || req.file;
+    if (!documentFile) {
       console.error("❌ No document file found");
       return res.status(400).json({ message: "No document file provided" });
     }
 
-    const documentFile = files.UploadingFile[0];
-    const thumbnailFile = files.thumbnail && files.thumbnail.length > 0 ? files.thumbnail[0] : null;
+    const thumbnailFile = files && files.thumbnail && files.thumbnail.length > 0 ? files.thumbnail[0] : null;
 
     console.log("📂 Document received:", documentFile.originalname, "Size:", documentFile.size);
     if (thumbnailFile) {

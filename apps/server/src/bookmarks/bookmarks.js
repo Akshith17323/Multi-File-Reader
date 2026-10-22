@@ -44,7 +44,7 @@ async function upsertBookmark(req, res) {
 
 async function getBookmark(req, res) {
     try {
-        const { fileUrl } = req.query;
+        const fileUrl = req.query.fileUrl || req.body?.fileUrl;
         const userId = req.user.userId;
 
         if (!fileUrl) {
@@ -73,7 +73,7 @@ async function getBookmark(req, res) {
 
 async function deleteBookmark(req, res) {
     try {
-        const { fileUrl } = req.query;
+        const fileUrl = req.query.fileUrl || req.body?.fileUrl;
         const userId = req.user.userId;
 
         if (!fileUrl) {

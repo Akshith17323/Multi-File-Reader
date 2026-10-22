@@ -78,7 +78,11 @@ const PDFReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function PDFR
         });
     };
 
-    const proxiedBlobUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(file.url)}`;
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:2007";
+    const proxiedBlobUrl =
+        file.url.startsWith("mfr-local://") || file.url.startsWith("blob:") || file.url.startsWith("data:")
+            ? file.url
+            : `${backendUrl}/proxy?url=${encodeURIComponent(file.url)}`;
 
     return (
         <div className="w-full h-full">

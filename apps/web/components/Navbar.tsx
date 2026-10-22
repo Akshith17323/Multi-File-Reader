@@ -120,9 +120,6 @@ export default function Navbar() {
         }
     };
 
-    // Debugging
-    console.log("Navbar Rendering. Pathname:", pathname);
-
     // Safety check for pathname
     if (!pathname) return null;
 
@@ -174,6 +171,19 @@ export default function Navbar() {
                             )}
                         </Link>
 
+                        <Link
+                            href="/fileupload"
+                            className={`relative text-sm font-bold tracking-wide py-2 px-3 rounded-lg transition-all duration-300 overflow-hidden group/link ${pathname === '/fileupload'
+                                ? 'text-primary bg-primary/10'
+                                : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
+                                }`}
+                        >
+                            UPLOAD
+                            {pathname === '/fileupload' && (
+                                <span className="absolute bottom-0 left-0 w-full h-[2px] bg-primary shadow-[0_0_8px_var(--color-primary)]" />
+                            )}
+                        </Link>
+
                         {/* Divider */}
                         <div className="h-4 w-px bg-border-subtle group-hover/nav:opacity-50 transition-all duration-200"></div>
 
@@ -206,15 +216,17 @@ export default function Navbar() {
                                     <span className="text-xs font-medium text-foreground">{user}</span>
                                 </button>
 
-                                {/* Dropdown */}
-                                <div className="absolute right-0 top-full mt-2 w-44 bg-surface backdrop-blur-2xl border border-border-subtle rounded-xl shadow-xl opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible transition-all duration-200 transform origin-top-right p-1.5 z-50">
-                                    <button
-                                        onClick={handleLogout}
-                                        className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-all"
-                                    >
-                                        <LogOut size={14} />
-                                        Sign Out
-                                    </button>
+                                {/* Dropdown with hover bridge */}
+                                <div className="absolute right-0 top-full pt-2 w-44 opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible transition-all duration-200 transform origin-top-right z-50">
+                                    <div className="bg-surface backdrop-blur-2xl border border-border-subtle rounded-xl shadow-xl p-1.5">
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-all cursor-pointer"
+                                        >
+                                            <LogOut size={14} />
+                                            Sign Out
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
@@ -262,6 +274,13 @@ export default function Navbar() {
                             className="block px-4 py-3 text-foreground font-semibold bg-surface/70 backdrop-blur-xl hover:bg-surface-hover rounded-2xl border border-border-subtle transition-all shadow-xs"
                         >
                             My Bookmarks
+                        </Link>
+                        <Link
+                            href="/fileupload"
+                            onClick={() => setIsOpen(false)}
+                            className="block px-4 py-3 text-foreground font-medium bg-surface-hover rounded-xl border border-border-subtle"
+                        >
+                            Upload File
                         </Link>
                         {user ? (
                             <div className="space-y-3 pt-1">
