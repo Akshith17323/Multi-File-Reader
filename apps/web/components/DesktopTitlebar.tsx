@@ -12,6 +12,14 @@ export default function DesktopTitlebar() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!isElectron) return;
+    document.documentElement.style.setProperty("--titlebar-height", "32px");
+    return () => {
+      document.documentElement.style.removeProperty("--titlebar-height");
+    };
+  }, [isElectron]);
+
   // Avoid hydration mismatch by rendering nothing until mounted
   if (!mounted || !isElectron) return null;
 

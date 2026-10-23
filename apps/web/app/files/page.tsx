@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, BookOpen, AlertCircle, Edit2, Sparkles, ChevronDown, Search, FileText, Layers, BookmarkCheck } from "lucide-react";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { Trash2, BookOpen, AlertCircle, Edit2, ChevronDown, Search, FileText, Layers, Upload } from "lucide-react";
+import { toast } from "react-toastify";
+import AppShell, { PageHeader } from "@/components/ui/AppShell";
 import { apiClient } from "@/services/apiClient";
 import dynamic from "next/dynamic";
 
@@ -198,64 +198,36 @@ export default function FilesPage() {
   };
 
   return (
-    <div className="min-h-screen px-4 sm:px-6 lg:px-8 py-5 sm:py-7 relative bg-background overflow-hidden">
-      <ToastContainer position="top-right" theme="light" />
-
-      {/* Ambient Blurred Glowing Orbs for Glassmorphism Depth (Matching Landing Page) */}
-      <div className="absolute top-1/4 left-10 w-80 h-80 bg-primary/15 rounded-full blur-3xl pointer-events-none -z-0" />
-      <div className="absolute bottom-1/4 right-10 w-[400px] h-[400px] bg-purple-600/15 rounded-full blur-3xl pointer-events-none -z-0" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-3xl pointer-events-none -z-0" />
-
-      <div className="w-full max-w-[1600px] mx-auto relative z-10 space-y-6">
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface/80 backdrop-blur-2xl border border-border-subtle shadow-xs">
-              <Sparkles size={14} className="text-primary animate-pulse" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-foreground-muted">
-                Digital Library
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-foreground leading-tight">
-              My{" "}
-              <span className="bg-clip-text text-transparent bg-linear-to-r from-primary via-purple-500 to-blue-500 drop-shadow-[0_0_12px_var(--color-primary-glow)]">
-                Collection
-              </span>
-            </h1>
-            <p className="text-foreground-muted text-xs sm:text-sm font-medium">
-              Browse, search, and continue reading your documents
-            </p>
-          </div>
-
-          <button
-            onClick={() => router.push("/fileupload")}
-            className="group relative overflow-hidden px-5 py-2.5 bg-primary text-white rounded-xl font-bold text-sm shadow-[0_4px_15px_var(--color-primary-glow)] hover:shadow-[0_8px_20px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-200 shrink-0 flex items-center gap-2"
-          >
-            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-            <span className="text-lg font-light leading-none relative z-10">+</span>
-            <span className="relative z-10">Upload New</span>
-          </button>
-        </div>
+    <AppShell contentClassName="space-y-7">
+        <PageHeader
+          eyebrow="Digital library"
+          title="My"
+          accent="Collection"
+          description="Browse, search, and continue reading your documents."
+          action={<button onClick={() => router.push("/fileupload")} className="mfr-button-primary"><Upload size={16} />Upload New</button>}
+        />
 
         {/* Controls Bar (Glassmorphic Card) */}
-        <div className="bg-surface/75 backdrop-blur-2xl p-3 sm:p-4 rounded-2xl sm:rounded-3xl border border-border-subtle shadow-sm flex flex-col md:flex-row gap-3 transition-all duration-200">
+        <div className="mfr-panel p-3 sm:p-4 rounded-2xl shadow-sm flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground-muted pointer-events-none" />
             <input
-              type="text"
+              type="search"
+              aria-label="Search library by title"
               placeholder="Search by title..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-surface-hover/65 backdrop-blur-md border border-border-subtle rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-glow transition-all duration-200 text-sm text-foreground placeholder-foreground-muted"
+              className="mfr-input pl-10"
             />
           </div>
 
           <div className="flex flex-wrap gap-2.5">
             <div className="relative">
               <select
+                aria-label="Filter by file format"
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="h-full pl-3.5 pr-8 py-2 bg-surface-hover/65 backdrop-blur-md border border-border-subtle rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-glow transition-all duration-200 text-xs sm:text-sm font-semibold text-foreground cursor-pointer appearance-none min-w-28"
+                className="mfr-input pr-8 font-semibold cursor-pointer appearance-none min-w-28"
               >
                 <option value="">All Formats</option>
                 <option value="pdf">PDF</option>
@@ -266,8 +238,9 @@ export default function FilesPage() {
 
             <div className="relative">
               <select
+                aria-label="Sort files"
                 onChange={handleSortChange}
-                className="h-full pl-3.5 pr-8 py-2 bg-surface-hover/65 backdrop-blur-md border border-border-subtle rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-glow transition-all duration-200 text-xs sm:text-sm font-semibold text-foreground cursor-pointer appearance-none min-w-32"
+                className="mfr-input pr-8 font-semibold cursor-pointer appearance-none min-w-32"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -285,10 +258,10 @@ export default function FilesPage() {
             <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
             <div className="flex-1">
               <h3 className="text-red-500 font-bold mb-0.5">Error Loading Collection</h3>
-              <p className="text-red-400 font-medium">{error}</p>
+              <p className="text-red-500 font-medium">{error}</p>
               <button
                 onClick={fetchFiles}
-                className="mt-2 text-xs text-red-400 hover:text-red-300 underline font-semibold cursor-pointer"
+                className="mt-2 text-xs text-red-500 hover:text-red-300 underline font-semibold cursor-pointer"
               >
                 Try Again
               </button>
@@ -303,9 +276,9 @@ export default function FilesPage() {
               <div className="w-12 h-12 border-3 border-border-subtle border-t-primary rounded-full animate-spin" />
             </div>
           </div>
-        ) : files.length === 0 ? (
+        ) : error ? null : files.length === 0 ? (
           /* Empty State (Styled with Landing Page Showcase) */
-          <div className="text-center py-16 px-6 rounded-3xl bg-surface/75 backdrop-blur-2xl border border-border-subtle shadow-xl max-w-2xl mx-auto space-y-6">
+          <div className="mfr-panel text-center py-12 px-6 rounded-3xl shadow-sm space-y-6">
             <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-inner">
               <BookOpen size={30} />
             </div>
@@ -317,7 +290,7 @@ export default function FilesPage() {
               <p className="text-foreground-muted text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
                 {search || typeFilter
                   ? "Try clearing your search query or format filter to discover your documents."
-                  : "Upload your first PDF, EPUB, or TXT file to start reading with smooth view transitions."}
+                  : "Upload your first PDF, EPUB, or TXT file and keep all your reading in one place."}
               </p>
             </div>
 
@@ -343,7 +316,7 @@ export default function FilesPage() {
             <div className="pt-2">
               <button
                 onClick={() => router.push("/fileupload")}
-                className="relative overflow-hidden px-7 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-[0_4px_15px_var(--color-primary-glow)] hover:shadow-[0_8px_20px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-200 group inline-flex items-center gap-2"
+                className="mfr-button-primary overflow-hidden group"
               >
                 <span className="relative z-10">Upload Your First File</span>
                 <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
@@ -353,17 +326,17 @@ export default function FilesPage() {
         ) : (
           <>
             {/* File Cards Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3.5 pb-8">
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 pb-4">
               {files.map((file) => {
                 const badge = getFileBadge(file.metadata.contentType);
 
                 return (
                   <div
                     key={file.id}
-                    className="group relative bg-surface/75 backdrop-blur-2xl rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-xl hover:border-primary/40 transition-all duration-300 ease-out border border-border-subtle hover:-translate-y-1"
+                    className="mfr-panel group relative rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-xl hover:border-primary/40 transition-all duration-300 hover:-translate-y-1"
                   >
                     {/* Cover Preview Area */}
-                    <div className="aspect-[3/4] relative bg-background overflow-hidden group-hover:scale-102 transition-transform duration-300">
+                    <div className="aspect-[4/3] relative bg-background overflow-hidden group-hover:scale-102 transition-transform duration-300">
                       <div className="w-full h-full">
                         <FilePreview url={file.url} type={file.metadata.contentType} thumbnailUrl={file.thumbnailUrl} />
                       </div>
@@ -376,7 +349,7 @@ export default function FilesPage() {
                       </div>
 
                       {/* Hover Overlay with Quick Actions */}
-                      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-1.5 p-2">
+                      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] opacity-100 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-1.5 p-2">
                         <button
                           onClick={() => handleRead(file)}
                           className="bg-primary hover:bg-primary-hover text-white px-3 py-1.5 rounded-xl shadow-md transform scale-90 group-hover:scale-100 transition-all duration-200 font-bold text-xs cursor-pointer"
@@ -510,8 +483,6 @@ export default function FilesPage() {
             )}
           </>
         )}
-      </div>
-
       {/* Glassmorphic Delete Confirmation Modal */}
       {fileToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200">
@@ -543,6 +514,6 @@ export default function FilesPage() {
           </div>
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }

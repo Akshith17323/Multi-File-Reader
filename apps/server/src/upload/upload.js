@@ -87,14 +87,17 @@ async function uploadFile(req, res) {
 async function addLocalFile(req, res) {
   try {
     if (!req.user || !req.user.userId) return res.status(401).json({ message: "User not authenticated" });
-    const { fileName, fileType, fileSize, localId } = req.body;
+    const { fileName, fileType, fileSize, localId, fileUrl } = req.body;
     if (!fileName || !localId) return res.status(400).json({ message: "Missing required fields" });
+
+    const normalizedFileUrl = fileUrl || (localId.startsWith("mfr-local://") ? localId : `mfr-local://${localId}`);
 
     const PrismaFile = await prisma.file.create({
       data: {
         userId: req.user.userId,
         fileName,
         source: "LOCAL",
+        fileUrl: normalizedFileUrl,
         localId,
         thumbnailUrl: `local-thumb://${localId}`,
         fileType,
@@ -112,14 +115,17 @@ async function addDriveFile(req, res) {
   try {
     if (!req.user || !req.user.userId) return res.status(401).json({ message: "User not authenticated" });
     // Expect driveId, driveType ("GOOGLE_DRIVE" or "ONEDRIVE"), and optional thumbnail
-    const { fileName, fileType, fileSize, driveId, driveType, thumbnailUrl } = req.body;
+    const { fileName, fileType, fileSize, driveId, driveType, thumbnailUrl, fileUrl } = req.body;
     if (!fileName || !driveId || !driveType) return res.status(400).json({ message: "Missing required fields" });
+
+    const normalizedFileUrl = fileUrl || `drive://${driveType}/${driveId}`;
 
     const PrismaFile = await prisma.file.create({
       data: {
         userId: req.user.userId,
         fileName,
         source: driveType,
+        fileUrl: normalizedFileUrl,
         driveId,
         thumbnailUrl,
         fileType,

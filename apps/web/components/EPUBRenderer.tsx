@@ -19,6 +19,21 @@ interface EPUBRendererProps {
     initialCfi?: string;
 }
 
+function applyReaderTheme(rendition: Rendition) {
+    const styles = getComputedStyle(document.documentElement);
+    const foreground = styles.getPropertyValue("--foreground").trim();
+    const primary = styles.getPropertyValue("--primary").trim();
+    rendition.themes.register("app", {
+        body: { background: "transparent", color: foreground },
+        a: { color: primary },
+        p: { color: foreground },
+        h1: { color: foreground },
+        h2: { color: foreground },
+        h3: { color: foreground },
+    });
+    rendition.themes.select("app");
+}
+
 const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
     url,
     initialLocation,
@@ -36,6 +51,14 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
     const [error, setError] = useState<string | null>(null);
     const [currentLocation, setCurrentLocation] = useState<string>(initialCfi || "");
     const [isBookReady, setIsBookReady] = useState(false);
+
+    useEffect(() => {
+        const observer = new MutationObserver(() => {
+            if (renditionRef.current) applyReaderTheme(renditionRef.current);
+        });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+        return () => observer.disconnect();
+    }, []);
 
     useEffect(() => {
         if (initialCfi && initialCfi !== currentLocation) {
@@ -141,29 +164,7 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
                     spread,
                 });
 
-                rendition.themes.register("dark", {
-                    "body": {
-                        "background": "transparent",
-                        "color": "#e5e5e5"
-                    },
-                    "a": {
-                        "color": "#a78bfa"
-                    },
-                    "p": {
-                        "color": "#e5e5e5"
-                    },
-                    "h1": {
-                        "color": "#ffffff"
-                    },
-                    "h2": {
-                        "color": "#ffffff"
-                    },
-                    "h3": {
-                        "color": "#ffffff"
-                    }
-                });
-
-                rendition.themes.select("dark");
+                applyReaderTheme(rendition);
 
                 renditionRef.current = rendition;
 
@@ -259,7 +260,7 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
                 </div>
             )}
 
-            <div className="w-full h-full text-white" ref={viewerRef} />
+            <div className="w-full h-full bg-background/60 text-foreground" ref={viewerRef} />
         </div>
     );
 });

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, ReactNode } from "react";
+import { useEffect, useState, ReactNode } from "react";
 import { ChevronLeft, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown, PanelLeftClose, PanelLeftOpen, BookOpen, Plus, Search, Cloud, HardDrive } from "lucide-react";
 import { useRouter } from "next/navigation";
 import FileTab, { FileTabData } from "./FileTab";
+import { AmbientBackground } from "./ui/AppShell";
+import ThemeToggle from "./ThemeToggle";
 
 export type ViewMode = "single" | "continuous" | "two-page";
 export type FitMode = "width" | "height" | "none";
@@ -85,7 +87,11 @@ export default function UnifiedReaderLayout({
     onSidebarTabChange,
 }: UnifiedReaderLayoutProps) {
     const router = useRouter();
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+
+    useEffect(() => {
+        setIsSidebarCollapsed(window.matchMedia("(max-width: 639px)").matches);
+    }, []);
 
     const activeFile = openFiles[activeFileIndex];
     const isEpub = activeFile?.type === "epub";
@@ -101,15 +107,12 @@ export default function UnifiedReaderLayout({
     };
 
     return (
-        <div className="h-screen flex flex-col bg-background overflow-hidden">
-            {/* Background Gradients (Subtle) */}
-            <div className="absolute top-0 left-0 w-full h-full bg-background" />
-            <div className="absolute top-[-10%] left-[-5%] w-[400px] h-[400px] bg-violet-600/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply" />
-            <div className="absolute bottom-[-10%] right-[-5%] w-[400px] h-[400px] bg-primary/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply" />
+        <main className="relative isolate flex h-[calc(100svh-var(--titlebar-height))] min-h-0 flex-col overflow-hidden bg-background p-2 sm:p-3">
+            <AmbientBackground />
 
             {/* Top Control Bar */}
-            <div className="relative z-20 bg-surface/80 backdrop-blur-xl border-b border-border-subtle px-6 py-3">
-                <div className="flex items-center justify-between gap-4">
+            <div className="mfr-panel relative z-20 shrink-0 rounded-2xl px-3 py-2.5 sm:px-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     {/* Left: Back to Library & Tabs Toggle */}
                     <div className="flex items-center gap-2">
                         <button
@@ -123,6 +126,8 @@ export default function UnifiedReaderLayout({
                         <button
                             onClick={() => setIsSidebarCollapsed((prev) => !prev)}
                             className="p-2 hover:bg-surface-hover rounded-lg text-foreground-muted hover:text-foreground transition-colors"
+                            aria-expanded={!isSidebarCollapsed}
+                            aria-controls="reader-sidebar"
                             title={isSidebarCollapsed ? "Show Open Files Tabs" : "Hide Open Files Tabs"}
                         >
                             {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -132,22 +137,22 @@ export default function UnifiedReaderLayout({
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-surface-hover flex items-center justify-center">
                                     {isPdf ? (
-                                        <FileText size={16} className="text-blue-400" />
+                                        <FileText size={16} className="text-red-500" />
                                     ) : isEpub ? (
-                                        <ScrollText size={16} className="text-purple-400" />
+                                        <ScrollText size={16} className="text-emerald-500" />
                                     ) : (
-                                        <FileText size={16} className="text-emerald-400" />
+                                        <FileText size={16} className="text-sky-500" />
                                     )}
                                 </div>
                                 <div>
-                                    <h2 className="text-sm font-semibold text-foreground truncate max-w-[300px]">
+                                    <h2 className="text-sm font-semibold text-foreground truncate max-w-[120px] min-[380px]:max-w-[160px] sm:max-w-[260px]">
                                         {activeFile.name}
                                     </h2>
                                     <div className="flex items-center gap-1.5 text-xs text-foreground-muted">
                                         <span>{activeFile.type.toUpperCase()}</span>
                                         <span>•</span>
                                         <span className={`inline-flex items-center gap-1 font-medium ${
-                                            isLocalFile(activeFile.url, activeFile.id) ? "text-emerald-400" : "text-sky-400"
+                                            isLocalFile(activeFile.url, activeFile.id) ? "text-emerald-500" : "text-primary"
                                         }`}>
                                             {isLocalFile(activeFile.url, activeFile.id) ? (
                                                 <>
@@ -169,8 +174,9 @@ export default function UnifiedReaderLayout({
 
                     {/* Center: Page Navigation (for paginated modes) */}
                     {(viewMode === "single" || viewMode === "two-page") && (isEpub || (currentPage && totalPages)) && (
-                        <div className="flex items-center gap-3 bg-surface rounded-lg px-4 py-2 border border-border-subtle">
+                        <div className="flex shrink-0 items-center gap-2 bg-surface-hover/65 rounded-xl px-3 py-2 border border-border-subtle">
                             <button
+                                aria-label="Previous page"
                                 onClick={onPrevPage}
                                 disabled={!isEpub && !!currentPage && currentPage <= 1}
                                 className="p-1 text-foreground-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-foreground-muted transition-colors"
@@ -183,6 +189,7 @@ export default function UnifiedReaderLayout({
                                     : `${currentPage} / ${totalPages}`}
                             </span>
                             <button
+                                aria-label="Next page"
                                 onClick={onNextPage}
                                 disabled={!isEpub && !!currentPage && !!totalPages && currentPage >= totalPages}
                                 className="p-1 text-foreground-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-foreground-muted transition-colors"
@@ -193,12 +200,13 @@ export default function UnifiedReaderLayout({
                     )}
 
                     {/* Right: View Mode & Controls */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex max-w-full items-center gap-2 overflow-x-auto pb-0.5">
+                        <ThemeToggle />
                         {/* View Mode Toggles */}
-                        <div className="flex items-center gap-1 bg-surface rounded-lg p-1 border border-border-subtle">
+                        <div className="flex shrink-0 items-center gap-1 bg-surface-hover/65 rounded-xl p-1 border border-border-subtle">
                             <button
                                 onClick={() => onViewModeChange("single")}
-                                className={`p-2 rounded transition-colors ${viewMode === "single"
+                                className={`p-2 rounded-lg transition-colors ${viewMode === "single"
                                     ? "bg-primary/20 text-primary"
                                     : "text-foreground-muted hover:text-foreground hover:bg-surface-hover"
                                     }`}
@@ -208,7 +216,7 @@ export default function UnifiedReaderLayout({
                             </button>
                             <button
                                 onClick={() => onViewModeChange("two-page")}
-                                className={`p-2 rounded transition-colors ${viewMode === "two-page"
+                                className={`p-2 rounded-lg transition-colors ${viewMode === "two-page"
                                     ? "bg-primary/20 text-primary"
                                     : "text-foreground-muted hover:text-foreground hover:bg-surface-hover"
                                     }`}
@@ -218,7 +226,7 @@ export default function UnifiedReaderLayout({
                             </button>
                             <button
                                 onClick={() => onViewModeChange("continuous")}
-                                className={`p-2 rounded transition-colors ${viewMode === "continuous"
+                                className={`p-2 rounded-lg transition-colors ${viewMode === "continuous"
                                     ? "bg-primary/20 text-primary"
                                     : "text-foreground-muted hover:text-foreground hover:bg-surface-hover"
                                     }`}
@@ -230,10 +238,10 @@ export default function UnifiedReaderLayout({
 
                         {/* Fit Mode (PDF only) */}
                         {isPdf && (
-                            <div className="flex items-center gap-1 bg-surface rounded-lg p-1 border border-border-subtle">
+                            <div className="flex shrink-0 items-center gap-1 bg-surface-hover/65 rounded-xl p-1 border border-border-subtle">
                                 <button
                                     onClick={() => onFitModeChange("width")}
-                                    className={`p-2 rounded transition-colors ${fitMode === "width"
+                                    className={`p-2 rounded-lg transition-colors ${fitMode === "width"
                                         ? "bg-primary/20 text-primary"
                                         : "text-foreground-muted hover:text-foreground hover:bg-surface-hover"
                                         }`}
@@ -243,7 +251,7 @@ export default function UnifiedReaderLayout({
                                 </button>
                                 <button
                                     onClick={() => onFitModeChange("height")}
-                                    className={`p-2 rounded transition-colors ${fitMode === "height"
+                                    className={`p-2 rounded-lg transition-colors ${fitMode === "height"
                                         ? "bg-primary/20 text-primary"
                                         : "text-foreground-muted hover:text-foreground hover:bg-surface-hover"
                                         }`}
@@ -256,7 +264,7 @@ export default function UnifiedReaderLayout({
 
                         {/* Zoom Controls (PDF with 'none' fit mode) */}
                         {isPdf && fitMode === "none" && zoom && (
-                            <div className="flex items-center gap-2 bg-surface rounded-lg px-3 py-2 border border-border-subtle">
+                            <div className="flex shrink-0 items-center gap-2 bg-surface-hover/65 rounded-xl px-3 py-2 border border-border-subtle">
                                 <button
                                     onClick={onZoomOut}
                                     className="text-foreground-muted hover:text-foreground transition-colors"
@@ -277,7 +285,7 @@ export default function UnifiedReaderLayout({
 
                         {/* Font Size Controls (EPUB & Text/Code) */}
                         {!isPdf && fontSize && (
-                            <div className="flex items-center gap-2 bg-surface rounded-lg px-3 py-2 border border-border-subtle">
+                            <div className="flex shrink-0 items-center gap-2 bg-surface-hover/65 rounded-xl px-3 py-2 border border-border-subtle">
                                 <button
                                     onClick={onFontSizeDecrease}
                                     className="text-foreground-muted hover:text-foreground transition-colors"
@@ -315,13 +323,15 @@ export default function UnifiedReaderLayout({
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex overflow-hidden relative z-10">
+            <div className="flex-1 min-h-0 flex gap-3 overflow-hidden relative z-10 mt-3">
                 {/* Left Sidebar - File Tabs */}
-                <div
+                <aside
+                    id="reader-sidebar"
+                    aria-label="Open files"
                     className={`
-            bg-surface/95 backdrop-blur-xl border-r border-border-subtle flex flex-col
+            mfr-panel rounded-2xl flex shrink-0 flex-col
             transition-all duration-300
-            ${isSidebarCollapsed ? "w-0 border-r-0 overflow-hidden" : "w-72"}
+            ${isSidebarCollapsed ? "hidden" : "absolute inset-y-0 left-0 z-30 w-[min(18rem,calc(100vw-2rem))] bg-surface-hover sm:static sm:w-72"}
           `}
                 >
                     {!isSidebarCollapsed && (
@@ -388,7 +398,7 @@ export default function UnifiedReaderLayout({
                                 {onOpenLocalFile && (
                                     <button
                                         onClick={onOpenLocalFile}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg cursor-pointer"
+                                        className="mfr-button-primary w-full"
                                         title="Open a local book or document from disk into a new tab"
                                     >
                                         <BookOpen size={16} />
@@ -397,11 +407,7 @@ export default function UnifiedReaderLayout({
                                 )}
                                 <button
                                     onClick={handleBackToLibrary}
-                                    className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer ${
-                                        onOpenLocalFile
-                                            ? "bg-surface hover:bg-surface-hover text-foreground border border-border-subtle"
-                                            : "bg-primary hover:bg-primary-hover text-white shadow-md hover:shadow-lg"
-                                    }`}
+                                    className={`w-full ${onOpenLocalFile ? "mfr-button-secondary" : "mfr-button-primary"}`}
                                 >
                                     <span>+</span>
                                     <span>Browse Library</span>
@@ -427,13 +433,13 @@ export default function UnifiedReaderLayout({
                             )}
                         </>
                     )}
-                </div>
+                </aside>
 
                 {/* Main Reading Area */}
-                <div className="flex-1 overflow-hidden">
+                <div className="mfr-panel min-w-0 flex-1 overflow-hidden rounded-2xl">
                     {children}
                 </div>
             </div>
-        </div>
+        </main>
     );
 }

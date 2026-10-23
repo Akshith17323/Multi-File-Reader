@@ -1,11 +1,14 @@
 "use client";
 import React, { useRef, useState } from "react";
-import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, File, X, Sparkles, BookOpen, ArrowLeft, Layers } from "lucide-react";
+import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, File, X, BookOpen, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { isElectron } from "@/hooks/useEnvironment";
+import { useEnvironment } from "@/hooks/useEnvironment";
 import { FileAdapter } from "@/services/fileAdapter";
+import AppShell, { PageHeader } from "@/components/ui/AppShell";
+import { FormatCard } from "@/components/ui/FormatShowcase";
 
 function FileUpload() {
+  const { isElectron: isDesktop } = useEnvironment();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [progress, setProgress] = useState(0);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
@@ -27,15 +30,6 @@ function FileUpload() {
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      handleFileSelection(files[0]);
-    }
-  };
-
   const handleFileSelection = (file: File) => {
     setError(null);
     setResultUrl(null);
@@ -50,6 +44,15 @@ function FileUpload() {
     }
 
     setSelectedFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      handleFileSelection(files[0]);
+    }
   };
 
   const uploadFile = async (e: React.FormEvent) => {
@@ -94,6 +97,19 @@ function FileUpload() {
     }
   };
 
+  const handleOpenLocalDirect = async () => {
+    try {
+      const result = await (window as any).electronAPI?.invoke('open-local-file');
+      if (result && !result.canceled && result.url) {
+        router.push(`/reader?files=${encodeURIComponent(result.url)}&active=0`);
+      } else if (result?.error) {
+        setError(`Permission/access error: ${result.error}`);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to open local file");
+    }
+  };
+
   const getFileIcon = () => {
     if (!selectedFile) return <Upload size={32} className="text-primary" />;
     const ext = selectedFile.name.split('.').pop()?.toLowerCase();
@@ -107,13 +123,7 @@ function FileUpload() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background relative px-4 sm:px-6 py-8 overflow-hidden">
-      {/* Ambient Blurred Glowing Orbs for Glassmorphism Depth */}
-      <div className="absolute top-1/4 left-10 w-80 h-80 bg-primary/15 rounded-full blur-3xl pointer-events-none -z-0" />
-      <div className="absolute bottom-1/4 right-10 w-[400px] h-[400px] bg-purple-600/15 rounded-full blur-3xl pointer-events-none -z-0" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-3xl pointer-events-none -z-0" />
-
-      <div className="w-full max-w-xl relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <AppShell className="flex items-center" contentClassName="max-w-2xl">
         <button
           onClick={() => router.push('/files')}
           className="group mb-5 px-3.5 py-1.5 bg-surface/70 backdrop-blur-2xl border border-border-subtle rounded-xl text-foreground-muted hover:text-foreground hover:bg-surface-hover hover:border-primary/40 inline-flex items-center gap-2 transition-all duration-300 font-semibold text-xs tracking-wide shadow-xs"
@@ -124,35 +134,34 @@ function FileUpload() {
           Back to Library
         </button>
 
-        {/* Header with Glassmorphic Badge */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface/80 backdrop-blur-2xl border border-border-subtle shadow-xs mb-3">
-            <Sparkles size={14} className="text-primary animate-pulse" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-foreground-muted">
-              Document Ingestion
-            </span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground mb-2">
-            Add to{" "}
-            <span className="bg-clip-text text-transparent bg-linear-to-r from-primary via-purple-500 to-blue-500 drop-shadow-[0_0_12px_var(--color-primary-glow)]">
-              Collection
-            </span>
-          </h1>
-          <p className="text-foreground-muted text-xs sm:text-sm">
-            Upload documents to your secure, unified digital library
-          </p>
-        </div>
+        <PageHeader
+          eyebrow="Your digital library"
+          title="Add to"
+          accent="Collection"
+          description="Upload your books and documents, then start reading."
+          className="mb-6"
+        />
 
-        <div className="bg-surface/75 backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-xl border border-border-subtle">
+        <div className="mfr-panel rounded-3xl p-5 shadow-xl sm:p-8">
           {!resultUrl ? (
             <form onSubmit={uploadFile} className="space-y-5">
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
+                role="button"
+                tabIndex={0}
+                aria-label={selectedFile ? `Change selected file: ${selectedFile.name}` : "Choose a PDF, EPUB, or TXT file"}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    fileRef.current?.click();
+                  }
+                }}
                 onClick={() => fileRef.current?.click()}
                 className={`
-                  relative border-2 border-dashed rounded-2xl p-8 sm:p-10 text-center cursor-pointer transition-all duration-300 ease-in-out
+                  group relative border-2 border-dashed rounded-2xl p-6 sm:p-10 text-center cursor-pointer transition-all duration-300 ease-in-out
                   ${isDragging
                     ? "border-primary bg-primary/10 scale-[1.01]"
                     : "border-border-subtle hover:border-primary/60 hover:bg-surface-hover/60 bg-surface-hover/30 backdrop-blur-md"
@@ -190,7 +199,7 @@ function FileUpload() {
                         >
                           <X size={14} />
                         </button>
-                        <p className="text-base font-bold text-foreground mb-0.5 truncate max-w-sm">{selectedFile.name}</p>
+                        <p className="text-base font-bold text-foreground mb-0.5 break-all">{selectedFile.name}</p>
                         <p className="text-xs text-primary font-bold">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                       </div>
                     ) : (
@@ -203,35 +212,10 @@ function FileUpload() {
                 </div>
               </div>
 
-              {/* Supported format pills - mirroring landing page formats */}
-              <div className="grid grid-cols-3 gap-2.5">
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-hover/50 border border-border-subtle">
-                  <div className="w-7 h-7 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center shrink-0">
-                    <FileText size={14} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-foreground leading-none">PDF</p>
-                    <p className="text-[10px] text-foreground-muted truncate mt-0.5">Documents</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-hover/50 border border-border-subtle">
-                  <div className="w-7 h-7 rounded-lg bg-green-500/10 border border-green-500/20 text-green-500 flex items-center justify-center shrink-0">
-                    <BookOpen size={14} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-foreground leading-none">EPUB</p>
-                    <p className="text-[10px] text-foreground-muted truncate mt-0.5">E-Books</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-surface-hover/50 border border-border-subtle">
-                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-500 flex items-center justify-center shrink-0">
-                    <Layers size={14} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-foreground leading-none">TXT</p>
-                    <p className="text-[10px] text-foreground-muted truncate mt-0.5">Plain text</p>
-                  </div>
-                </div>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                <FormatCard icon={<FileText size={20} />} label="PDF" detail="Documents" color="text-red-500" />
+                <FormatCard icon={<BookOpen size={20} />} label="EPUB" detail="Books" color="text-emerald-500" />
+                <FormatCard icon={<FileText size={20} />} label="TXT" detail="Plain text" color="text-sky-500" />
               </div>
 
               {progress > 0 && progress < 100 && (
@@ -263,7 +247,7 @@ function FileUpload() {
                 <button
                   type="submit"
                   disabled={!selectedFile || (progress > 0 && progress < 100)}
-                  className="flex-1 relative overflow-hidden py-3 px-5 bg-primary hover:bg-primary-hover text-white rounded-xl font-bold text-sm shadow-[0_4px_15px_var(--color-primary-glow)] hover:shadow-[0_8px_20px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 group"
+                  className="mfr-button-primary flex-1 overflow-hidden group"
                 >
                   <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                   {progress > 0 && progress < 100 ? (
@@ -278,18 +262,31 @@ function FileUpload() {
                     </>
                   )}
                 </button>
-                {isElectron() && (
+                {isDesktop && (
                   <button
                     type="button"
                     onClick={handleLocalBook}
                     disabled={progress > 0 && progress < 100}
-                    className="sm:flex-1 py-3 px-5 bg-surface/80 backdrop-blur-xl hover:bg-surface-hover text-foreground border border-border-subtle rounded-xl font-bold text-sm hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2 shadow-xs"
+                    className="mfr-button-secondary sm:flex-1"
                   >
                     <File size={18} className="text-primary" />
                     <span>Add Local Book</span>
                   </button>
                 )}
               </div>
+
+              {isDesktop && (
+                <div className="pt-1 text-center">
+                  <button
+                    type="button"
+                    onClick={handleOpenLocalDirect}
+                    className="text-xs font-semibold text-foreground-muted hover:text-primary transition-colors inline-flex items-center gap-1.5 cursor-pointer py-1"
+                  >
+                    <FileText size={13} className="text-primary" />
+                    <span>Or open a local file directly (read without adding)</span>
+                  </button>
+                </div>
+              )}
             </form>
           ) : (
             <div className="text-center space-y-5 py-4 animate-in fade-in zoom-in duration-300">
@@ -307,7 +304,7 @@ function FileUpload() {
               <div className="flex flex-col gap-3 pt-2">
                 <button
                   onClick={() => router.push(getReaderUrl(resultUrl))}
-                  className="w-full relative overflow-hidden py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-[0_4px_15px_var(--color-primary-glow)] hover:shadow-[0_8px_20px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 group"
+                  className="mfr-button-primary w-full overflow-hidden group"
                 >
                   <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                   <BookOpen size={16} className="relative z-10" />
@@ -336,8 +333,7 @@ function FileUpload() {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </AppShell>
   );
 }
 

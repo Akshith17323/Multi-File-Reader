@@ -17,8 +17,7 @@ import { getBookmarkUnified, saveBookmarkUnified, deleteBookmarkUnified } from "
 import { saveReaderSession, getLastReaderSession, clearReaderSession } from "@/utils/readerSession";
 import { migrateLocalAnnotations } from "@/utils/localAnnotations";
 import { AlertTriangle, Link2 } from "lucide-react";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
 
 function ReaderContent() {
     const searchParams = useSearchParams();
@@ -394,7 +393,7 @@ function ReaderContent() {
 
     if (!isInitialized || openFiles.length === 0) {
         return (
-            <div className="h-screen bg-background flex items-center justify-center text-foreground">
+            <div className="h-[calc(100svh-var(--titlebar-height))] bg-background flex items-center justify-center text-foreground">
                 <p>Loading...</p>
             </div>
         );
@@ -425,24 +424,15 @@ function ReaderContent() {
             isSearchOpen={isSearchOpen}
             onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
         >
-            <ToastContainer position="top-right" theme="dark" />
             {isOffline ? (
-                <div className="w-full h-full min-h-[600px] flex items-center justify-center p-6 bg-[#0c0d10] text-foreground select-none relative overflow-hidden">
-                    <div
-                        className="absolute inset-0 opacity-10 pointer-events-none"
-                        style={{
-                            backgroundImage: `repeating-linear-gradient(-45deg, #ef4444 0px, #ef4444 20px, transparent 20px, transparent 40px)`,
-                        }}
-                    />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-red-600/10 blur-[120px] rounded-full pointer-events-none" />
-
-                    <div className="relative z-10 max-w-xl w-full mx-auto bg-surface/90 backdrop-blur-2xl border-2 border-red-500/30 rounded-3xl p-8 sm:p-10 shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex flex-col items-center text-center">
+                <div className="w-full h-full flex items-center justify-center overflow-y-auto p-4 sm:p-6 bg-background/60 text-foreground relative">
+                    <div className="mfr-panel relative z-10 max-w-xl w-full mx-auto rounded-3xl p-5 sm:p-8 shadow-sm flex flex-col items-center text-center">
                         <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-500 mb-5 shadow-[0_0_30px_rgba(239,68,68,0.3)]">
                             <AlertTriangle size={34} className="animate-pulse" />
                         </div>
 
-                        <h2 className="text-2xl sm:text-3xl font-black tracking-[0.2em] text-red-500 uppercase mb-2">
-                            Media Offline
+                        <h2 className="text-2xl font-extrabold tracking-tight text-foreground mb-2">
+                            File unavailable
                         </h2>
 
                         <p className="text-foreground-muted text-sm sm:text-base max-w-md mb-6 leading-relaxed">
@@ -462,15 +452,15 @@ function ReaderContent() {
                             <button
                                 onClick={handleRelinkActiveFile}
                                 disabled={isRelinking}
-                                className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl shadow-[0_0_25px_rgba(239,68,68,0.4)] hover:shadow-[0_0_35px_rgba(239,68,68,0.6)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50"
+                                className="mfr-button-primary w-full sm:w-auto"
                             >
                                 <Link2 size={18} />
-                                <span>{isRelinking ? "Relinking..." : "Relink Media File..."}</span>
+                                <span>{isRelinking ? "Relinking..." : "Locate file"}</span>
                             </button>
 
                             <button
                                 onClick={() => router.push("/files")}
-                                className="w-full sm:w-auto px-6 py-4 bg-surface hover:bg-surface-hover text-foreground border border-border-subtle hover:border-foreground-muted rounded-2xl font-bold text-sm transition-colors cursor-pointer"
+                                className="mfr-button-secondary w-full sm:w-auto"
                             >
                                 Return to Library
                             </button>
@@ -515,7 +505,7 @@ export default function ReaderPage() {
     return (
         <Suspense
             fallback={
-                <div className="h-screen bg-background flex items-center justify-center text-foreground">
+                <div className="h-[calc(100svh-var(--titlebar-height))] bg-background flex items-center justify-center text-foreground">
                     Loading Reader...
                 </div>
             }

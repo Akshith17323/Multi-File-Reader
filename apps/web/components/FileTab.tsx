@@ -33,9 +33,9 @@ export default function FileTab({ file, isActive, onClick, onClose }: FileTabPro
     const getIconAndColor = () => {
         switch (file.type.toLowerCase()) {
             case "pdf":
-                return { Icon: FileText, color: "text-blue-400", activeBg: "bg-blue-500/20" };
+                return { Icon: FileText, color: "text-red-500", activeBg: "bg-red-500/10" };
             case "epub":
-                return { Icon: BookOpen, color: "text-purple-400", activeBg: "bg-purple-500/20" };
+                return { Icon: BookOpen, color: "text-emerald-500", activeBg: "bg-emerald-500/10" };
             case "code":
             case "js":
             case "ts":
@@ -45,7 +45,7 @@ export default function FileTab({ file, isActive, onClick, onClose }: FileTabPro
             case "txt":
             case "text":
             case "md":
-                return { Icon: AlignLeft, color: "text-amber-400", activeBg: "bg-amber-500/20" };
+                return { Icon: AlignLeft, color: "text-sky-500", activeBg: "bg-sky-500/10" };
             default:
                 return { Icon: FileQuestion, color: "text-gray-400", activeBg: "bg-gray-500/20" };
         }
@@ -58,67 +58,75 @@ export default function FileTab({ file, isActive, onClick, onClose }: FileTabPro
     };
 
     return (
-        <button
-            onClick={onClick}
+        <div
             title={`${file.name} (${isLocal ? "Local Disk" : "Cloud"})`}
             className={`
-        group relative w-full flex items-center gap-3 px-4 py-3 rounded-xl
+        group relative w-full flex items-center gap-2 px-3 py-2 rounded-2xl
         transition-all duration-200 text-left
         ${isActive
-                    ? "bg-surface text-foreground border border-primary/50 shadow-md shadow-primary/20"
-                    : "bg-background text-foreground-muted hover:bg-surface-hover hover:text-foreground border border-transparent"
+                    ? "bg-primary/10 text-foreground border border-primary/30 shadow-sm"
+                    : "bg-surface-hover/40 text-foreground-muted hover:bg-surface-hover hover:text-foreground border border-border-subtle"
                 }
       `}
         >
-            {/* File Type Icon */}
-            <div
-                className={`
-        shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
-        ${isActive ? activeBg : "bg-surface"}
-      `}
+            <button
+                type="button"
+                onClick={onClick}
+                aria-pressed={isActive}
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-xl py-1 text-left cursor-pointer"
             >
-                <Icon size={16} className={isActive ? color : "text-foreground-muted"} />
-            </div>
-
-            {/* File Name & Badges */}
-            <div className="flex-1 min-w-0 flex flex-col">
-                <span className="text-sm font-medium truncate">{file.name}</span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                    <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors ${
-                            isActive ? "bg-primary/20 text-primary" : "bg-surface text-foreground-muted"
-                        }`}
-                    >
-                        {getTypeBadge()}
-                    </span>
-                    <span
-                        className={`text-[10px] font-semibold flex items-center gap-1 ${
-                            isLocal ? "text-emerald-400" : "text-sky-400"
-                        }`}
-                    >
-                        {isLocal ? <HardDrive size={10} /> : <Cloud size={10} />}
-                        <span>{isLocal ? "Local" : "Cloud"}</span>
-                    </span>
+                {/* File Type Icon */}
+                <div
+                    className={`
+            shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
+            ${isActive ? activeBg : "bg-surface"}
+          `}
+                >
+                    <Icon size={16} className={isActive ? color : "text-foreground-muted"} />
                 </div>
-            </div>
+
+                {/* File Name & Badges */}
+                <div className="flex-1 min-w-0 flex flex-col">
+                    <span className="text-sm font-medium truncate">{file.name}</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                        <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors ${
+                                isActive ? "bg-primary/20 text-primary" : "bg-surface text-foreground-muted"
+                            }`}
+                        >
+                            {getTypeBadge()}
+                        </span>
+                        <span
+                            className={`text-[10px] font-semibold flex items-center gap-1 ${
+                                isLocal ? "text-emerald-500" : "text-primary"
+                            }`}
+                        >
+                            {isLocal ? <HardDrive size={10} /> : <Cloud size={10} />}
+                            <span>{isLocal ? "Local" : "Cloud"}</span>
+                        </span>
+                    </div>
+                </div>
+            </button>
 
             {/* Close Button */}
             <button
+                type="button"
                 onClick={(e) => {
                     e.stopPropagation();
                     onClose(e);
                 }}
                 className={`
-          p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-all shrink-0
+          p-1.5 rounded-lg opacity-70 group-hover:opacity-100 group-focus-within:opacity-100 transition-all shrink-0
           ${isActive
                         ? "hover:bg-primary-hover text-primary hover:text-white"
                         : "hover:bg-border-subtle text-foreground-muted hover:text-foreground"
                     }
         `}
                 title="Close Tab"
+                aria-label={`Close ${file.name}`}
             >
                 <X size={14} />
             </button>
-        </button>
+        </div>
     );
 }
