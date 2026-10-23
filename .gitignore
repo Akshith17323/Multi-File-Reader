@@ -71,6 +71,7 @@ Thumbs.db
 /ELECTRON_REFERENCE.local.md
 *.local.md
 *.local.txt
+*.local.json
 
 # npm workspaces use the lockfile at the repository root
 /apps/*/package-lock.json
@@ -78,3 +79,6 @@ Thumbs.db
 # Additional personal reference notes
 /UI_Imporvemetns.md
 /EXPECTED_FEATURES.md
+
+# Next.js generates local agent instructions during development.
+/apps/web/AGENTS.md
