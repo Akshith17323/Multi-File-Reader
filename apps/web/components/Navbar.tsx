@@ -113,7 +113,7 @@ export default function Navbar() {
                         {user ? (
                             <div className="relative group/user transition-all duration-200">
                                 <button className="flex max-w-52 items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full hover:bg-surface-hover transition-colors">
-                                    <div className="w-7 h-7 rounded-full bg-linear-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-inner">
+                                    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-xs shadow-inner">
                                         {user.charAt(0).toUpperCase()}
                                     </div>
                                     <span className="truncate text-xs font-medium text-foreground">{user}</span>
@@ -177,14 +177,14 @@ export default function Navbar() {
                         {user ? (
                             <div className="space-y-3 pt-1">
                                 <div className="px-4 py-2.5 flex items-center gap-3 text-foreground-muted bg-surface/50 backdrop-blur-md rounded-2xl border border-border-subtle">
-                                    <div className="w-7 h-7 rounded-full bg-linear-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-inner">
+                                    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-xs shadow-inner">
                                         {user.charAt(0).toUpperCase()}
                                     </div>
                                     <span className="text-sm">Signed in as <span className="text-foreground font-bold">{user}</span></span>
                                 </div>
                                 <button
                                     onClick={handleLogout}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-white font-bold bg-primary hover:bg-primary-hover rounded-2xl transition-all shadow-md"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-on-primary font-bold bg-primary hover:bg-primary-hover rounded-2xl transition-all shadow-md"
                                 >
                                     <LogOut size={18} />
                                     Logout
@@ -193,7 +193,7 @@ export default function Navbar() {
                         ) : (
                             <Link
                                 href="/auth/login"
-                                className="block w-full text-center px-4 py-3 text-white font-bold bg-primary hover:bg-primary-hover rounded-2xl transition-all shadow-md"
+                                className="block w-full text-center px-4 py-3 text-on-primary font-bold bg-primary hover:bg-primary-hover rounded-2xl transition-all shadow-md"
                             >
                                 Login
                             </Link>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import { getDocumentUrl } from "@/utils/fileUrls";
+import { decodeText } from '@/utils/textReader';
 import type { FileTabData } from "./FileTab";
 
 type Result = { text: string; page?: number; cfi?: string; line?: number };
@@ -68,7 +69,7 @@ export function DocumentSearch({ file, onClose, onGoToPage, onGoToCfi, onGoToLin
         } else {
           const response = await fetch(url, { signal: controller.signal });
           if (!response.ok) throw new Error("Could not load document for search");
-          const text = await response.text();
+          const text = decodeText(await response.arrayBuffer(), response.headers.get('content-type') || '');
           text.split("\n").forEach((line, index) => {
             if (matches.length < 50 && line.toLowerCase().includes(needle)) matches.push({ line: index + 1, text: `Line ${index + 1}: ${line.slice(0, 200)}` });
           });

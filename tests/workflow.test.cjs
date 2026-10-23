@@ -546,3 +546,64 @@ test('authentication middleware returns 401 for invalid and expired JWTs', async
   assert.equal(called, true);
   assert.equal(req.user.userId, 'test');
 });
+
+test('folder import finds supported documents in subfolders without uploads or symlink cycles', async () => {
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'mfr-folder-test-'));
+  fs.mkdirSync(path.join(directory, 'nested'));
+  fs.mkdirSync(path.join(directory, '.hidden'));
+  fs.writeFileSync(path.join(directory, 'hello 世界 #%.PDF'), 'sample pdf');
+  fs.writeFileSync(path.join(directory, 'nested', 'notes.txt'), 'sample text');
+  fs.writeFileSync(path.join(directory, 'image.png'), 'unsupported');
+  fs.writeFileSync(path.join(directory, '.hidden', 'private.txt'), 'hidden');
+  fs.symlinkSync(directory, path.join(directory, 'nested', 'cycle'), 'dir');
+  try {
+    const desktop = desktopFileHandlers({ picker: async () => ({ canceled: false, filePaths: [directory] }) });
+    const result = await desktop.handlers.get('open-local-folder')({});
+    assert.equal(result.canceled, false);
+    assert.equal(result.files.length, 2);
+    assert.equal(result.skipped, 0);
+    assert.equal(result.files[0].fileType, 'application/pdf');
+    assert.match(result.files[0].url, /%23%25\.PDF$/);
+    assert.equal(result.files[1].fileName, 'notes.txt');
+    assert.equal(desktop.fetchCount(), 0);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('local multi-selection handles cancellation and skips missing files', async () => {
+  const canceled = desktopFileHandlers();
+  assert.equal((await canceled.handlers.get('open-local-folder')({})).canceled, true);
+  const directory = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'mfr-selection-test-'));
+  const valid = path.join(directory, 'a.txt');
+  fs.writeFileSync(valid, 'hello');
+  try {
+    const desktop = desktopFileHandlers({ picker: async () => ({ canceled: false, filePaths: [valid, path.join(directory, 'missing.pdf')] }) });
+    const result = await desktop.handlers.get('open-local-files')({});
+    assert.equal(result.files.length, 1);
+    assert.equal(result.skipped, 1);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('desktop library merges local files before sorting and pagination and remains readable offline', async () => {
+  const file = (name, url) => ({ id: name, name, url, metadata: { size: '1 KB', updated: '2026-01-01', contentType: 'text/plain' } });
+  const cloud = [file('b.txt', 'https://example.com/b.txt'), file('a.txt', 'mfr-local://localhost/a.txt')];
+  let offline = false;
+  const browser = browserModules({ getAllFiles: async () => {
+    if (offline) throw new Error('offline');
+    return { files: cloud, pagination: { totalPages: 1 } };
+  }});
+  browser.window.electronAPI = {};
+  const local = browser.load('apps/web/utils/localLibrary.ts');
+  browser.localStorage.setItem('token', tokenFor('a'));
+  await local.saveLocalFileToLibrary({ name: 'a.txt', url: 'mfr-local:///a.txt', contentType: 'text/plain' }, false);
+  await local.saveLocalFileToLibrary({ name: 'c.txt', url: 'mfr-local:///c.txt', contentType: 'text/plain' }, false);
+  const { loadLibraryPage } = browser.load('apps/web/services/library.ts');
+  const query = { page: 1, limit: 2, sortBy: 'name', order: 'asc' };
+  const result = await loadLibraryPage(tokenFor('a'), query);
+  assert.deepEqual(plain(result.files.map(file => file.name)), ['a.txt', 'b.txt']);
+  assert.equal(result.pagination.totalPages, 2);
+  assert.equal((await loadLibraryPage(tokenFor('a'), { ...query, page: 2 })).files[0].name, 'c.txt');
+  offline = true;
+  const fallback = await loadLibraryPage(tokenFor('a'), query);
+  assert.deepEqual(plain(fallback.files.map(file => file.name)), ['a.txt', 'c.txt']);
+  assert.match(fallback.warning, /Cloud files are unavailable/);
+});

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { BookOpen, FileText, FolderOpen, Loader2, X } from 'lucide-react';
-import { apiClient } from '@/services/apiClient';
+import { loadLibraryPage } from '@/services/library';
 import { getLocalLibraryFiles } from '@/utils/localLibrary';
 import { detectFileType, isLocalFileUrl, normalizeFileUrl } from '@/utils/fileUrls';
 import { isElectron } from '@/hooks/useEnvironment';
@@ -32,17 +32,11 @@ export default function ReaderFilePicker({ onClose, onOpen, onOpenLocal, openUrl
       };
       try {
         const token = localStorage.getItem('token');
-        if (token) {
-          const data = await apiClient.getAllFiles(token, new URLSearchParams({search, page: String(page), limit: '24', sortBy:'name', order:'asc'}).toString());
-          if (canceled) return;
-          if (!Array.isArray(data?.files)) throw new Error('Could not load your library');
-          setFiles(data.files.map(toTab)); setPages(data.pagination?.totalPages || 1);
-          if (data.pagination?.currentPage && data.pagination.currentPage !== page) setPage(data.pagination.currentPage);
-        } else {
-          const sorted = local.sort((a,b) => a.name.localeCompare(b.name));
-          setPages(Math.max(1, Math.ceil(sorted.length / 24)));
-          setFiles(sorted.slice((page - 1) * 24, page * 24).map(toTab));
-        }
+        const data = await loadLibraryPage(token, { search, page, limit: 24, sortBy: 'name', order: 'asc' });
+        if (canceled) return;
+        setFiles(data.files.map(toTab)); setPages(data.pagination?.totalPages || 1);
+        setError(data.warning || '');
+        if (data.pagination?.currentPage && data.pagination.currentPage !== page) setPage(data.pagination.currentPage);
       } catch (err) {
         if (canceled) return;
         setFiles(local.map(toTab)); setPages(1);
@@ -62,8 +56,8 @@ export default function ReaderFilePicker({ onClose, onOpen, onOpenLocal, openUrl
       <header className="flex items-center justify-between gap-3 border-b border-border-subtle p-4"><div><h2 id="reader-picker-title" className="font-semibold">Open a document</h2><p className="mt-1 text-xs text-foreground-muted">Choose from your library to add a tab.</p></div><button type="button" onClick={onClose} aria-label="Close document picker" className="mfr-icon-button h-10 w-10"><X size={18}/></button></header>
       <div className="space-y-3 p-4">
         <input autoFocus type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="Search your library…" aria-label="Search library" className="mfr-input" />
-        {onOpenLocal && <button type="button" className="mfr-button-secondary w-full" onClick={onOpenLocal}><FolderOpen size={16}/>Open from this computer</button>}
-        {error && <div role="alert" className="text-xs text-red-500">{error} <button type="button" onClick={() => setRetry(value=>value+1)} className="underline">Try again</button></div>}
+        {onOpenLocal && <button type="button" className="mfr-button-secondary w-full" onClick={onOpenLocal}><FolderOpen size={16}/>Open local file</button>}
+        {error && <div role="alert" className="text-xs text-foreground">{error} <button type="button" onClick={() => setRetry(value=>value+1)} className="underline">Try again</button></div>}
       </div>
       <div className="min-h-20 overflow-y-auto px-4 pb-4" aria-busy={loading}>
         {loading ? <div role="status" className="flex items-center justify-center gap-2 p-6 text-sm text-foreground-muted"><Loader2 size={18} className="animate-spin"/>Loading library…</div> : files.length ? files.map(file => {
@@ -76,7 +70,7 @@ export default function ReaderFilePicker({ onClose, onOpen, onOpenLocal, openUrl
         }) : <p className="py-6 text-center text-sm text-foreground-muted">{search ? 'No documents match your search.' : 'Your library is empty.'}</p>}
       </div>
       {pages > 1 && <footer className="flex items-center justify-between border-t border-border-subtle p-3 text-xs"><button type="button" disabled={page<=1 || loading} onClick={()=>setPage(value=>value-1)} className="mfr-button-secondary">Previous</button><span>{page} / {pages}</span><button type="button" disabled={page>=pages || loading} onClick={()=>setPage(value=>value+1)} className="mfr-button-secondary">Next</button></footer>}
-      <div className="border-t border-border-subtle px-4 py-3 text-xs text-foreground-muted">Need to add a file? <Link href="/fileupload" className="font-medium text-primary underline">Upload a document</Link></div>
+      <div className="border-t border-border-subtle px-4 py-3 text-xs text-foreground-muted">Need to add a file? <Link href="/fileupload" className="font-medium text-primary underline">Add files</Link></div>
     </div>
   </dialog>;
 }

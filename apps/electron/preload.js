@@ -10,6 +10,8 @@ const invokeChannels = new Set([
   'upload-dropped-file',
   'open-local-file-dialog',
   'open-local-file',
+  'open-local-files',
+  'open-local-folder',
   'check-file-permission',
   'check-local-files-status',
   'relink-local-file',
@@ -39,6 +41,7 @@ const backendUrl = backendArgument
 // Expose wrappers instead of giving the page the complete ipcRenderer object.
 contextBridge.exposeInMainWorld('electronAPI', {
   backendUrl,
+  platform: process.platform,
 
   invoke(channel, ...args) {
     if (!invokeChannels.has(channel)) {

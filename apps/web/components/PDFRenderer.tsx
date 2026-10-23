@@ -5,7 +5,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Loader2, AlertCircle } from "lucide-react";
-import type { ReaderStatus } from './readers/types';
+import type { ReaderStatus, ViewMode } from './readers/types';
 
 // Configure worker
 pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
@@ -15,7 +15,7 @@ interface PDFRendererProps {
     pageNumber: number;
     onPageChange: (page: number) => void;
     onLoadSuccess: (pages: number) => void;
-    viewMode: "single" | "continuous" | "two-page";
+    viewMode: ViewMode;
     fitMode: "width" | "height" | "none";
     scale: number;
     isActive: boolean;
@@ -33,6 +33,8 @@ export default function PDFRenderer({
     isActive,
     onStatusChange,
 }: PDFRendererProps) {
+    const continuous = viewMode === "continuous" || viewMode === "two-page-continuous";
+    const twoPages = viewMode.startsWith("two-page");
     const [numPages, setNumPages] = useState<number>(0);
     const [containerWidth, setContainerWidth] = useState<number>(0);
     const [containerHeight, setContainerHeight] = useState<number>(0);
@@ -94,16 +96,16 @@ export default function PDFRenderer({
     const getPageDimensions = () => {
         if (!containerWidth || (fitMode === "height" && !containerHeight)) return {};
 
-        let availableWidth = containerWidth - 40; // padding
-        if (viewMode === "two-page") {
-            availableWidth = containerWidth / 2 - 40;
+        let availableWidth = containerWidth; // ResizeObserver reports the content box, excluding padding.
+        if (twoPages) {
+            availableWidth = (containerWidth - 16) / 2;
         }
 
         switch (fitMode) {
             case "width":
                 return { width: Math.max(100, availableWidth) };
             case "height":
-                return { height: Math.max(100, containerHeight - 40) };
+                return { height: Math.max(100, containerHeight) };
             case "none":
                 return { scale: scale };
             default:
@@ -132,7 +134,7 @@ export default function PDFRenderer({
     };
     useEffect(() => { onPageChangeRef.current = onPageChange; }, [onPageChange]);
     useEffect(() => {
-        if (!isActive || viewMode !== "continuous" || !numPages || !containerRef.current) return;
+        if (!isActive || !continuous || !numPages || !containerRef.current) return;
         const container = containerRef.current;
         // Restore the current page before observing scroll updates.
         userScrollingRef.current = false;
@@ -148,7 +150,8 @@ export default function PDFRenderer({
             if (pendingRestoreRef.current !== null || !userScrollingRef.current) return;
             const visible = [...visiblePages].sort((a, b) => b[1] - a[1])[0]?.[0];
             if (visible) {
-                const page = Number((visible as HTMLElement).dataset.pageNumber);
+                const visiblePage = Number((visible as HTMLElement).dataset.pageNumber);
+                const page = twoPages ? Math.floor((visiblePage - 1) / 2) * 2 + 1 : visiblePage;
                 if (page && page !== visiblePageRef.current) {
                     visiblePageRef.current = page;
                     onPageChangeRef.current(page);
@@ -159,15 +162,15 @@ export default function PDFRenderer({
         return () => observer.disconnect();
         // Page changes caused by scrolling must not recreate the observer.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isActive, viewMode, numPages]);
+    }, [isActive, viewMode, continuous, twoPages, numPages, containerWidth, containerHeight, fitMode, scale]);
 
     useEffect(() => {
-        if (viewMode === "continuous" && containerRef.current && visiblePageRef.current !== pageNumber) {
+        if (continuous && containerRef.current && visiblePageRef.current !== pageNumber) {
             userScrollingRef.current = false;
             pendingRestoreRef.current = pageNumber;
             restoreRenderedPage();
         }
-    }, [pageNumber, viewMode]);
+    }, [pageNumber, continuous]);
 
     const pageProps = getPageDimensions();
 
@@ -179,7 +182,7 @@ export default function PDFRenderer({
             onKeyDown={event => {
                 if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) userScrollingRef.current = true;
             }}
-            className="w-full h-full overflow-auto bg-background/80 p-4 touch-pan-y"
+            className="w-full h-full overflow-auto bg-background/80 p-4 pb-[calc(var(--reader-controls-height,76px)+40px)] touch-pan-y"
             onTouchStart={onTouchStart}
             onWheel={() => { userScrollingRef.current = true; }}
             onPointerDown={() => { userScrollingRef.current = true; }}
@@ -193,7 +196,7 @@ export default function PDFRenderer({
                 onSourceError={() => onStatusChange?.('error')}
                 onItemClick={({ pageNumber: page }) => { if (page) onPageChange(page); }}
                 onLoadSuccess={onDocumentLoadSuccess}
-                error={<div role="alert" className="flex flex-col items-center gap-3 p-6 text-red-500"><AlertCircle /><p>Could not load this PDF. Check the file and try opening it again.</p></div>}
+                error={<div role="alert" className="flex flex-col items-center gap-3 p-6 text-foreground"><AlertCircle /><p>Could not load this PDF. Check the file and try opening it again.</p></div>}
                 className="flex flex-col items-center min-h-full"
                 loading={
                     <div className="flex flex-col items-center justify-center h-40 text-foreground gap-3">
@@ -215,24 +218,25 @@ export default function PDFRenderer({
                             />
                         )}
 
-                        {/* Continuous Scroll Mode */}
-                        {viewMode === "continuous" && (
-                            Array.from(new Array(numPages), (el, index) => (
-                                <Page
-                                    key={`page_${index + 1}`}
-                                    pageNumber={index + 1}
-                                    onRenderSuccess={restoreRenderedPage}
+                        {/* Continuous pages, grouped into spreads when two pages are selected. */}
+                        {continuous && Array.from({ length: Math.ceil(numPages / (twoPages ? 2 : 1)) }, (_, row) => {
+                            const first = row * (twoPages ? 2 : 1) + 1;
+                            return <div key={first} className="mb-4 flex shrink-0 gap-4">
+                                {Array.from({ length: twoPages && first < numPages ? 2 : 1 }, (_, column) => <Page
+                                    key={first + column}
+                                    pageNumber={first + column}
                                     renderTextLayer={true}
                                     renderAnnotationLayer={true}
+                                    onRenderSuccess={restoreRenderedPage}
                                     {...pageProps}
-                                    className="shadow-2xl mb-4"
-                                />
-                            ))
-                        )}
+                                    className="shadow-2xl"
+                                />)}
+                            </div>;
+                        })}
 
                         {/* Two Page Mode */}
                         {viewMode === "two-page" && (
-                            <div className="flex justify-center gap-4 flex-wrap">
+                            <div className="flex justify-center gap-4">
                                 <Page
                                     pageNumber={pageNumber}
                                     renderTextLayer={true}

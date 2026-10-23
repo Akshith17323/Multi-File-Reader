@@ -223,7 +223,7 @@ function ReaderContent() {
         if (!activeFile) return;
         try {
             if (!(window as any).electronAPI?.invoke) {
-                toast.info("Relinking is supported in the desktop app");
+                toast.info("Find local files in the desktop app");
                 return;
             }
 
@@ -239,7 +239,7 @@ function ReaderContent() {
             }
 
             if (result.error) {
-                toast.error(`Relink failed: ${result.error}`);
+                toast.error(`Could not open file: ${result.error}`);
                 setIsRelinking(false);
                 return;
             }
@@ -313,9 +313,9 @@ function ReaderContent() {
                 return next;
             });
 
-            toast.success(`Relinked successfully to "${newName}"`);
+            toast.success(`File found: "${newName}"`);
         } catch (err: any) {
-            toast.error(err.message || "Failed to relink file");
+            toast.error(err.message || "Could not find file");
         } finally {
             setIsRelinking(false);
         }
@@ -514,7 +514,7 @@ function ReaderContent() {
                 <div className="relative h-full w-full">
                 {isOffline && <div className="absolute inset-0 z-30 flex h-full w-full items-center justify-center overflow-y-auto bg-background p-4 text-foreground sm:p-6">
                     <div className="mfr-panel relative z-10 max-w-xl w-full mx-auto rounded-3xl p-5 sm:p-8 shadow-sm flex flex-col items-center text-center">
-                        <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-500 mb-5 shadow-[0_0_30px_rgba(239,68,68,0.3)]">
+                        <div className="w-16 h-16 rounded-2xl bg-foreground/15 border border-foreground/30 flex items-center justify-center text-foreground mb-5 shadow-[0_0_30px_var(--primary-glow)]">
                             <AlertTriangle size={34} className="animate-pulse" />
                         </div>
 
@@ -523,12 +523,12 @@ function ReaderContent() {
                         </h2>
 
                         <p className="text-foreground-muted text-sm sm:text-base max-w-md mb-6 leading-relaxed">
-                            Multi-File Reader could not find this file on disk. It may have been moved, renamed, or deleted.
+                            This file could not be found on your computer. It may have been moved, renamed, or deleted.
                         </p>
 
                         <div className="w-full bg-background/80 border border-border-subtle rounded-2xl p-4 mb-8 text-left">
                             <span className="text-[11px] font-bold text-foreground-muted uppercase tracking-wider block mb-1">
-                                Last Known Disk Location
+                                Last file location
                             </span>
                             <p className="font-mono text-xs sm:text-sm text-foreground break-all select-text bg-surface/50 p-2.5 rounded-xl border border-border-subtle">
                                 {offlinePath}
@@ -542,7 +542,7 @@ function ReaderContent() {
                                 className="mfr-button-primary w-full sm:w-auto"
                             >
                                 <Link2 size={18} />
-                                <span>{isRelinking ? "Relinking..." : "Locate file"}</span>
+                                <span>{isRelinking ? "Opening…" : "Find file"}</span>
                             </button>
 
                             <button

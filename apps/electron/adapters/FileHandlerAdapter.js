@@ -40,21 +40,62 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
     }
   });
   const readableFile = async filePath => {
-    if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) throw new Error('Choose a valid file on disk');
+    if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) throw new Error('Choose a file on your computer');
     await fs.promises.access(filePath, fs.constants.R_OK);
     const stat = await fs.promises.stat(filePath);
     if (!stat.isFile()) throw new Error('The selected location is not a file');
     return stat;
   };
 
+  const describeFile = async filePath => {
+    const stat = await readableFile(filePath);
+    const fileName = path.basename(filePath);
+    const fileType = getDocumentType(fileName);
+    if (!fileType) throw new Error('Choose a PDF, EPUB, or TXT file');
+    return { fileName, fileSize: stat.size, fileType, url: toLocalUrl(filePath) };
+  };
+
+  for (const folder of [false, true]) {
+    handle(folder ? 'open-local-folder' : 'open-local-files', async event => {
+      const win = getWindow(event);
+      const options = folder
+        ? { title: 'Open folder', properties: ['openDirectory'] }
+        : { title: 'Open local files', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Documents', extensions: ['pdf', 'epub', 'txt'] }] };
+      const { canceled, filePaths } = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+      if (canceled || !filePaths.length) return { canceled: true, files: [] };
+      const files = [];
+      let skipped = 0;
+      const addFile = async filePath => {
+        try { files.push(await describeFile(filePath)); }
+        catch { skipped++; }
+      };
+      const visit = async directory => {
+        let entries;
+        try { entries = await fs.promises.readdir(directory, { withFileTypes: true }); }
+        catch { skipped++; return; }
+        for (const entry of entries) {
+          // Do not follow symlinks out of the chosen folder or into cycles.
+          if (entry.name.startsWith('.') || entry.isSymbolicLink()) continue;
+          const location = path.join(directory, entry.name);
+          if (entry.isDirectory()) await visit(location);
+          else if (entry.isFile() && getDocumentType(entry.name)) await addFile(location);
+        }
+      };
+      if (folder) await visit(filePaths[0]);
+      else for (const filePath of filePaths) await addFile(filePath);
+      files.sort((a, b) => a.fileName.localeCompare(b.fileName));
+      return { canceled: false, files, skipped };
+    });
+  }
+
   // Local File Picker (Saves metadata via /localUpload instead of uploading blob)
   handle('open-local-file-dialog', async (event, token) => {
     const win = getWindow(event);
     const dialogOptions = {
-      title: 'Select a Local Book',
+      title: 'Open local file',
       properties: ['openFile'],
       filters: [
-        { name: 'Supported Books', extensions: ['pdf', 'epub', 'txt'] }
+        { name: 'Documents', extensions: ['pdf', 'epub', 'txt'] }
       ]
     };
     const { canceled, filePaths } = win
@@ -102,10 +143,10 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
   handle('open-local-file', async (event) => {
     const win = getWindow(event);
     const dialogOptions = {
-      title: 'Select a Local Book or Document',
+      title: 'Open local file',
       properties: ['openFile'],
       filters: [
-        { name: 'Supported Books & Documents', extensions: ['pdf', 'epub', 'txt'] },
+        { name: 'Documents', extensions: ['pdf', 'epub', 'txt'] },
         { name: 'All Files', extensions: ['*'] }
       ]
     };
@@ -208,13 +249,13 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
       filters.push({ name: 'Text Documents (*.txt)', extensions: ['txt'] });
     }
     filters.push(
-      { name: 'Supported Books & Documents', extensions: ['pdf', 'epub', 'txt'] },
+      { name: 'Documents', extensions: ['pdf', 'epub', 'txt'] },
       { name: 'All Files', extensions: ['*'] }
     );
 
     const dialogTitle = originalFileName
-      ? `Relink Media: Locate "${originalFileName}"`
-      : 'Relink Missing Local File';
+      ? `Find "${originalFileName}"`
+      : 'Find local file';
 
     const dialogOptions = {
       title: dialogTitle,
@@ -368,7 +409,7 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
       return await net.fetch(pathToFileURL(filePath).href, { method: request.method, headers: request.headers });
     } catch (err) {
       if (err.code === 'ENOENT' || err.code === 'ENOTDIR') {
-        return new Response('Media Offline: File not found on disk', { status: 404 });
+        return new Response('File not found on your computer', { status: 404 });
       }
       console.error('[mfr-local] File permission error for path:', filePath, err);
       return new Response('File read permission denied', {
