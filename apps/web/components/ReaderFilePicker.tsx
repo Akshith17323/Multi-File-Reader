@@ -6,6 +6,7 @@ import { apiClient } from '@/services/apiClient';
 import { getLocalLibraryFiles } from '@/utils/localLibrary';
 import { detectFileType, isLocalFileUrl, normalizeFileUrl } from '@/utils/fileUrls';
 import { isElectron } from '@/hooks/useEnvironment';
+import Link from 'next/link';
 import type { FileTabData } from './readers/types';
 
 export default function ReaderFilePicker({ onClose, onOpen, onOpenLocal, openUrls }: {
@@ -51,7 +52,11 @@ export default function ReaderFilePicker({ onClose, onOpen, onOpenLocal, openUrl
     return () => { canceled = true; clearTimeout(timer); };
   }, [search, page, retry]);
 
-  return <dialog ref={dialogRef} aria-labelledby="reader-picker-title" onCancel={onClose} onClick={event => { if (event.target === event.currentTarget) onClose(); }}
+  return <dialog ref={dialogRef} aria-labelledby="reader-picker-title" onCancel={onClose} onClick={event => {
+    if (event.target !== event.currentTarget) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onClose();
+  }}
     className="fixed inset-0 m-auto max-h-[85svh] w-[calc(100%-2rem)] max-w-xl overflow-hidden rounded-2xl border border-border-subtle bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/50 backdrop:backdrop-blur-sm">
     <div className="flex max-h-[85svh] flex-col">
       <header className="flex items-center justify-between gap-3 border-b border-border-subtle p-4"><div><h2 id="reader-picker-title" className="font-semibold">Open a document</h2><p className="mt-1 text-xs text-foreground-muted">Choose from your library to add a tab.</p></div><button type="button" onClick={onClose} aria-label="Close document picker" className="mfr-icon-button h-10 w-10"><X size={18}/></button></header>
@@ -71,6 +76,7 @@ export default function ReaderFilePicker({ onClose, onOpen, onOpenLocal, openUrl
         }) : <p className="py-6 text-center text-sm text-foreground-muted">{search ? 'No documents match your search.' : 'Your library is empty.'}</p>}
       </div>
       {pages > 1 && <footer className="flex items-center justify-between border-t border-border-subtle p-3 text-xs"><button type="button" disabled={page<=1 || loading} onClick={()=>setPage(value=>value-1)} className="mfr-button-secondary">Previous</button><span>{page} / {pages}</span><button type="button" disabled={page>=pages || loading} onClick={()=>setPage(value=>value+1)} className="mfr-button-secondary">Next</button></footer>}
+      <div className="border-t border-border-subtle px-4 py-3 text-xs text-foreground-muted">Need to add a file? <Link href="/fileupload" className="font-medium text-primary underline">Upload a document</Link></div>
     </div>
   </dialog>;
 }

@@ -66,5 +66,11 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
-# Project Docs (if local)
-PROJECT_DOCS.md
+# Personal notes and reference material (kept locally)
+/PROJECT_DOCS.md
+/ELECTRON_REFERENCE.local.md
+*.local.md
+*.local.txt
+
+# npm workspaces use the lockfile at the repository root
+/apps/*/package-lock.json

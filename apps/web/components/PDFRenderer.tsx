@@ -114,10 +114,12 @@ export default function PDFRenderer({
     const visiblePageRef = useRef(pageNumber);
     const onPageChangeRef = useRef(onPageChange);
     const pendingRestoreRef = useRef<number | null>(null);
+    const userScrollingRef = useRef(false);
     const restoreRenderedPage = () => {
         const container = containerRef.current;
         const target = pendingRestoreRef.current;
         if (!container || target === null) return;
+        userScrollingRef.current = false;
         // Earlier canvases must have their final heights before we can restore a later page.
         for (let page = 1; page <= target; page++) {
             if (!container.querySelector(`[data-page-number="${page}"] canvas`)) return;
@@ -133,6 +135,7 @@ export default function PDFRenderer({
         if (!isActive || viewMode !== "continuous" || !numPages || !containerRef.current) return;
         const container = containerRef.current;
         // Restore the current page before observing scroll updates.
+        userScrollingRef.current = false;
         pendingRestoreRef.current = pageNumber;
         restoreRenderedPage();
         visiblePageRef.current = pageNumber;
@@ -142,7 +145,7 @@ export default function PDFRenderer({
                 if (entry.isIntersecting) visiblePages.set(entry.target, entry.intersectionRatio);
                 else visiblePages.delete(entry.target);
             }
-            if (pendingRestoreRef.current !== null) return;
+            if (pendingRestoreRef.current !== null || !userScrollingRef.current) return;
             const visible = [...visiblePages].sort((a, b) => b[1] - a[1])[0]?.[0];
             if (visible) {
                 const page = Number((visible as HTMLElement).dataset.pageNumber);
@@ -160,6 +163,7 @@ export default function PDFRenderer({
 
     useEffect(() => {
         if (viewMode === "continuous" && containerRef.current && visiblePageRef.current !== pageNumber) {
+            userScrollingRef.current = false;
             pendingRestoreRef.current = pageNumber;
             restoreRenderedPage();
         }
@@ -170,9 +174,16 @@ export default function PDFRenderer({
     return (
         <div
             ref={containerRef}
+            tabIndex={0}
+            aria-label="PDF pages"
+            onKeyDown={event => {
+                if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) userScrollingRef.current = true;
+            }}
             className="w-full h-full overflow-auto bg-background/80 p-4 touch-pan-y"
             onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
+            onWheel={() => { userScrollingRef.current = true; }}
+            onPointerDown={() => { userScrollingRef.current = true; }}
+            onTouchMove={event => { userScrollingRef.current = true; onTouchMove(event); }}
             onTouchEnd={onTouchEnd}
         >
             <Document

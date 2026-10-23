@@ -1,13 +1,16 @@
 "use client";
 
-import { forwardRef, useImperativeHandle } from "react";
+import { forwardRef, useImperativeHandle, useEffect, useRef } from "react";
 import { FileQuestion, ExternalLink, Download } from "lucide-react";
 import { BaseReaderProps, ReaderHandle } from "../types";
 
 const UnsupportedReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function UnsupportedReaderAdapter(
-    { file },
+    { file, onStatusChange },
     ref
 ) {
+    const statusRef = useRef(onStatusChange);
+    useEffect(() => { statusRef.current = onStatusChange; }, [onStatusChange]);
+    useEffect(() => { statusRef.current?.('ready'); }, []);
     useImperativeHandle(ref, () => ({
         next: () => {},
         prev: () => {},
@@ -16,13 +19,13 @@ const UnsupportedReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(funct
     const ext = file.name.split(".").pop()?.toUpperCase() || file.type.toUpperCase();
 
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-[#0d0e12] text-white p-8">
+        <div className="w-full h-full flex flex-col items-center justify-center bg-background text-foreground p-8">
             <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4">
                 <FileQuestion className="w-8 h-8 text-amber-400" />
             </div>
             <h3 className="text-lg font-semibold mb-1">No Dedicated Viewer</h3>
-            <p className="text-sm text-[#737373] max-w-md text-center mb-6">
-                The file <span className="text-white font-medium">&quot;{file.name}&quot;</span> ({ext}) does not have an integrated viewer.
+            <p className="text-sm text-foreground-muted max-w-md text-center mb-6">
+                The file <span className="text-foreground font-medium">&quot;{file.name}&quot;</span> ({ext}) does not have an integrated viewer.
             </p>
             <div className="flex items-center gap-3">
                 <a

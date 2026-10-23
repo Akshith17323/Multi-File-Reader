@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
-import ePub, { Rendition } from "epubjs";
+import ePub, { Rendition, EpubCFI } from "epubjs";
 import { Loader2, AlertCircle } from "lucide-react";
 import { getDocumentUrl } from "@/utils/fileUrls";
 import type { ReaderStatus } from './readers/types';
@@ -33,6 +33,11 @@ function applyReaderTheme(rendition: Rendition) {
     rendition.themes.select("app");
 }
 
+// EPUB.js supports a restore CFI on resize; its published declaration omits it.
+function resizeRendition(rendition: Rendition, width: number, height: number, cfi: string) {
+    (rendition as Rendition & { resize: (width: number, height: number, cfi?: string) => void }).resize(width, height, cfi || undefined);
+}
+
 const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPUBRenderer(
     { url, onLocationChange, onStatusChange, viewMode, fontSize, initialCfi, isActive = true }, ref
 ) {
@@ -51,7 +56,12 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPU
     useImperativeHandle(ref, () => ({
         next: () => renditionRef.current?.next(),
         prev: () => renditionRef.current?.prev(),
-        display: (cfi) => renditionRef.current?.display(cfi),
+        display: (cfi) => {
+            const target = new EpubCFI(cfi);
+            target.collapse(true);
+            locationRef.current = target.toString();
+            return renditionRef.current?.display(locationRef.current);
+        },
     }));
 
     useEffect(() => {
@@ -123,9 +133,14 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPU
         void initialize();
         const themeObserver = new MutationObserver(() => { if (rendition) applyReaderTheme(rendition); });
         themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+        let lastWidth = 0;
+        let lastHeight = 0;
         const resizeObserver = new ResizeObserver(entries => {
             const { width, height } = entries[0].contentRect;
-            if (rendition && width > 0 && height > 0) rendition.resize(width, height);
+            if (rendition && width > 0 && height > 0 && (width !== lastWidth || height !== lastHeight)) {
+                lastWidth = width; lastHeight = height;
+                resizeRendition(rendition, width, height, locationRef.current);
+            }
         });
         resizeObserver.observe(viewerRef.current);
         return () => {
@@ -143,7 +158,7 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPU
     useEffect(() => {
         if (isActive && viewerRef.current && renditionRef.current) {
             const { width, height } = viewerRef.current.getBoundingClientRect();
-            if (width && height) renditionRef.current.resize(width, height);
+            if (width && height) resizeRendition(renditionRef.current, width, height, locationRef.current);
         }
     }, [isActive]);
 

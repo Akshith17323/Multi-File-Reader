@@ -98,7 +98,7 @@ function ReaderContent() {
 
         try {
             const fileUrls = parseReaderFiles(filesParam);
-            if (!fileUrls.length) { router.replace("/files"); return; }
+            if (!fileUrls.length && filesParam !== '[]') { router.replace("/files"); return; }
             const incomingUrl = createReaderUrl(fileUrls, Number(activeParam));
             if (appliedUrl.current === incomingUrl) return;
             appliedUrl.current = incomingUrl;
@@ -157,6 +157,7 @@ function ReaderContent() {
                 setInitialLocations(prev => ({ ...prev, [file.id]: location }));
                 setTabStates(prev => ({ ...prev, [file.id]: location }));
                 setLoadedBookmarks(prev => ({ ...prev, [file.id]: true }));
+                if (data?.fileName && data.fileName !== 'Unknown') setOpenFiles(prev => prev.map(item => item.id === file.id ? { ...item, name: data.fileName! } : item));
             }));
         };
         void load();
@@ -299,6 +300,8 @@ function ReaderContent() {
             setInitialLocations(prev => ({ ...prev, [newUrl]: restoredLocation }));
             setTabStates(prev => ({ ...prev, [newUrl]: restoredLocation }));
             setLoadedBookmarks(prev => ({ ...prev, [newUrl]: true }));
+            setTabOptions(prev => ({...prev, [newUrl]: prev[oldUrl] || DEFAULT_READER_OPTIONS}));
+            setStartedTabs(prev => ({...prev, [newUrl]: true}));
             const uniqueFiles = updatedFiles.filter((file, index, files) => files.findIndex(item => item.url === file.url) === index);
             setOpenFiles(uniqueFiles);
             setActiveFileIndex(uniqueFiles.findIndex(file => file.url === newUrl));
@@ -386,6 +389,7 @@ function ReaderContent() {
 
     const handleTabClose = (index: number) => {
         const closedFile = openFiles[index];
+        if (!closedFile) return;
         const newFiles = openFiles.filter((_, i) => i !== index);
 
         if (closedFile) {
@@ -407,11 +411,19 @@ function ReaderContent() {
             });
         }
 
+        const remove = <T,>(values: Record<string,T>) => { const next = {...values}; delete next[closedFile.id]; return next; };
+        setStartedTabs(remove); setReaderStatuses(remove); setRetryCounts(remove); setTabOptions(remove);
+        void flushBookmarkSync(localStorage.getItem('token'), closedFile.url);
         if (newFiles.length === 0) {
             setOpenFiles([]);
             clearReaderSession();
             sessionStorage.removeItem("readerFiles");
             setActiveFileIndex(0);
+            const emptyUrl = createReaderUrl([]);
+            appliedUrl.current = emptyUrl;
+            pendingNavigation.current = null;
+            window.history.replaceState(null, '', emptyUrl);
+            setIsSearchOpen(false);
             return;
         }
 
@@ -498,8 +510,9 @@ function ReaderContent() {
             <div className="flex h-full min-h-0 flex-col">
             {isSearchOpen && !isOffline && activeFile && <DocumentSearch key={activeFile.id} file={activeFile} onClose={() => setIsSearchOpen(false)} onGoToPage={(page) => readerRefs.current[activeFile.id]?.goToPage?.(page)} onGoToCfi={(cfi) => readerRefs.current[activeFile.id]?.goToCfi?.(cfi)} onGoToLine={line => readerRefs.current[activeFile.id]?.goToLine?.(line)} />}
             <div className="min-h-0 flex-1">
-            {openFiles.length === 0 ? <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-lg font-semibold">Your reading space is ready</p><p className="text-sm text-foreground-muted">Open a document to start a new tab.</p><button type="button" className="mfr-button-primary" onClick={() => setIsPickerOpen(true)}>Open a document</button></div> : isOffline ? (
-                <div className="w-full h-full flex items-center justify-center overflow-y-auto p-4 sm:p-6 bg-background/60 text-foreground relative">
+            {openFiles.length === 0 ? <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-lg font-semibold">Your reading space is ready</p><p className="text-sm text-foreground-muted">Open a document to start a new tab.</p><button type="button" className="mfr-button-primary" onClick={() => setIsPickerOpen(true)}>Open a document</button></div> : (
+                <div className="relative h-full w-full">
+                {isOffline && <div className="absolute inset-0 z-30 flex h-full w-full items-center justify-center overflow-y-auto bg-background p-4 text-foreground sm:p-6">
                     <div className="mfr-panel relative z-10 max-w-xl w-full mx-auto rounded-3xl p-5 sm:p-8 shadow-sm flex flex-col items-center text-center">
                         <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-500 mb-5 shadow-[0_0_30px_rgba(239,68,68,0.3)]">
                             <AlertTriangle size={34} className="animate-pulse" />
@@ -541,8 +554,8 @@ function ReaderContent() {
                         </div>
                     </div>
                 </div>
-            ) : (
-                /* Multi-Tab Polymorphic Reader Container */
+                }
+                {/* Multi-Tab Polymorphic Reader Container */}
                 <div className="relative w-full h-full overflow-hidden">
                     {activeFile && !loadedBookmarks[activeFile.id] && <div role="status" className="flex h-full items-center justify-center text-sm text-foreground-muted">Restoring reading position…</div>}
                     {openFiles.filter(file => loadedBookmarks[file.id] && startedTabs[file.id]).map((file) => {
@@ -551,8 +564,8 @@ function ReaderContent() {
                         return (
                             <div
                                 key={file.url}
-                                role="tabpanel" id={readerPanelId(file.id)} aria-labelledby={readerTabId(file.id)} hidden={!isActive}
-                                className={`w-full h-full ${isActive ? "block" : "hidden"}`}
+                                role="tabpanel" id={readerPanelId(file.id)} aria-labelledby={readerTabId(file.id)} hidden={!isActive || isOffline}
+                                className={`w-full h-full ${isActive && !isOffline ? "block" : "hidden"}`}
                             >
                                 <ReaderRenderer
                                     key={retryCounts[file.id] || 0}
@@ -561,7 +574,7 @@ function ReaderContent() {
                                         readerRefs.current[file.id] = handle;
                                     }}
                                     file={file}
-                                    isActive={isActive}
+                                    isActive={isActive && !isOffline}
                                     viewOptions={tabOptions[file.id] || DEFAULT_READER_OPTIONS}
                                     initialLocation={retryCounts[file.id] ? tabStates[file.id] : initialLocations[file.id]}
                                     onLocationChange={(loc) => handleTabLocationChange(file.id, loc)}
@@ -569,6 +582,7 @@ function ReaderContent() {
                             </div>
                         );
                     })}
+                </div>
                 </div>
             )}
             </div>

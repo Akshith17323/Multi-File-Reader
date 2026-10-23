@@ -36,7 +36,7 @@ export default function UnifiedReaderLayout(props: Props) {
   useEffect(() => {
     const tab = activeFile && document.getElementById(readerTabId(activeFile.id));
     tab?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [activeFile?.id]);
+  }, [activeFile]);
   const navigateTab = (index: number) => {
     onTabChange(index);
     document.getElementById(readerTabId(openFiles[index].id))?.focus();
@@ -84,10 +84,10 @@ export default function UnifiedReaderLayout(props: Props) {
             event.preventDefault(); const page = Number(pageInput);
             if (Number.isInteger(page) && page >= 1 && page <= (totalPages || 0)) props.onGoToPage(page);
             else setPageInput(String(currentPage || 1));
-          }}><input type="number" min={1} max={totalPages || 1} value={pageInput} onChange={event => setPageInput(event.target.value)} onBlur={() => setPageInput(String(currentPage || 1))}
-            disabled={!ready} aria-label="Page number" className="h-9 w-14 rounded-lg border border-border-subtle bg-background px-2 text-center text-foreground" /><span className="whitespace-nowrap text-foreground-muted">/ {totalPages || '…'}</span></form>
+          }}><input type="number" min={1} max={totalPages || 1} value={pageInput} onChange={event => setPageInput(event.target.value)}
+            disabled={!ready} aria-label="Page number" className="h-9 w-14 rounded-lg border border-border-subtle bg-background px-2 text-center text-foreground" /><span className="whitespace-nowrap text-foreground-muted">/ {totalPages || '…'}</span><button type="submit" disabled={!ready} className="rounded-lg px-2 py-2 font-medium text-primary disabled:opacity-40">Go</button></form>
             : <span className="min-w-12 text-center text-xs font-medium">{progress === undefined ? '…' : `${Math.round(progress)}%`}</span>}
-          <button type="button" onClick={props.onNextPage} aria-label="Next page" title="Next page" disabled={!ready || props.atEnd || (isPdf && !!totalPages && (currentPage || 1) >= totalPages)} className={iconClass}><ChevronRight size={18} /></button>
+          <button type="button" onClick={props.onNextPage} aria-label="Next page" title="Next page" disabled={!ready || props.atEnd || (isPdf && !!totalPages && (currentPage || 1) + (viewMode === 'two-page' ? 1 : 0) >= totalPages)} className={iconClass}><ChevronRight size={18} /></button>
         </div>}
 
         {(isPdf || isEpub) && <div role="group" aria-label="Page layout" className="flex items-center gap-1 rounded-xl border border-border-subtle p-1">

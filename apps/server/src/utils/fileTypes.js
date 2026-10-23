@@ -7,7 +7,10 @@ function getDocumentType(name) {
 }
 
 function toLocalUrl(filePath) {
-  return `mfr-local://${encodeURI(filePath).replace(/#/g, '%23').replace(/\?/g, '%3F')}`;
+  const normalized = /^[a-zA-Z]:[\\/]/.test(filePath) || filePath.startsWith('\\\\') ? filePath.replace(/\\/g, '/') : filePath;
+  const pathname = normalized.startsWith('/') ? normalized : `/${normalized}`;
+  // An explicit host prevents Chromium from treating the first path segment as a hostname.
+  return `mfr-local://localhost${encodeURI(pathname).replace(/#/g, '%23').replace(/\?/g, '%3F')}`;
 }
 
 function getStorageObjectPath(url, bucketName) {

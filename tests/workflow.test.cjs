@@ -102,8 +102,10 @@ test('deleting the active document removes it from the saved session', () => {
 
 test('local URLs use direct file access and encoded extensions detect correctly', () => {
   const urls = browserModules().load('apps/web/utils/fileUrls.ts');
-  assert.equal(urls.getDocumentUrl('local:///books/a b#c.pdf'), 'mfr-local:///books/a%20b%23c.pdf');
-  assert.equal(urls.getDocumentUrl('mfr-local:///books/a.txt'), 'mfr-local:///books/a.txt');
+  assert.equal(urls.getDocumentUrl('local:///books/a b#c.pdf'), 'mfr-local://localhost/books/a%20b%23c.pdf');
+  assert.equal(urls.getDocumentUrl('mfr-local:///books/a.txt'), 'mfr-local://localhost/books/a.txt');
+  assert.equal(urls.getDocumentUrl('mfr-local:///Users/Alice/a%25.pdf'), 'mfr-local://localhost/Users/Alice/a%25.pdf');
+  assert.equal(urls.normalizeFileUrl('mfr-local:///Users/Alice/a%25.pdf'), 'mfr-local:///Users/Alice/a%25.pdf');
   assert.equal(urls.detectFileType('https://x/a%2Epdf?token=abc'), 'pdf');
   assert.equal(urls.detectFileType('APPLICATION/EPUB+ZIP'), 'epub');
 });
@@ -216,7 +218,7 @@ test('file listing clamps deleted final pages and returns readable local URLs', 
   const res = response(); await handler(authenticated({ query: { page: '8', limit: '24' } }), res);
   assert.equal(res.body.pagination.currentPage, 1);
   assert.equal(args.skip, 0);
-  assert.equal(res.body.files[0].url, 'mfr-local:///a%20b.pdf');
+  assert.equal(res.body.files[0].url, 'mfr-local://localhost/a%20b.pdf');
 });
 
 test('bookmark API returns null for absent progress and updates lastRead on saves', async () => {
@@ -287,7 +289,7 @@ test('storage paths reject foreign buckets and preserve literal percent signs', 
   assert.equal(getStorageObjectPath('https://storage.googleapis.com/bucket/a%25%23.pdf?token=x', 'bucket'), 'a%#.pdf');
   assert.equal(getStorageObjectPath('https://evil.test/bucket/a.pdf', 'bucket'), null);
   assert.equal(getStorageObjectPath('https://storage.googleapis.com/other/a.pdf', 'bucket'), null);
-  assert.equal(toLocalUrl('/a #?%.pdf'), 'mfr-local:///a%20%23%3F%25.pdf');
+  assert.equal(toLocalUrl('/a #?%.pdf'), 'mfr-local://localhost/a%20%23%3F%25.pdf');
 });
 
 test('desktop protocol round-trips raw and encoded paths', () => {
@@ -360,4 +362,167 @@ test('progress saved during a cloud read wins over the older response', async ()
   finish({fileUrl:'x',progress:10,lastRead:'2020-01-01'});
   assert.equal((await request).progress,90);
   assert.equal(bookmarks.getLocalBookmark('x').progress,90);
+});
+
+test('closing reader tabs preserves the selected document and selects a neighbor for an active close', () => {
+  const tabs = browserModules().load('apps/web/utils/readerTabs.ts');
+  assert.equal(tabs.getIndexAfterTabClose(2, 0, 4), 1);
+  assert.equal(tabs.getIndexAfterTabClose(1, 3, 4), 1);
+  assert.equal(tabs.getIndexAfterTabClose(1, 1, 4), 1);
+  assert.equal(tabs.getIndexAfterTabClose(3, 3, 4), 2);
+  assert.equal(tabs.getIndexAfterTabClose(0, 0, 1), 0);
+});
+
+test('opening an existing reader file switches tabs without duplicating or replacing its identity', () => {
+  const { addReaderTab } = browserModules().load('apps/web/utils/readerTabs.ts');
+  const files = [{id:'a',url:'https://x/a.pdf',name:'A.pdf',type:'pdf'}];
+  const existing = addReaderTab(files,{...files[0],name:'Duplicate.pdf'});
+  assert.equal(existing.files,files);
+  assert.equal(existing.activeIndex,0);
+  const added = addReaderTab(files,{id:'b',url:'https://x/b.pdf',name:'B.pdf',type:'pdf'});
+  assert.equal(added.files.length,2);
+  assert.equal(added.activeIndex,1);
+  assert.equal(files.length,1);
+});
+
+test('desktop local URLs preserve Windows drives, network shares, Unicode, and literal percent signs', () => {
+  const { toLocalUrl } = require('../apps/server/src/utils/fileTypes');
+  const { extractPathFromLocalUrl } = serverModule('apps/electron/adapters/FileHandlerAdapter.js', { electron: {} });
+  const urls = browserModules().load('apps/web/utils/fileUrls.ts');
+  const windowsPath = String.raw`C:\Books\hello 世界 #?%.pdf`;
+  const networkPath = String.raw`\\server\books\a b.pdf`;
+  for (const [filePath, platform] of [[windowsPath, 'win32'], [networkPath, 'win32'], ['/books/hello 世界 #?%.pdf', 'darwin']]) {
+    const url = toLocalUrl(filePath);
+    assert.equal(new URL(url).hostname, 'localhost');
+    assert.equal(extractPathFromLocalUrl(url, platform), filePath);
+    assert.equal(urls.normalizeFileUrl(filePath), url);
+  }
+  assert.equal(extractPathFromLocalUrl('mfr-local://private/tmp/a%20b.pdf', 'darwin'), '/private/tmp/a b.pdf');
+  assert.equal(extractPathFromLocalUrl('file://server/books/a%20b.pdf', 'win32'), String.raw`\\server\books\a b.pdf`);
+  assert.equal(urls.normalizeFileUrl('file:///C:/Books/a%25.pdf'), 'mfr-local://localhost/C:/Books/a%25.pdf');
+  assert.equal(urls.normalizeFileUrl('mfr-local://C:%5CBooks%5Ca.pdf'), 'mfr-local://localhost/C:/Books/a.pdf');
+  assert.equal(urls.isLocalFileUrl(networkPath), true);
+});
+
+test('desktop document downloads use the configured backend URL', () => {
+  const browser = browserModules();
+  browser.window.electronAPI = { backendUrl: 'https://backend.example/app/' };
+  const urls = browser.load('apps/web/utils/fileUrls.ts');
+  assert.equal(urls.getDocumentUrl('https://storage.example/a.pdf'), 'https://backend.example/app/proxy?url=https%3A%2F%2Fstorage.example%2Fa.pdf');
+});
+
+test('desktop local registration and cloud uploads clear expired sessions', async () => {
+  const browser = browserModules();
+  browser.window.electronAPI = {
+    invoke: async () => ({ ok: false, status: 401, error: 'Session expired' }),
+    getFilePath: () => '/books/a.pdf',
+  };
+  let destination;
+  browser.window.location.assign = url => { destination = url; };
+  const { FileAdapter } = browser.load('apps/web/services/fileAdapter.ts');
+  browser.localStorage.setItem('token', 'expired');
+  await assert.rejects(FileAdapter.addLocalBook('expired'), /Session expired/);
+  assert.equal(destination, '/auth/login');
+  assert.equal(browser.localStorage.getItem('token'), null);
+  browser.localStorage.setItem('token', 'expired');
+  await assert.rejects(FileAdapter.uploadFile(new File(['sample'], 'a.pdf'), 'expired', '/upload', () => {}), /Session expired/);
+  assert.equal(browser.localStorage.getItem('token'), null);
+});
+
+test('desktop event subscriptions strip IPC events and return working cleanup functions', () => {
+  let bridge;
+  const ipc = new EventEmitter();
+  serverModule('apps/electron/preload.js', {
+    electron: { contextBridge: { exposeInMainWorld: (_name, api) => { bridge = api; } }, ipcRenderer: ipc, webUtils: {} },
+  });
+  const values = [];
+  const listener = value => values.push(value);
+  const unsubscribe = bridge.on('window-state-changed', listener);
+  bridge.on('unsafe-channel', listener);
+  assert.equal(ipc.listenerCount('window-state-changed'), 1);
+  assert.equal(ipc.listenerCount('unsafe-channel'), 0);
+  ipc.emit('window-state-changed', { sender: 'private' }, { maximized: true });
+  assert.deepEqual(plain(values), [{ maximized: true }]);
+  unsubscribe();
+  assert.equal(ipc.listenerCount('window-state-changed'), 0);
+});
+
+function desktopFileHandlers({ picker, fetchResponse } = {}) {
+  const handlers = new Map();
+  let fetches = 0;
+  serverModule('apps/electron/adapters/FileHandlerAdapter.js', {
+    electron: { BrowserWindow: { fromWebContents: () => null, getFocusedWindow: () => null }, net: {} },
+    globals: { fetch: async () => { fetches++; return fetchResponse; }, FormData, Blob, Response },
+  }).registerFileHandlers({ handle: (channel, callback) => handlers.set(channel, callback) }, { handle() {} }, {
+    showOpenDialog: picker || (async () => ({ canceled: true, filePaths: [] })),
+  }, 'http://localhost:2007');
+  return { handlers, fetchCount: () => fetches };
+}
+
+test('native dialogs report failures and malformed requests without rejecting IPC', async () => {
+  const { handlers } = desktopFileHandlers({ picker: async () => { throw new Error('Dialog unavailable'); } });
+  for (const channel of ['open-local-file', 'open-local-file-dialog', 'select-and-upload-file']) {
+    assert.match((await handlers.get(channel)({})).error, /Dialog unavailable/);
+  }
+  const malformed = await handlers.get('relink-local-file')({}, { oldUrl: 'mfr-local:///%bad' });
+  assert.match(malformed.error, /invalid/);
+  for (const channel of ['relink-local-file', 'upload-dropped-file']) {
+    const result = await handlers.get(channel)({}, null);
+    assert.equal(result.ok, false);
+    assert.equal(result.canceled, false);
+  }
+});
+
+test('native uploads reject unsupported files, directories, and files over 50 MB before contacting the server', async () => {
+  const os = require('node:os');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mfr-electron-test-'));
+  const unsupported = path.join(directory, 'a.exe');
+  const oversized = path.join(directory, 'large.pdf');
+  fs.writeFileSync(unsupported, 'sample');
+  fs.writeFileSync(oversized, '');
+  fs.truncateSync(oversized, 50 * 1024 * 1024 + 1);
+  try {
+    const desktop = desktopFileHandlers();
+    const upload = desktop.handlers.get('upload-dropped-file');
+    assert.match((await upload({}, { filePath: unsupported })).error, /PDF, EPUB, or TXT/);
+    assert.match((await upload({}, { filePath: directory })).error, /not a file/);
+    assert.match((await upload({}, { filePath: oversized })).error, /50 MB/);
+    assert.equal(desktop.fetchCount(), 0);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('native upload and registration preserve HTTP failures and reject successful responses without URLs', async () => {
+  const os = require('node:os');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mfr-electron-test-'));
+  const filePath = path.join(directory, 'a.pdf');
+  fs.writeFileSync(filePath, 'sample');
+  try {
+    const picker = async () => ({ canceled: false, filePaths: [filePath] });
+    for (const status of [401, 502, 200]) {
+      const desktop = desktopFileHandlers({ picker, fetchResponse: { ok: status === 200, status, json: async () => { throw new Error('Non-JSON response'); } } });
+      for (const channel of ['open-local-file-dialog', 'select-and-upload-file', 'upload-dropped-file']) {
+        const argument = channel === 'upload-dropped-file' ? { token: 'token', filePath } : 'token';
+        const result = await desktop.handlers.get(channel)({}, argument);
+        if (status === 200) assert.match(result.error, /no .* (location|URL)/);
+        else assert.equal(result.status, status);
+      }
+    }
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('desktop API proxy rejects malformed endpoints and preserves backend statuses', async () => {
+  const handlers = new Map();
+  const requests = [];
+  serverModule('apps/electron/services/ApiProxyService.js', {
+    globals: { fetch: async (url, options) => { requests.push({ url, options }); return { ok: false, status: 401, json: async () => ({ message: 'Expired' }) }; } },
+  }).registerApiProxy({ handle: (channel, callback) => handlers.set(channel, callback) }, 'https://api.example');
+  const request = handlers.get('api-request');
+  for (const options of [undefined, null, { endpoint: '//evil.example' }, { endpoint: 'https://evil.example' }, { endpoint: 5 }]) {
+    assert.equal((await request({}, options)).status, 400);
+  }
+  assert.equal(requests.length, 0);
+  const result = await request({}, { endpoint: '/files?q=a%20b', headers: { Authorization: 'Bearer token' } });
+  assert.equal(requests[0].url, 'https://api.example/files?q=a%20b');
+  assert.equal(requests[0].options.headers.Authorization, 'Bearer token');
+  assert.equal(result.status, 401);
 });

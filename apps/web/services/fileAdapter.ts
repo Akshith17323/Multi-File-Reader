@@ -10,7 +10,7 @@ export class FileAdapter {
       return { url: result.data.file.fileUrl, fileName: result.data.file.fileName };
     }
     if (result.error === "Canceled") return null;
-    throw new Error(result.error || "Failed to add local book");
+    handleApiFailure(result.status || 0, result.error || "Failed to add local book", true);
   }
 
   static async uploadFile(file: File, token: string, uploadEndpoint: string, onProgress: (progress: number) => void): Promise<string> {

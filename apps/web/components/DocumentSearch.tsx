@@ -53,7 +53,9 @@ export function DocumentSearch({ file, onClose, onGoToPage, onGoToCfi, onGoToLin
           const ePub = (await import("epubjs")).default;
           const book = ePub();
           cleanup = () => book.destroy();
-          const data = await (await fetch(url, { signal: controller.signal })).arrayBuffer();
+          const response = await fetch(url, { signal: controller.signal });
+          if (!response.ok) throw new Error('Could not load book for search');
+          const data = await response.arrayBuffer();
           if (canceled) return;
           await book.open(data, "binary");
           const sections: any[] = (book.spine as any).spineItems;

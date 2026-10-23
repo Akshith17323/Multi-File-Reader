@@ -1,18 +1,34 @@
 export function normalizeFileUrl(url: string): string {
-  if (url.startsWith("local://")) return `mfr-local://${encodeURI(url.slice(8)).replace(/#/g, "%23").replace(/\?/g, "%3F")}`;
-  if (url.startsWith("file://")) return `mfr-local://${url.slice(7)}`;
-  if (url.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(url)) return `mfr-local://${encodeURI(url).replace(/#/g, "%23").replace(/\?/g, "%3F")}`;
+  const localUrl = (filePath: string) => {
+    const normalized = /^[a-zA-Z]:[\\/]/.test(filePath) || filePath.startsWith('\\\\') ? filePath.replace(/\\/g, '/') : filePath;
+    const pathname = normalized.startsWith('/') ? normalized : `/${normalized}`;
+    return `mfr-local://localhost${encodeURI(pathname).replace(/#/g, '%23').replace(/\?/g, '%3F')}`;
+  };
+  if (url.startsWith("local://")) return localUrl(url.slice(8));
+  if (url.startsWith("file://")) {
+    try {
+      const parsed = new URL(url);
+      return localUrl(decodeURIComponent((parsed.hostname && parsed.hostname !== 'localhost' ? `//${parsed.hostname}` : '') + parsed.pathname));
+    } catch { return url; }
+  }
+  if (url.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(url) || url.startsWith('\\\\')) return localUrl(url);
+  if (/^mfr-local:\/\/[a-zA-Z]:/.test(url)) {
+    try { return localUrl(decodeURIComponent(url.slice(12))); } catch { return url; }
+  }
   return url;
 }
 
 export function isLocalFileUrl(url: string): boolean {
-  return /^(mfr-local|local|file):\/\//.test(url) || url.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(url);
+  return /^(mfr-local|local|file):\/\//.test(url) || url.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(url) || url.startsWith('\\\\');
 }
 
 export function getDocumentUrl(url: string): string {
   const normalized = normalizeFileUrl(url);
+  // Preserve saved URL identities while avoiding Chromium lowercasing legacy
+  // first path segments (for example /Users) as if they were hostnames.
+  if (normalized.startsWith("mfr-local:///")) return `mfr-local://localhost${normalized.slice(12)}`;
   if (/^(mfr-local|blob|data):/.test(normalized)) return normalized;
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:2007";
+  const backendUrl = (typeof window !== "undefined" && window.electronAPI?.backendUrl) || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:2007";
   return `${backendUrl.replace(/\/$/, "")}/proxy?url=${encodeURIComponent(normalized)}`;
 }
 
