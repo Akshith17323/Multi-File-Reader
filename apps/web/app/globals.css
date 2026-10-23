@@ -52,6 +52,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 300ms ease, color 300ms ease;
   background-image: 
     radial-gradient(circle at 15% 50%, var(--primary-glow), transparent 25%),
     radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.15), transparent 25%);
@@ -59,6 +60,10 @@ body {
 }
 
 /* View Transitions for Dark Mode Toggle */
+::view-transition-group(root) {
+  animation-duration: 300ms;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;

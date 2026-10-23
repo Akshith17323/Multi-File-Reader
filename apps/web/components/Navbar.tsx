@@ -3,9 +3,40 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LogOut, Library, Menu, X, Sun, Moon, MoonStar } from "lucide-react";
+import { LogOut, Library, Menu, X, Sun, MoonStar } from "lucide-react";
 import { toast } from "react-toastify";
 import { apiClient } from "@/services/apiClient";
+
+function ThemeToggle({
+    theme,
+    onToggle,
+}: {
+    theme: "light" | "dark";
+    onToggle: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+    const isDark = theme === "dark";
+
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            aria-pressed={isDark}
+            className="relative inline-flex h-7 w-12 shrink-0 items-center rounded-full bg-surface-hover transition-colors duration-300 hover:bg-border-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+            <span className="sr-only">Toggle dark mode</span>
+            <span
+                className={`inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm transition-transform duration-300 ease-out ${isDark ? "translate-x-6" : "translate-x-1"
+                    }`}
+            >
+                {isDark ? (
+                    <MoonStar size={12} className="text-blue-600 fill-current" />
+                ) : (
+                    <Sun size={12} className="text-amber-500 fill-current" />
+                )}
+            </span>
+        </button>
+    );
+}
 
 export default function Navbar() {
     const router = useRouter();
@@ -52,7 +83,7 @@ export default function Navbar() {
         };
     }, []);
 
-    const toggleTheme = (e: React.MouseEvent) => {
+    const toggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
         const isDark = theme === "dark";
         const nextTheme = isDark ? "light" : "dark";
 
@@ -68,7 +99,7 @@ export default function Navbar() {
 
         const doc = document as Document & { startViewTransition?: (callback: () => void) => { ready: Promise<void> } };
 
-        if (!doc.startViewTransition) {
+        if (!doc.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
             switchTheme();
             return;
         }
@@ -102,6 +133,8 @@ export default function Navbar() {
                         : "::view-transition-new(root)",
                 }
             );
+        }).catch(() => {
+            switchTheme();
         });
     };
 
@@ -171,39 +204,10 @@ export default function Navbar() {
                             )}
                         </Link>
 
-                        <Link
-                            href="/fileupload"
-                            className={`relative text-sm font-bold tracking-wide py-2 px-3 rounded-lg transition-all duration-300 overflow-hidden group/link ${pathname === '/fileupload'
-                                ? 'text-primary bg-primary/10'
-                                : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
-                                }`}
-                        >
-                            UPLOAD
-                            {pathname === '/fileupload' && (
-                                <span className="absolute bottom-0 left-0 w-full h-[2px] bg-primary shadow-[0_0_8px_var(--color-primary)]" />
-                            )}
-                        </Link>
-
                         {/* Divider */}
                         <div className="h-4 w-px bg-border-subtle group-hover/nav:opacity-50 transition-all duration-200"></div>
 
-                        {/* Theme Toggle (macOS style) */}
-                        <button
-                            onClick={toggleTheme}
-                            className="relative inline-flex h-7 w-12 items-center rounded-full bg-surface-hover hover:bg-border-subtle transition-colors focus:outline-none group-hover/nav:opacity-50 hover:!opacity-100!"
-                        >
-                            <span className="sr-only">Toggle dark mode</span>
-                            <span
-                                className={`inline-flex h-5 w-5 transform items-center justify-center rounded-full bg-white transition-transform duration-300 ease-in-out shadow-sm ${theme === "dark" ? "translate-x-6" : "translate-x-1"
-                                    }`}
-                            >
-                                {theme === "dark" ? (
-                                    <MoonStar size={12} className="text-blue-600 fill-current" />
-                                ) : (
-                                    <Sun size={12} className="text-amber-500 fill-current" />
-                                )}
-                            </span>
-                        </button>
+                        <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
                         <div className="h-4 w-px bg-border-subtle group-hover/nav:opacity-50 transition-all duration-200"></div>
 
@@ -216,17 +220,15 @@ export default function Navbar() {
                                     <span className="text-xs font-medium text-foreground">{user}</span>
                                 </button>
 
-                                {/* Dropdown with hover bridge */}
-                                <div className="absolute right-0 top-full pt-2 w-44 opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible transition-all duration-200 transform origin-top-right z-50">
-                                    <div className="bg-surface backdrop-blur-2xl border border-border-subtle rounded-xl shadow-xl p-1.5">
-                                        <button
-                                            onClick={handleLogout}
-                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-all cursor-pointer"
-                                        >
-                                            <LogOut size={14} />
-                                            Sign Out
-                                        </button>
-                                    </div>
+                                {/* Dropdown */}
+                                <div className="absolute right-0 top-full mt-2 w-44 bg-surface backdrop-blur-2xl border border-border-subtle rounded-xl shadow-xl opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible transition-all duration-200 transform origin-top-right p-1.5 z-50">
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-all"
+                                    >
+                                        <LogOut size={14} />
+                                        Sign Out
+                                    </button>
                                 </div>
                             </div>
                         ) : (
@@ -241,13 +243,7 @@ export default function Navbar() {
 
                     {/* Mobile menu button */}
                     <div className="flex md:hidden items-center gap-3">
-                        {/* Theme Toggle Mobile */}
-                        <button
-                            onClick={toggleTheme}
-                            className="p-1.5 rounded-full bg-surface-hover text-foreground-muted hover:text-foreground transition-colors"
-                        >
-                            {theme === "dark" ? <Moon size={20} className="fill-current" /> : <Sun size={20} className="fill-current" />}
-                        </button>
+                        <ThemeToggle theme={theme} onToggle={toggleTheme} />
 
                         <button
                             onClick={() => setIsOpen(!isOpen)}
@@ -274,13 +270,6 @@ export default function Navbar() {
                             className="block px-4 py-3 text-foreground font-semibold bg-surface/70 backdrop-blur-xl hover:bg-surface-hover rounded-2xl border border-border-subtle transition-all shadow-xs"
                         >
                             My Bookmarks
-                        </Link>
-                        <Link
-                            href="/fileupload"
-                            onClick={() => setIsOpen(false)}
-                            className="block px-4 py-3 text-foreground font-medium bg-surface-hover rounded-xl border border-border-subtle"
-                        >
-                            Upload File
                         </Link>
                         {user ? (
                             <div className="space-y-3 pt-1">
