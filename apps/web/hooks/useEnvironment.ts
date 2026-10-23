@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 
 // For non-React files like apiClient.ts
 export function isElectron(): boolean {
-  if (typeof window !== 'undefined' && (window as any).electronAPI) {
+  if (typeof window !== 'undefined' && window.electronAPI) {
     return true;
   }
   return false;
@@ -15,7 +15,7 @@ export function useEnvironment() {
 
   useEffect(() => {
     // Check if we are running in Electron by looking for our exposed API
-    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+    if (typeof window !== 'undefined' && window.electronAPI) {
       setIsElectronState(true);
     }
   }, []);

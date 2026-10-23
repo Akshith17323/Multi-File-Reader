@@ -74,3 +74,7 @@ Thumbs.db
 
 # npm workspaces use the lockfile at the repository root
 /apps/*/package-lock.json
+
+# Additional personal reference notes
+/UI_Imporvemetns.md
+/EXPECTED_FEATURES.md
