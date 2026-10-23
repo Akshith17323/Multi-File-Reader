@@ -1,15 +1,16 @@
-const { bucket } = require("../gcs");
+const { bucket, bucketName } = require("../gcs");
 const prisma = require('../prisma');
+const { getStorageObjectPath } = require('../utils/fileTypes');
 
 async function deleteFile(req, res) {
-    console.log("🚀 deleteFile handler called");
+    console.log("[Delete] deleteFile handler called");
     try {
         const { filename } = req.params;
         const userId = req.user.userId;
 
         if (!filename) return res.status(400).json({ message: "Filename required" });
 
-        console.log(`🗑️ Request to delete file: ${filename} for user: ${userId}`);
+        console.log(`[Delete] Request to delete file: ${filename} for user: ${userId}`);
 
         // 1. Check if file exists in DB and belongs to user
         const dbFile = await prisma.file.findFirst({
@@ -23,44 +24,26 @@ async function deleteFile(req, res) {
         });
 
         if (!dbFile) {
-            console.warn("⚠️ File not found in database or access denied");
+            console.warn("[Delete] File not found in database or access denied");
             return res.status(404).json({ message: "File not found or access denied" });
         }
 
-        // 2. Delete from GCS
-        const gcsFileName = dbFile.fileName;
-        const file = bucket.file(gcsFileName);
-        // We can check existence in GCS, but often we just try to delete. 
-        // If GCS file is missing but DB has it, we should still delete from DB.
-        try {
-            const [exists] = await file.exists();
-            if (exists) {
-                await file.delete();
-                console.log("✅ Deleted from GCS");
-            } else {
-                console.warn("⚠️ File not found in GCS, skipping GCS delete");
-            }
-        } catch (gcsErr) {
-            console.error("❌ Error deleting from GCS:", gcsErr);
-            // Optionally decide if we should abort or continue to delete from DB
-            // Usually if GCS fail, we might want to keep DB record? 
-            // Or maybe just force delete? 
-            // Let's assume strict consistency is less critical than cleanup, but let's notify user.
-            // For now, let's proceed to delete from DB so the user doesn't see a broken link.
+        // Only remove objects from this application's bucket for cloud files.
+        if (dbFile.source === "CLOUD") {
+            const paths = [dbFile.fileUrl, dbFile.thumbnailUrl].map(url => getStorageObjectPath(url, bucketName)).filter(Boolean);
+            await Promise.all(paths.map(objectPath => bucket.file(objectPath).delete({ ignoreNotFound: true })));
         }
 
-        // 3. Delete from DB
-        await prisma.file.delete({
-            where: {
-                id: dbFile.id
-            }
+        await prisma.$transaction(async (tx) => {
+            await tx.bookmark.deleteMany({ where: { userId, OR: [{ fileId: dbFile.id }, ...(dbFile.fileUrl ? [{ fileUrl: dbFile.fileUrl }] : [])] } });
+            await tx.file.delete({ where: { id: dbFile.id } });
         });
-        console.log("✅ Deleted from Database");
+        console.log("[Delete] Deleted from Database");
 
         res.json({ message: "Deleted successfully" });
 
     } catch (err) {
-        console.error("❌ Delete error:", err);
+        console.error("[Delete] Error:", err);
         res.status(500).json({ message: "Server error", error: err.message });
     }
 }

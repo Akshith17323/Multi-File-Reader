@@ -5,10 +5,11 @@ async function upsertBookmark(req, res) {
         const { fileUrl, fileName, pageNumber, totalPages, cfi, progress } = req.body;
         const userId = req.user.userId;
 
-        if (!fileUrl) {
+        if (typeof fileUrl !== "string" || !fileUrl) {
             return res.status(400).json({ message: 'File URL is required' });
         }
 
+        if ((progress !== undefined && (typeof progress !== "number" || !Number.isFinite(progress) || progress < 0 || progress > 100)) || [pageNumber, totalPages].some(value => value !== undefined && (!Number.isInteger(value) || value < 1))) return res.status(400).json({ message: "Invalid reading position" });
         const bookmark = await prisma.bookmark.upsert({
             where: {
                 userId_fileUrl: {
@@ -22,7 +23,7 @@ async function upsertBookmark(req, res) {
                 totalPages: totalPages || undefined,
                 cfi: cfi || undefined,
                 progress: progress !== undefined ? progress : undefined,
-                updatedAt: new Date()
+                lastRead: new Date()
             },
             create: {
                 userId,
@@ -47,7 +48,7 @@ async function getBookmark(req, res) {
         const { fileUrl } = req.query;
         const userId = req.user.userId;
 
-        if (!fileUrl) {
+        if (typeof fileUrl !== "string" || !fileUrl) {
             return res.status(400).json({ message: 'File URL is required' });
         }
 
@@ -61,7 +62,7 @@ async function getBookmark(req, res) {
         });
 
         if (!bookmark) {
-            return res.status(200).json({ progress: 0, cfi: null, pageNumber: 1 });
+            return res.status(200).json(null);
         }
 
         return res.status(200).json(bookmark);
@@ -76,7 +77,7 @@ async function deleteBookmark(req, res) {
         const { fileUrl } = req.query;
         const userId = req.user.userId;
 
-        if (!fileUrl) {
+        if (typeof fileUrl !== "string" || !fileUrl) {
             return res.status(400).json({ message: 'File URL is required' });
         }
 
@@ -88,9 +89,6 @@ async function deleteBookmark(req, res) {
             }
         });
 
-        if (deleted.count === 0) {
-            return res.status(404).json({ message: 'Bookmark not found' });
-        }
 
         return res.status(200).json({
             message: 'Bookmark deleted successfully',

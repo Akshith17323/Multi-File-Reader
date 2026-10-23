@@ -11,28 +11,25 @@ const middleware = require('./middleware/authMiddleware')
 
 const app = express();
 
-app.get('/debug-env', (req, res) => {
-  const key = process.env.GCP_PRIVATE_KEY || '';
-  res.json({
-    project_id: process.env.GCP_PROJECT_ID,
-    key_length: key.length,
-    key_start: key.substring(0, 20),
-    has_escaped_newlines: key.includes('\\n'),
-    has_real_newlines: key.includes('\n'),
-    bucket: process.env.GCP_BUCKET_NAME || 'hardcoded-in-file' // checking if they set it
-  });
-});
-
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.FRONTEND_N_URL,
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "https://multi-file-reader.vercel.app",
+  "https://multi-file-reader-srue.vercel.app"
+].filter(Boolean);
 
 app.use(
   cors({
-    origin: [
-      `${process.env.FRONTEND_URL}`,
-      `${process.env.FRONTEND_N_URL}`,
-      "https://multi-file-reader.vercel.app",
-      "https://multi-file-reader-srue.vercel.app"
-    ],
-    methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like Electron desktop, curl, etc.)
+      if (!origin || allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+        return callback(null, true);
+      }
+      return callback(new Error("Origin is not allowed"));
+    },
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     credentials: true
   })
 );
@@ -53,8 +50,18 @@ app.patch('/files/:id', middleware, updateFile)
 const { deleteFile } = require('./files/deleteFile')
 app.delete('/files/:filename', middleware, deleteFile)
 
+// mount local file registration handler
+const { registerLocalFile } = require('./files/registerLocalFile')
+app.post('/files/local', middleware, registerLocalFile)
+
 // mount upload router (it defines POST /fileUpload)
 
 
+
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = err.type === "entity.parse.failed" ? 400 : err.message === "Origin is not allowed" ? 403 : 500;
+  res.status(status).json({ message: status === 400 ? "Invalid JSON request" : status === 403 ? err.message : "Server error" });
+});
 
 module.exports = app;

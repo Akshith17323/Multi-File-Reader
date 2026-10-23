@@ -3,6 +3,7 @@
 import { ComponentType, forwardRef } from "react";
 import dynamic from "next/dynamic";
 import { BaseReaderProps, ReaderHandle } from "./types";
+import { detectFileType } from "@/utils/fileUrls";
 
 // Dynamic lazy imports for each format reader
 const PDFReaderAdapter = dynamic(() => import("./adapters/PDFReaderAdapter"), { ssr: false });
@@ -43,28 +44,7 @@ export class ReaderFactory {
      * Detect the canonical file type from a URL, filename, or mime type
      */
     public static detectFileType(input: string): string {
-        if (!input) return "unsupported";
-
-        const cleanInput = input.split("?")[0].toLowerCase();
-        const extension = cleanInput.split(".").pop() || "";
-
-        if (extension === "pdf" || cleanInput.includes("application/pdf")) {
-            return "pdf";
-        }
-        if (extension === "epub" || cleanInput.includes("application/epub+zip")) {
-            return "epub";
-        }
-        if (["txt", "log", "csv", "tsv"].includes(extension) || cleanInput.includes("text/plain")) {
-            return "txt";
-        }
-        if (["md", "markdown"].includes(extension) || cleanInput.includes("text/markdown")) {
-            return "md";
-        }
-        if (["json", "js", "jsx", "ts", "tsx", "py", "html", "css", "yaml", "yml", "sh", "sql"].includes(extension)) {
-            return "code";
-        }
-
-        return "unsupported";
+        return detectFileType(input);
     }
 
     /**
