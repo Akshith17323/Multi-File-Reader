@@ -9,14 +9,12 @@ import { apiClient } from "@/services/apiClient";
 import { clearAuthSession } from "@/utils/authSession";
 import ThemeToggle from "./ThemeToggle";
 import Brand from "./ui/Brand";
-import { useEnvironment } from "@/hooks/useEnvironment";
 
 export default function Navbar() {
     const router = useRouter();
     const pathname = usePathname();
     const [user, setUser] = useState<string | null>(null);
     const [isOpen, setIsOpen] = useState(false);
-    const { isElectron } = useEnvironment();
 
     useEffect(() => {
         // Function to update user from storage
@@ -67,9 +65,9 @@ export default function Navbar() {
     }
 
     return (
-        <nav aria-label="Main navigation" className={`sticky z-50 mx-auto mt-3 w-[calc(100%-2rem)] max-w-[1500px] shrink-0 sm:w-[calc(100%-3rem)] lg:w-[calc(100%-6rem)] ${isElectron ? "top-11" : "top-3"}`}>
+        <nav aria-label="Main navigation" className="sticky top-3 z-50 mx-auto mt-3 w-[calc(100%-2rem)] max-w-[1500px] shrink-0 sm:w-[calc(100%-3rem)] lg:w-[calc(100%-6rem)]">
             <div className="mfr-panel rounded-2xl px-4 py-3 shadow-sm sm:px-5">
-                <div className="flex items-center justify-between">
+                <div className="mfr-window-header flex items-center justify-between">
                     {/* Logo */}
                     <Brand href={user ? "/files" : "/"} />
 
