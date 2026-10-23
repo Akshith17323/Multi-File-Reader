@@ -2,10 +2,11 @@
 
 import { forwardRef, useImperativeHandle, useState, useEffect, useRef } from "react";
 import { Loader2, AlertCircle } from "lucide-react";
+import { getDocumentUrl } from "@/utils/fileUrls";
 import { BaseReaderProps, ReaderHandle } from "../types";
 
 const TextReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function TextReaderAdapter(
-    { file, viewOptions, onLocationChange },
+    { file, viewOptions, onLocationChange, initialLocation, isActive },
     ref
 ) {
     const [content, setContent] = useState<string>("");
@@ -19,7 +20,7 @@ const TextReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function Tex
             setLoading(true);
             setError(null);
             try {
-                const proxyUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(file.url)}`;
+                const proxyUrl = getDocumentUrl(file.url);
                 const res = await fetch(proxyUrl);
                 if (!res.ok) {
                     throw new Error(`Failed to load file (${res.status} ${res.statusText})`);
@@ -45,10 +46,18 @@ const TextReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function Tex
         };
     }, [file.url]);
 
+    const hasRestoredScroll = useRef(false);
+    useEffect(() => {
+        if (loading || !isActive || hasRestoredScroll.current || !scrollContainerRef.current) return;
+        const container = scrollContainerRef.current;
+        container.scrollTop = Math.max(0, container.scrollHeight - container.clientHeight) * ((initialLocation?.progress || 0) / 100);
+        hasRestoredScroll.current = true;
+    }, [loading, isActive, initialLocation?.progress]);
+
     // Handle scroll progress
     const handleScroll = () => {
         const container = scrollContainerRef.current;
-        if (!container) return;
+        if (!container || !hasRestoredScroll.current || !isActive) return;
         const { scrollTop, scrollHeight, clientHeight } = container;
         const maxScroll = scrollHeight - clientHeight;
         const progress = maxScroll > 0 ? Math.round((scrollTop / maxScroll) * 100) : 0;

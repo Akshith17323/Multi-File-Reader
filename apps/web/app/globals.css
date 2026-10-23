@@ -78,3 +78,35 @@ body {
 .dark::view-transition-new(root) {
   z-index: 1;
 }
+
+:root { --titlebar-height: 0px; color-scheme: light; }
+.dark { color-scheme: dark; }
+@layer components {
+  .mfr-page { position: relative; isolation: isolate; flex: 1; width: 100%; min-height: calc(100svh - var(--titlebar-height) - 76px); padding: 2rem 1rem; background: var(--background); }
+  .mfr-page-standalone { min-height: calc(100svh - var(--titlebar-height)); }
+  .mfr-page-content { position: relative; z-index: 1; width: 100%; max-width: 1500px; margin-inline: auto; }
+  .mfr-ambient { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+  .mfr-orb { position: absolute; width: min(28rem, 80vw); height: min(28rem, 80vw); border-radius: 50%; filter: blur(80px); }
+  .mfr-orb-indigo { top: 10%; left: -5%; background: color-mix(in srgb, var(--primary) 15%, transparent); }
+  .mfr-orb-purple { bottom: 5%; right: -5%; background: rgb(147 51 234 / 15%); }
+  .mfr-orb-blue { top: 30%; left: 40%; background: rgb(59 130 246 / 10%); }
+  .mfr-panel { border: 1px solid var(--border-subtle); background: var(--surface); backdrop-filter: blur(24px); }
+  .mfr-eyebrow { display: inline-flex; align-items: center; gap: .5rem; padding: .375rem .875rem; border: 1px solid var(--border-subtle); border-radius: 999px; background: var(--surface); color: var(--foreground-muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .mfr-page-title { font-size: clamp(1.875rem, 3vw, 2.5rem); font-weight: 800; line-height: 1.15; letter-spacing: -.035em; }
+  .mfr-gradient-text { background: linear-gradient(to right, var(--primary), #a855f7, #3b82f6); background-clip: text; color: transparent; }
+  .mfr-button-primary, .mfr-button-secondary { display: inline-flex; position: relative; align-items: center; justify-content: center; gap: .5rem; min-height: 42px; padding: .625rem 1.25rem; border: 1px solid transparent; border-radius: .75rem; font-size: .875rem; font-weight: 700; cursor: pointer; transition: background-color 200ms; }
+  .mfr-button-primary { background: var(--primary); color: white; box-shadow: 0 4px 15px var(--primary-glow); }
+  .mfr-button-primary:hover { background: var(--primary-hover); }
+  .mfr-button-secondary { background: var(--surface); color: var(--foreground); border-color: var(--border-subtle); }
+  .mfr-button-secondary:hover { background: var(--surface-hover); }
+  .mfr-button-primary:disabled, .mfr-button-secondary:disabled { opacity: .5; cursor: not-allowed; }
+  .mfr-input { width: 100%; min-height: 44px; padding: .625rem .875rem; border: 1px solid var(--border-subtle); border-radius: .75rem; background: var(--surface-hover); color: var(--foreground); font-size: .875rem; }
+  .mfr-input::placeholder { color: var(--foreground-muted); }
+  .mfr-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent); }
+  .mfr-icon-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: .75rem; color: var(--foreground-muted); cursor: pointer; }
+  .mfr-icon-button:hover { background: var(--surface-hover); color: var(--foreground); }
+  @media (min-width: 640px) { .mfr-page { padding: 2.5rem 1.5rem; } }
+  @media (min-width: 1024px) { .mfr-page { padding: 3rem; } }
+}
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }

@@ -19,6 +19,7 @@ export interface ReaderHandle {
     next: () => void;
     prev: () => void;
     goToPage?: (page: number) => void;
+    goToCfi?: (cfi: string) => void;
 }
 
 export interface FileTabData {

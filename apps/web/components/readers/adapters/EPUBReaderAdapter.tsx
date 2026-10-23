@@ -1,68 +1,26 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "react";
+import { forwardRef, useImperativeHandle, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { BaseReaderProps, ReaderHandle } from "../types";
-import { EPUBRendererRef } from "@/components/EPUBRenderer";
+import type { EPUBRendererRef } from "@/components/EPUBRenderer";
 
 const EPUBRenderer = dynamic(() => import("@/components/EPUBRenderer"), { ssr: false });
 
 const EPUBReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function EPUBReaderAdapter(
-    { file, viewOptions, initialLocation, onLocationChange },
-    ref
+    { file, viewOptions, initialLocation, onLocationChange, isActive }, ref
 ) {
     const epubRef = useRef<EPUBRendererRef>(null);
-    const [progress, setProgress] = useState<number>(initialLocation?.progress || 0);
-    const [currentCfi, setCurrentCfi] = useState<string>(initialLocation?.cfi || "");
-
-    useEffect(() => {
-        if (initialLocation?.progress !== undefined) {
-            setProgress(initialLocation.progress);
-        }
-        if (initialLocation?.cfi) {
-            setCurrentCfi(initialLocation.cfi);
-        }
-    }, [initialLocation?.cfi, initialLocation?.progress]);
-
-    // Expose unified ReaderHandle to parent multi-tab controller
     useImperativeHandle(ref, () => ({
-        next: () => {
-            epubRef.current?.next();
-        },
-        prev: () => {
-            epubRef.current?.prev();
-        },
+        next: () => { void epubRef.current?.next(); },
+        prev: () => { void epubRef.current?.prev(); },
+        goToCfi: (cfi) => { void epubRef.current?.display(cfi); },
     }));
-
-    const handleLocationChange = (cfi: string) => {
-        setCurrentCfi(cfi);
-        onLocationChange?.({
-            cfi,
-            progress,
-        });
-    };
-
-    const handleProgressChange = (newProgress: number) => {
-        setProgress(newProgress);
-        onLocationChange?.({
-            cfi: currentCfi,
-            progress: newProgress,
-        });
-    };
-
-    return (
-        <div className="w-full h-full">
-            <EPUBRenderer
-                ref={epubRef}
-                url={file.url}
-                initialCfi={initialLocation?.cfi}
-                onLocationChange={handleLocationChange}
-                onProgressChange={handleProgressChange}
-                viewMode={viewOptions.viewMode}
-                fontSize={viewOptions.fontSize}
-            />
-        </div>
-    );
+    const handleLocation = useCallback((cfi: string, progress?: number) => {
+        onLocationChange?.({ cfi, ...(progress !== undefined ? { progress } : {}) });
+    }, [onLocationChange]);
+    return <EPUBRenderer ref={epubRef} url={file.url} initialCfi={initialLocation?.cfi}
+        onLocationChange={handleLocation} viewMode={viewOptions.viewMode} fontSize={viewOptions.fontSize} isActive={isActive} />;
 });
 
 export default EPUBReaderAdapter;

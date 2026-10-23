@@ -2,6 +2,7 @@
 
 import { forwardRef, useImperativeHandle, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { getDocumentUrl } from "@/utils/fileUrls";
 import { BaseReaderProps, ReaderHandle } from "../types";
 
 const PDFRenderer = dynamic(() => import("@/components/PDFRenderer"), { ssr: false });
@@ -21,7 +22,9 @@ const PDFReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function PDFR
         if (initialLocation?.totalPages) {
             setTotalPages(initialLocation.totalPages);
         }
-    }, [initialLocation?.pageNumber, initialLocation?.totalPages, page]);
+    // Saved position is an initial value, not a controlled live page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialLocation?.pageNumber, initialLocation?.totalPages]);
 
     // Expose unified ReaderHandle to parent multi-tab controller
     useImperativeHandle(ref, () => ({
@@ -71,14 +74,16 @@ const PDFReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function PDFR
 
     const handleLoadSuccess = (pages: number) => {
         setTotalPages(pages);
+        const clampedPage = Math.min(Math.max(1, page), pages);
+        setPage(clampedPage);
         onLocationChange?.({
-            pageNumber: page,
+            pageNumber: clampedPage,
             totalPages: pages,
-            progress: Math.round((page / pages) * 100),
+            progress: Math.round((clampedPage / pages) * 100),
         });
     };
 
-    const proxiedBlobUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/proxy?url=${encodeURIComponent(file.url)}`;
+    const proxiedBlobUrl = getDocumentUrl(file.url);
 
     return (
         <div className="w-full h-full">

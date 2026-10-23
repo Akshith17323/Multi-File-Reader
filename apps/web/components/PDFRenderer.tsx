@@ -4,10 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 
 // Configure worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
 interface PDFRendererProps {
     blobUrl: string;
@@ -96,15 +96,38 @@ export default function PDFRenderer({
 
         switch (fitMode) {
             case "width":
-                return { width: availableWidth };
+                return { width: Math.max(100, availableWidth) };
             case "height":
-                return { height: containerHeight - 40 };
+                return { height: Math.max(100, containerHeight - 40) };
             case "none":
                 return { scale: scale };
             default:
-                return { width: availableWidth };
+                return { width: Math.max(100, availableWidth) };
         }
     };
+
+    useEffect(() => {
+        if (viewMode !== "continuous" || !numPages || !containerRef.current) return;
+        const container = containerRef.current;
+        const observer = new IntersectionObserver(entries => {
+            const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+            if (visible) {
+                const page = Number((visible.target as HTMLElement).dataset.pageNumber);
+                if (page && page !== pageNumber) onPageChange(page);
+            }
+        }, { root: container, threshold: [0.1, 0.5, 0.9] });
+        container.querySelectorAll(".react-pdf__Page").forEach(page => observer.observe(page));
+        return () => observer.disconnect();
+    }, [viewMode, numPages, pageNumber, onPageChange]);
+
+    const previousPageRef = useRef(pageNumber);
+    useEffect(() => {
+        if (viewMode === "continuous" && containerRef.current && previousPageRef.current !== pageNumber) {
+            const page = containerRef.current.querySelector<HTMLElement>(`[data-page-number="${pageNumber}"]`);
+            if (page && (page.offsetTop < containerRef.current.scrollTop || page.offsetTop > containerRef.current.scrollTop + containerRef.current.clientHeight)) containerRef.current.scrollTop = page.offsetTop;
+        }
+        previousPageRef.current = pageNumber;
+    }, [pageNumber, viewMode]);
 
     const pageProps = getPageDimensions();
 
@@ -119,6 +142,7 @@ export default function PDFRenderer({
             <Document
                 file={blobUrl}
                 onLoadSuccess={onDocumentLoadSuccess}
+                error={<div role="alert" className="flex flex-col items-center gap-3 p-6 text-red-500"><AlertCircle /><p>Could not load this PDF. Check the file and try opening it again.</p></div>}
                 className="flex flex-col items-center min-h-full"
                 loading={
                     <div className="flex flex-col items-center justify-center h-40 text-foreground gap-3">
@@ -133,8 +157,8 @@ export default function PDFRenderer({
                         {viewMode === "single" && (
                             <Page
                                 pageNumber={pageNumber}
-                                renderTextLayer={false}
-                                renderAnnotationLayer={false}
+                                renderTextLayer={true}
+                                renderAnnotationLayer={true}
                                 {...pageProps}
                                 className="shadow-2xl mb-4 transition-all duration-300"
                             />
@@ -146,8 +170,8 @@ export default function PDFRenderer({
                                 <Page
                                     key={`page_${index + 1}`}
                                     pageNumber={index + 1}
-                                    renderTextLayer={false}
-                                    renderAnnotationLayer={false}
+                                    renderTextLayer={true}
+                                    renderAnnotationLayer={true}
                                     {...pageProps}
                                     className="shadow-2xl mb-4"
                                 />
@@ -159,16 +183,16 @@ export default function PDFRenderer({
                             <div className="flex justify-center gap-4 flex-wrap">
                                 <Page
                                     pageNumber={pageNumber}
-                                    renderTextLayer={false}
-                                    renderAnnotationLayer={false}
+                                    renderTextLayer={true}
+                                    renderAnnotationLayer={true}
                                     {...pageProps}
                                     className="shadow-2xl"
                                 />
                                 {pageNumber + 1 <= numPages && (
                                     <Page
                                         pageNumber={pageNumber + 1}
-                                        renderTextLayer={false}
-                                        renderAnnotationLayer={false}
+                                        renderTextLayer={true}
+                                        renderAnnotationLayer={true}
                                         {...pageProps}
                                         className="shadow-2xl"
                                     />

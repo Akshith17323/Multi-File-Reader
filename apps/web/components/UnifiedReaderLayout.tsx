@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, ReactNode } from "react";
-import { ChevronLeft, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown } from "lucide-react";
+import { useEffect, useState, ReactNode } from "react";
+import { ChevronLeft, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown, PanelLeftOpen, PanelLeftClose, BookOpen, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
+import ThemeToggle from "./ThemeToggle";
 import FileTab, { FileTabData } from "./FileTab";
 
 export type ViewMode = "single" | "continuous" | "two-page";
@@ -14,6 +15,9 @@ interface UnifiedReaderLayoutProps {
     activeFileIndex: number;
     onTabChange: (index: number) => void;
     onTabClose: (index: number) => void;
+    onOpenLocalFile?: () => void;
+    isSearchOpen?: boolean;
+    onToggleSearch?: () => void;
 
     // Reader controls
     currentPage?: number;
@@ -45,6 +49,9 @@ export default function UnifiedReaderLayout({
     activeFileIndex,
     onTabChange,
     onTabClose,
+    onOpenLocalFile,
+    isSearchOpen,
+    onToggleSearch,
     currentPage,
     totalPages,
     epubProgress,
@@ -62,7 +69,8 @@ export default function UnifiedReaderLayout({
     onFontSizeDecrease,
 }: UnifiedReaderLayoutProps) {
     const router = useRouter();
-    const [isSidebarCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+    useEffect(() => { setIsSidebarCollapsed(window.matchMedia("(max-width: 639px)").matches); }, []);
 
     const activeFile = openFiles[activeFileIndex];
     const isEpub = activeFile?.type === "epub";
@@ -78,7 +86,7 @@ export default function UnifiedReaderLayout({
     };
 
     return (
-        <div className="h-screen flex flex-col bg-background overflow-hidden">
+        <div className="relative isolate h-[calc(100svh-var(--titlebar-height))] flex flex-col bg-background overflow-hidden">
             {/* Background Gradients (Subtle) */}
             <div className="absolute top-0 left-0 w-full h-full bg-background" />
             <div className="absolute top-[-10%] left-[-5%] w-[400px] h-[400px] bg-violet-600/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply" />
@@ -86,7 +94,7 @@ export default function UnifiedReaderLayout({
 
             {/* Top Control Bar */}
             <div className="relative z-20 bg-surface/80 backdrop-blur-xl border-b border-border-subtle px-6 py-3">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     {/* Left: Back to Library */}
                     <div className="flex items-center gap-4">
                         <button
@@ -97,6 +105,7 @@ export default function UnifiedReaderLayout({
                             <ChevronLeft size={20} />
                         </button>
 
+                        <button type="button" className="mfr-icon-button h-9 w-9" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} aria-label={isSidebarCollapsed ? "Show open files" : "Hide open files"} aria-expanded={!isSidebarCollapsed}>{isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button>
                         {activeFile && (
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-surface-hover flex items-center justify-center">
@@ -109,7 +118,7 @@ export default function UnifiedReaderLayout({
                                     )}
                                 </div>
                                 <div>
-                                    <h2 className="text-sm font-semibold text-foreground truncate max-w-[300px]">
+                                    <h2 className="text-sm font-semibold text-foreground truncate max-w-[120px] min-[380px]:max-w-[180px] sm:max-w-[260px]">
                                         {activeFile.name}
                                     </h2>
                                     <p className="text-xs text-foreground-muted">
@@ -146,9 +155,11 @@ export default function UnifiedReaderLayout({
                     )}
 
                     {/* Right: View Mode & Controls */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex max-w-full items-center gap-2 overflow-x-auto">
+                        <ThemeToggle />
+                        {onToggleSearch && <button type="button" className="mfr-icon-button h-9 w-9" onClick={onToggleSearch} aria-label="Search document" aria-pressed={isSearchOpen}><Search size={16} /></button>}
                         {/* View Mode Toggles */}
-                        <div className="flex items-center gap-1 bg-surface rounded-lg p-1 border border-border-subtle">
+                        <div className="flex shrink-0 items-center gap-1 bg-surface rounded-lg p-1 border border-border-subtle">
                             <button
                                 onClick={() => onViewModeChange("single")}
                                 className={`p-2 rounded transition-colors ${viewMode === "single"
@@ -183,7 +194,7 @@ export default function UnifiedReaderLayout({
 
                         {/* Fit Mode (PDF only) */}
                         {isPdf && (
-                            <div className="flex items-center gap-1 bg-surface rounded-lg p-1 border border-border-subtle">
+                            <div className="flex shrink-0 items-center gap-1 bg-surface rounded-lg p-1 border border-border-subtle">
                                 <button
                                     onClick={() => onFitModeChange("width")}
                                     className={`p-2 rounded transition-colors ${fitMode === "width"
@@ -208,10 +219,11 @@ export default function UnifiedReaderLayout({
                         )}
 
                         {/* Zoom Controls (PDF with 'none' fit mode) */}
-                        {isPdf && fitMode === "none" && zoom && (
-                            <div className="flex items-center gap-2 bg-surface rounded-lg px-3 py-2 border border-border-subtle">
+                        {isPdf && zoom && (
+                            <div className="flex shrink-0 items-center gap-2 bg-surface rounded-lg px-3 py-2 border border-border-subtle">
                                 <button
-                                    onClick={onZoomOut}
+                                    onClick={() => { onFitModeChange("none"); onZoomOut?.(); }}
+                                    aria-label="Zoom out"
                                     className="text-foreground-muted hover:text-foreground transition-colors"
                                 >
                                     <ZoomOut size={16} />
@@ -220,7 +232,8 @@ export default function UnifiedReaderLayout({
                                     {Math.round(zoom * 100)}%
                                 </span>
                                 <button
-                                    onClick={onZoomIn}
+                                    onClick={() => { onFitModeChange("none"); onZoomIn?.(); }}
+                                    aria-label="Zoom in"
                                     className="text-foreground-muted hover:text-foreground transition-colors"
                                 >
                                     <ZoomIn size={16} />
@@ -230,7 +243,7 @@ export default function UnifiedReaderLayout({
 
                         {/* Font Size Controls (EPUB & Text/Code) */}
                         {!isPdf && fontSize && (
-                            <div className="flex items-center gap-2 bg-surface rounded-lg px-3 py-2 border border-border-subtle">
+                            <div className="flex shrink-0 items-center gap-2 bg-surface rounded-lg px-3 py-2 border border-border-subtle">
                                 <button
                                     onClick={onFontSizeDecrease}
                                     className="text-foreground-muted hover:text-foreground transition-colors"
@@ -253,13 +266,13 @@ export default function UnifiedReaderLayout({
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex overflow-hidden relative z-10">
+            <div className="flex-1 min-h-0 flex overflow-hidden relative z-10">
                 {/* Left Sidebar - File Tabs */}
                 <div
                     className={`
-            bg-surface/95 backdrop-blur-xl border-r border-border-subtle flex flex-col
+            bg-surface-hover backdrop-blur-xl border-r border-border-subtle flex shrink-0 flex-col
             transition-all duration-300
-            ${isSidebarCollapsed ? "w-0" : "w-72"}
+            ${isSidebarCollapsed ? "hidden" : "absolute inset-y-0 left-0 z-30 w-[min(18rem,calc(100vw-2rem))] sm:static sm:w-72"}
           `}
                 >
                     {!isSidebarCollapsed && (
@@ -286,7 +299,8 @@ export default function UnifiedReaderLayout({
                             </div>
 
                             {/* Add New File Button */}
-                            <div className="p-3 border-t border-border-subtle">
+                            <div className="p-3 border-t border-border-subtle space-y-2">
+                                {onOpenLocalFile && <button type="button" onClick={onOpenLocalFile} className="mfr-button-secondary w-full"><BookOpen size={16} />Open local file</button>}
                                 <button
                                     onClick={handleBackToLibrary}
                                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl font-medium transition-colors shadow-md hover:shadow-lg"
@@ -318,7 +332,7 @@ export default function UnifiedReaderLayout({
                 </div>
 
                 {/* Main Reading Area */}
-                <div className="flex-1 overflow-hidden">
+                <div className="min-w-0 flex-1 overflow-hidden">
                     {children}
                 </div>
             </div>

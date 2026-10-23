@@ -412,7 +412,7 @@ function ReaderContent() {
             onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
         >
             <div className="flex h-full min-h-0 flex-col">
-            {isSearchOpen && activeFile && <DocumentSearch file={activeFile} onClose={() => setIsSearchOpen(false)} onGoToPage={(page) => readerRefs.current[activeFile.id]?.goToPage?.(page)} />}
+            {isSearchOpen && activeFile && <DocumentSearch file={activeFile} onClose={() => setIsSearchOpen(false)} onGoToPage={(page) => readerRefs.current[activeFile.id]?.goToPage?.(page)} onGoToCfi={(cfi) => readerRefs.current[activeFile.id]?.goToCfi?.(cfi)} />}
             <div className="min-h-0 flex-1">
             {isOffline ? (
                 <div className="w-full h-full flex items-center justify-center overflow-y-auto p-4 sm:p-6 bg-background/60 text-foreground relative">
@@ -465,7 +465,7 @@ function ReaderContent() {
                         const isActive = index === activeFileIndex;
                         return (
                             <div
-                                key={file.id}
+                                key={file.url}
                                 className={`w-full h-full ${isActive ? "block" : "hidden"}`}
                             >
                                 <ReaderRenderer
