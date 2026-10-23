@@ -1,3 +1,4 @@
+import { scopedStorageKey } from "./storageScope";
 import { apiClient } from "@/services/apiClient";
 
 export interface LocalFileRecord {
@@ -16,8 +17,9 @@ const LOCAL_STORAGE_KEY = "mfr_local_library";
 export function getLocalLibraryFiles(): LocalFileRecord[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const raw = localStorage.getItem(scopedStorageKey(LOCAL_STORAGE_KEY));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
     console.warn("Failed to parse local library from storage:", err);
     return [];
@@ -27,9 +29,11 @@ export function getLocalLibraryFiles(): LocalFileRecord[] {
 export async function saveLocalFileToLibrary(file: {
   name: string;
   url: string;
-  size?: string;
+  size?: string | number;
   contentType?: string;
 }): Promise<LocalFileRecord> {
+  const storageKey = scopedStorageKey(LOCAL_STORAGE_KEY);
+  const size = typeof file.size === "number" ? `${(file.size / 1024).toFixed(1)} KB` : file.size;
   const existingFiles = getLocalLibraryFiles();
   const existingIndex = existingFiles.findIndex((f) => f.url === file.url);
 
@@ -41,7 +45,7 @@ export async function saveLocalFileToLibrary(file: {
       name: file.name,
       metadata: {
         ...existingFiles[existingIndex].metadata,
-        size: file.size || existingFiles[existingIndex].metadata.size,
+        size: size || existingFiles[existingIndex].metadata.size,
         contentType: file.contentType || existingFiles[existingIndex].metadata.contentType,
         updated: new Date().toISOString(),
       },
@@ -53,7 +57,7 @@ export async function saveLocalFileToLibrary(file: {
       name: file.name,
       url: file.url,
       metadata: {
-        size: file.size || "Local File",
+        size: size || "Local File",
         updated: new Date().toISOString(),
         contentType: file.contentType || "application/octet-stream",
       },
@@ -62,7 +66,7 @@ export async function saveLocalFileToLibrary(file: {
   }
 
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(existingFiles));
+    localStorage.setItem(storageKey, JSON.stringify(existingFiles));
   } catch (err) {
     console.warn("Failed to persist local file to localStorage:", err);
   }
@@ -80,8 +84,9 @@ export async function saveLocalFileToLibrary(file: {
       if (res && res.file && res.file.id) {
         record.id = res.file.id;
         // update id in localStorage
-        const updated = existingFiles.map((f) => (f.url === file.url ? record : f));
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+        const currentFiles: LocalFileRecord[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const updated = currentFiles.map((f) => (f.url === file.url ? { ...f, id: record.id } : f));
+        localStorage.setItem(storageKey, JSON.stringify(updated));
       }
     }
   } catch (syncErr) {
@@ -96,8 +101,13 @@ export function removeLocalLibraryFile(urlOrId: string) {
   try {
     const existingFiles = getLocalLibraryFiles();
     const filtered = existingFiles.filter((f) => f.url !== urlOrId && f.id !== urlOrId);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(filtered));
+    localStorage.setItem(scopedStorageKey(LOCAL_STORAGE_KEY), JSON.stringify(filtered));
   } catch (err) {
     console.warn("Failed to remove local file from storage:", err);
   }
+}
+
+export function updateLocalLibraryFile(url: string, changes: { name?: string; url?: string }): void {
+  const files = getLocalLibraryFiles().map(file => file.url === url ? { ...file, ...changes } : file);
+  localStorage.setItem(scopedStorageKey(LOCAL_STORAGE_KEY), JSON.stringify(files));
 }

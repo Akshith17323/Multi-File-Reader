@@ -1,270 +1,175 @@
 "use client";
 
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
-import ePub, { Book, Rendition } from "epubjs";
+import ePub, { Rendition, EpubCFI } from "epubjs";
 import { Loader2, AlertCircle } from "lucide-react";
+import { getDocumentUrl } from "@/utils/fileUrls";
+import type { ReaderStatus } from './readers/types';
 
 export interface EPUBRendererRef {
-    next: () => void;
-    prev: () => void;
+    next: () => Promise<unknown> | undefined;
+    prev: () => Promise<unknown> | undefined;
+    display: (cfi: string) => Promise<unknown> | undefined;
 }
 
 interface EPUBRendererProps {
     url: string;
-    initialLocation?: string;
-    onLocationChange: (cfi: string) => void;
-    onProgressChange?: (percentage: number) => void;
+    onLocationChange: (cfi: string, progress?: number, atStart?: boolean, atEnd?: boolean) => void;
+    onStatusChange?: (status: ReaderStatus) => void;
     viewMode: "single" | "continuous" | "two-page";
     fontSize: number;
     initialCfi?: string;
+    isActive?: boolean;
 }
 
 function applyReaderTheme(rendition: Rendition) {
     const styles = getComputedStyle(document.documentElement);
     const foreground = styles.getPropertyValue("--foreground").trim();
-    const primary = styles.getPropertyValue("--primary").trim();
     rendition.themes.register("app", {
         body: { background: "transparent", color: foreground },
-        a: { color: primary },
-        p: { color: foreground },
-        h1: { color: foreground },
-        h2: { color: foreground },
-        h3: { color: foreground },
+        a: { color: styles.getPropertyValue("--primary").trim() },
+        p: { color: foreground }, h1: { color: foreground }, h2: { color: foreground }, h3: { color: foreground },
     });
     rendition.themes.select("app");
 }
 
-const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
-    url,
-    initialLocation,
-    onLocationChange,
-    onProgressChange,
-    viewMode,
-    fontSize,
-    initialCfi,
-}, ref) => {
-    const viewerRef = useRef<HTMLDivElement | null>(null);
-    const renditionRef = useRef<Rendition | null>(null);
-    const bookRef = useRef<Book | null>(null);
+// EPUB.js supports a restore CFI on resize; its published declaration omits it.
+function resizeRendition(rendition: Rendition, width: number, height: number, cfi: string) {
+    (rendition as Rendition & { resize: (width: number, height: number, cfi?: string) => void }).resize(width, height, cfi || undefined);
+}
 
+const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPUBRenderer(
+    { url, onLocationChange, onStatusChange, viewMode, fontSize, initialCfi, isActive = true }, ref
+) {
+    const viewerRef = useRef<HTMLDivElement>(null);
+    const renditionRef = useRef<Rendition | null>(null);
+    const locationRef = useRef(initialCfi || "");
+    const callbackRef = useRef(onLocationChange);
+    const fontSizeRef = useRef(fontSize);
+    const statusRef = useRef(onStatusChange);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [currentLocation, setCurrentLocation] = useState<string>(initialCfi || "");
-    const [isBookReady, setIsBookReady] = useState(false);
-
-    useEffect(() => {
-        const observer = new MutationObserver(() => {
-            if (renditionRef.current) applyReaderTheme(renditionRef.current);
-        });
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-        return () => observer.disconnect();
-    }, []);
-
-    useEffect(() => {
-        if (initialCfi && initialCfi !== currentLocation) {
-            setCurrentLocation(initialCfi);
-            if (renditionRef.current) {
-                renditionRef.current.display(initialCfi);
-            }
-        }
-    }, [initialCfi, currentLocation]);
-
-    const touchStartRef = useRef<number | null>(null);
+    useEffect(() => { callbackRef.current = onLocationChange; }, [onLocationChange]);
+    useEffect(() => { statusRef.current = onStatusChange; }, [onStatusChange]);
+    useEffect(() => { fontSizeRef.current = fontSize; renditionRef.current?.themes.fontSize(`${fontSize}%`); }, [fontSize]);
 
     useImperativeHandle(ref, () => ({
-        next: () => {
-            if (renditionRef.current) renditionRef.current.next();
+        next: () => renditionRef.current?.next(),
+        prev: () => renditionRef.current?.prev(),
+        display: (cfi) => {
+            const target = new EpubCFI(cfi);
+            target.collapse(true);
+            locationRef.current = target.toString();
+            return renditionRef.current?.display(locationRef.current);
         },
-        prev: () => {
-            if (renditionRef.current) renditionRef.current.prev();
-        }
     }));
 
-    // Initialize Book
     useEffect(() => {
-        if (!url || !viewerRef.current) return;
-
-        let cancelled = false;
-
-        const initBook = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-
-                const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:2007";
-                const bookUrl = url.startsWith("mfr-local://") || url.startsWith("blob:") || url.startsWith("data:")
-                    ? url
-                    : `${backendUrl}/proxy?url=${encodeURIComponent(url)}`;
-                const book = ePub(bookUrl);
-                bookRef.current = book;
-                setIsBookReady(true);
-
-                await book.ready;
-                if (!cancelled && book.locations.length() === 0) {
-                    book.locations.generate(1000).catch((err: unknown) => {
-                        console.error("Error generating locations:", err);
-                    });
-                }
-            } catch (err: unknown) {
-                console.error("Error initializing EPUB:", err);
-                if (!cancelled) {
-                    setError((err as Error).message || "Failed to load EPUB.");
-                    setLoading(false);
-                }
-            }
+        if (!viewerRef.current) return;
+        let canceled = false;
+        const controller = new AbortController();
+        const book = ePub();
+        let rendition: Rendition | undefined;
+        let readyToReport = false;
+        setLoading(true);
+        setError(null);
+        statusRef.current?.('loading');
+        const reportLocation = () => {
+            const location = rendition?.location?.start?.cfi;
+            if (canceled || !readyToReport || !location) return;
+            locationRef.current = location;
+            const percentage = book.locations.length() ? book.locations.percentageFromCfi(location) : undefined;
+            callbackRef.current(location, percentage !== undefined && Number.isFinite(percentage) ? Math.min(100, Math.max(0, percentage * 100)) : undefined, rendition?.location?.atStart, rendition?.location?.atEnd);
         };
-
-        initBook();
-
-        return () => {
-            cancelled = true;
-            setIsBookReady(false);
+        const initialize = async () => {
             try {
-                renditionRef.current?.destroy();
-                bookRef.current?.destroy();
-            } catch { }
-        };
-    }, [url]);
-
-    // Re-render when viewMode changes or book is ready
-    useEffect(() => {
-        if (!isBookReady || !bookRef.current || !viewerRef.current) return;
-
-        const reRender = async () => {
-            setLoading(true);
-            try {
-                const currentLoc = renditionRef.current?.location?.start?.cfi || currentLocation;
-
-                if (renditionRef.current) {
-                    renditionRef.current.destroy();
-                }
-
-                const width = "100%";
-                const height = "100%";
-
-                let flow = "paginated";
-                let manager = "default";
-                let spread = "auto";
-
-                if (viewMode === "single") {
-                    spread = "none";
-                } else if (viewMode === "two-page") {
-                    spread = "always";
-                } else if (viewMode === "continuous") {
-                    flow = "scrolled-doc";
-                    manager = "continuous";
-                    spread = "none";
-                }
-
-                const rendition = bookRef.current!.renderTo(viewerRef.current!, {
-                    width,
-                    height,
-                    flow,
-                    manager,
-                    spread,
+                const response = await fetch(getDocumentUrl(url), { signal: controller.signal });
+                if (!response.ok) throw new Error(`Could not load book (${response.status})`);
+                const data = await response.arrayBuffer();
+                if (canceled) return;
+                await book.open(data, "binary");
+                if (canceled || !viewerRef.current) return;
+                rendition = book.renderTo(viewerRef.current, {
+                    width: "100%", height: "100%",
+                    flow: viewMode === "continuous" ? "scrolled-doc" : "paginated",
+                    manager: viewMode === "continuous" ? "continuous" : "default",
+                    spread: viewMode === "two-page" ? "always" : "none",
                 });
-
-                applyReaderTheme(rendition);
-
                 renditionRef.current = rendition;
-
-                await rendition.display(currentLoc || initialLocation || undefined);
-                rendition.themes.fontSize(`${fontSize}%`);
-
-                // Touch handling
-                rendition.on("touchstart", (e: TouchEvent) => {
-                    touchStartRef.current = e.changedTouches[0].clientX;
-                });
-
-                rendition.on("touchend", (e: TouchEvent) => {
-                    if (touchStartRef.current === null) return;
-                    const touchEnd = e.changedTouches[0].clientX;
-                    const distance = touchStartRef.current - touchEnd;
-
-                    if (distance > 50) {
-                        rendition.next();
-                    } else if (distance < -50) {
-                        rendition.prev();
-                    }
-                    touchStartRef.current = null;
-                });
-
-                rendition.on("relocated", (location: { start: { cfi: string } }) => {
-                    if (location?.start?.cfi) {
-                        setCurrentLocation(location.start.cfi);
-                        onLocationChange(location.start.cfi);
-
-                        if (onProgressChange && bookRef.current) {
-                            const percentage = bookRef.current.locations.percentageFromCfi(location.start.cfi);
-                            onProgressChange(percentage);
-                        }
+                rendition.on('keydown', (event: KeyboardEvent) => {
+                    const target = event.target as HTMLElement;
+                    if (event.defaultPrevented || target?.closest('input, textarea, select, [contenteditable=true]')) return;
+                    if (event.key === 'ArrowRight') { event.preventDefault(); void rendition?.next()?.catch(() => {}); }
+                    else if (event.key === 'ArrowLeft') { event.preventDefault(); void rendition?.prev()?.catch(() => {}); }
+                    else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+                        event.preventDefault(); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: event.ctrlKey, metaKey: event.metaKey }));
                     }
                 });
-
-
-            } catch (error) {
-                console.error("Error changing view mode:", error);
-            } finally {
+                applyReaderTheme(rendition);
+                rendition.themes.fontSize(`${fontSizeRef.current}%`);
+                rendition.on("relocated", reportLocation);
+                let touchX: number | null = null;
+                rendition.on("touchstart", (event: TouchEvent) => { touchX = event.changedTouches[0].clientX; });
+                rendition.on("touchend", (event: TouchEvent) => {
+                    if (touchX === null || viewMode === "continuous") return;
+                    const distance = touchX - event.changedTouches[0].clientX;
+                    if (distance > 50) void rendition?.next()?.catch(() => {});
+                    else if (distance < -50) void rendition?.prev()?.catch(() => {});
+                    touchX = null;
+                });
+                try { await rendition.display(locationRef.current || initialCfi || undefined); }
+                catch { await rendition.display(); }
+                if (canceled) return;
+                readyToReport = true;
                 setLoading(false);
+                statusRef.current?.('ready');
+                reportLocation();
+                try { await book.locations.generate(1000); reportLocation(); }
+                catch { /* The CFI remains sufficient to save position. */ }
+            } catch (err) {
+                if (!canceled) { setError(err instanceof Error ? err.message : "Could not load book"); setLoading(false); statusRef.current?.('error'); }
             }
         };
-
-        reRender();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [viewMode, isBookReady, onLocationChange]);
-
-    // Handle font size dynamically without full re-render
-    useEffect(() => {
-        if (renditionRef.current && isBookReady) {
-            renditionRef.current.themes.fontSize(`${fontSize}%`);
-        }
-    }, [fontSize, isBookReady]);
-
-    // Handle Resize
-    useEffect(() => {
-        if (!renditionRef.current || !viewerRef.current) return;
-
-        const resizeObserver = new ResizeObserver((entries) => {
+        void initialize();
+        const themeObserver = new MutationObserver(() => { if (rendition) applyReaderTheme(rendition); });
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+        let lastWidth = 0;
+        let lastHeight = 0;
+        const resizeObserver = new ResizeObserver(entries => {
             const { width, height } = entries[0].contentRect;
-            requestAnimationFrame(() => {
-                if (renditionRef.current && typeof renditionRef.current.resize === "function") {
-                    renditionRef.current.resize(width, height);
-                }
-            });
+            if (rendition && width > 0 && height > 0 && (width !== lastWidth || height !== lastHeight)) {
+                lastWidth = width; lastHeight = height;
+                resizeRendition(rendition, width, height, locationRef.current);
+            }
         });
-
         resizeObserver.observe(viewerRef.current);
+        return () => {
+            canceled = true;
+            controller.abort();
+            themeObserver.disconnect();
+            resizeObserver.disconnect();
+            renditionRef.current = null;
+            try { rendition?.destroy(); book.destroy(); } catch { /* Already destroyed during a failed load. */ }
+        };
+        // Callbacks and font size use refs so reading progress never rebuilds the book.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [url, viewMode]);
 
-        return () => resizeObserver.disconnect();
-    }, [isBookReady]);
-
-    if (error) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <div className="bg-red-500/10 border border-red-500/50 p-6 rounded-xl text-center max-w-md mx-4">
-                    <AlertCircle className="mx-auto mb-3 text-red-500" size={32} />
-                    <p className="text-red-400">{error}</p>
-                </div>
-            </div>
-        );
-    }
+    useEffect(() => {
+        if (isActive && viewerRef.current && renditionRef.current) {
+            const { width, height } = viewerRef.current.getBoundingClientRect();
+            if (width && height) resizeRendition(renditionRef.current, width, height, locationRef.current);
+        }
+    }, [isActive]);
 
     return (
-        <div className="relative w-full h-full">
-            {loading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-20">
-                    <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="animate-spin text-primary" size={40} />
-                        <p className="text-foreground">Loading Book...</p>
-                    </div>
-                </div>
-            )}
-
-            <div className="w-full h-full bg-background/60 text-foreground" ref={viewerRef} />
+        <div className="relative h-full w-full">
+            <div ref={viewerRef} className="h-full w-full bg-background/60 text-foreground" />
+            {(loading || error) && <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/90 p-6">
+                {error ? <div role="alert" className="text-center text-red-500"><AlertCircle className="mx-auto mb-3" /><p>{error}</p></div> : <div className="flex items-center gap-3 text-foreground-muted"><Loader2 className="animate-spin text-primary" />Loading book...</div>}
+            </div>}
         </div>
     );
 });
-
-EPUBRenderer.displayName = "EPUBRenderer";
 
 export default EPUBRenderer;

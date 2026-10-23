@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AuthLayout from "@/components/ui/AuthLayout";
+import { setAuthSession } from "@/utils/authSession";
 import { apiClient } from "@/services/apiClient";
 import { useGoogleLogin } from '@react-oauth/google';
 
@@ -113,18 +114,11 @@ function Loginpage() {
 
     setIsLoading(true);
     try {
-      const data = await apiClient.login({ email, password });
+      const data = await apiClient.login({ email: email.trim().toLowerCase(), password });
 
       toast.success(`Welcome back, ${data.user}!`);
 
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-        // Store user and notify listeners
-        if (data.user) {
-          localStorage.setItem("user", data.user);
-          window.dispatchEvent(new Event("auth-change"));
-        }
-      }
+      setAuthSession(data);
 
       router.push("/files");
 
@@ -149,15 +143,9 @@ function Loginpage() {
 
       toast.success(`Welcome, ${data.user}!`);
 
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-        if (data.user) {
-          localStorage.setItem("user", data.user);
-          window.dispatchEvent(new Event("auth-change"));
-        }
-      }
+      setAuthSession(data);
 
-      router.push("/fileupload");
+      router.push("/files");
     } catch (err: unknown) {
       const error = err as Error;
       setError(error.message || "Google Login failed. Please try again.");

@@ -6,16 +6,19 @@ import { useEnvironment } from "@/hooks/useEnvironment";
 import { FileAdapter } from "@/services/fileAdapter";
 import AppShell, { PageHeader } from "@/components/ui/AppShell";
 import { FormatCard } from "@/components/ui/FormatShowcase";
+import { createReaderUrl } from "@/utils/readerSession";
 
 function FileUpload() {
   const { isElectron: isDesktop } = useEnvironment();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [progress, setProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const uploadInFlight = useRef(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const url = process.env.NEXT_PUBLIC_BACKEND_URL;
+  const url = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:2007").replace(/\/$/, "");
   const router = useRouter();
 
   const uploadEndpoint = `${url}/fileUpload`;
@@ -31,6 +34,8 @@ function FileUpload() {
   };
 
   const handleFileSelection = (file: File) => {
+    if (uploadInFlight.current) return;
+    setSelectedFile(null);
     setError(null);
     setResultUrl(null);
     setProgress(0);
@@ -43,6 +48,7 @@ function FileUpload() {
       return;
     }
 
+    if (file.size > 50 * 1024 * 1024) { setError("Files must be 50 MB or smaller"); return; }
     setSelectedFile(file);
   };
 
@@ -57,6 +63,7 @@ function FileUpload() {
 
   const uploadFile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (uploadInFlight.current) return;
     if (!selectedFile) {
       setError("No file selected");
       return;
@@ -68,6 +75,8 @@ function FileUpload() {
       return;
     }
 
+    uploadInFlight.current = true;
+    setIsUploading(true);
     try {
       setError(null);
       const resultingUrl = await FileAdapter.uploadFile(selectedFile, token, uploadEndpoint, setProgress);
@@ -76,17 +85,24 @@ function FileUpload() {
     } catch (err: any) {
       setError(err.message || "Upload failed");
       setProgress(0);
+    } finally {
+      uploadInFlight.current = false;
+      setIsUploading(false);
     }
   };
 
   const handleLocalBook = async () => {
+    if (uploadInFlight.current) return;
     const token = localStorage.getItem("token");
     if (!token) {
       setError("Please login to add local files");
       return;
     }
-    
+
+    uploadInFlight.current = true;
+    setIsUploading(true);
     try {
+      setError(null);
       const data = await FileAdapter.addLocalBook(token);
       if (data) {
         setResultUrl(data.url);
@@ -94,6 +110,9 @@ function FileUpload() {
       }
     } catch (err: any) {
       setError(err.message || "Failed to add local book");
+    } finally {
+      uploadInFlight.current = false;
+      setIsUploading(false);
     }
   };
 
@@ -101,7 +120,7 @@ function FileUpload() {
     try {
       const result = await (window as any).electronAPI?.invoke('open-local-file');
       if (result && !result.canceled && result.url) {
-        router.push(`/reader?files=${encodeURIComponent(result.url)}&active=0`);
+        router.push(createReaderUrl([result.url]));
       } else if (result?.error) {
         setError(`Permission/access error: ${result.error}`);
       }
@@ -119,7 +138,7 @@ function FileUpload() {
   };
 
   const getReaderUrl = (url: string) => {
-    return `/reader?files=${encodeURIComponent(url)}&active=0`;
+    return createReaderUrl([url]);
   };
 
   return (
@@ -154,12 +173,12 @@ function FileUpload() {
                 aria-label={selectedFile ? `Change selected file: ${selectedFile.name}` : "Choose a PDF, EPUB, or TXT file"}
                 onKeyDown={(event) => {
                   if (event.target !== event.currentTarget) return;
-                  if (event.key === "Enter" || event.key === " ") {
+                  if (!isUploading && (event.key === "Enter" || event.key === " ")) {
                     event.preventDefault();
                     fileRef.current?.click();
                   }
                 }}
-                onClick={() => fileRef.current?.click()}
+                onClick={() => !isUploading && fileRef.current?.click()}
                 className={`
                   group relative border-2 border-dashed rounded-2xl p-6 sm:p-10 text-center cursor-pointer transition-all duration-300 ease-in-out
                   ${isDragging
@@ -172,6 +191,7 @@ function FileUpload() {
                 <input
                   ref={fileRef}
                   type="file"
+                  disabled={isUploading}
                   accept=".pdf,.epub,.txt"
                   className="hidden"
                   onChange={(e) => e.target.files?.[0] && handleFileSelection(e.target.files[0])}
@@ -187,6 +207,7 @@ function FileUpload() {
                       <div className="animate-in fade-in zoom-in duration-300 relative group/file">
                         <button
                           type="button"
+                          disabled={isUploading}
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedFile(null);
@@ -200,12 +221,12 @@ function FileUpload() {
                           <X size={14} />
                         </button>
                         <p className="text-base font-bold text-foreground mb-0.5 break-all">{selectedFile.name}</p>
-                        <p className="text-xs text-primary font-bold">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                        <p className="text-xs text-primary font-bold">{selectedFile.size !== undefined ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` : "Local file"}</p>
                       </div>
                     ) : (
                       <div className="space-y-1">
                         <p className="text-sm sm:text-base font-bold text-foreground">Drop your document here</p>
-                        <p className="text-xs text-foreground-muted">or click to browse your local device</p>
+                        <p className="text-xs text-foreground-muted">or click to browse · up to 50 MB</p>
                       </div>
                     )}
                   </div>
@@ -218,7 +239,7 @@ function FileUpload() {
                 <FormatCard icon={<FileText size={20} />} label="TXT" detail="Plain text" color="text-sky-500" />
               </div>
 
-              {progress > 0 && progress < 100 && (
+              {isUploading && (
                 <div className="space-y-1.5 p-3 rounded-xl bg-surface-hover/40 border border-border-subtle">
                   <div className="flex justify-between text-xs font-semibold text-foreground-muted">
                     <span className="flex items-center gap-1.5">
@@ -246,11 +267,11 @@ function FileUpload() {
               <div className="flex flex-col sm:flex-row gap-3 pt-1">
                 <button
                   type="submit"
-                  disabled={!selectedFile || (progress > 0 && progress < 100)}
+                  disabled={!selectedFile || isUploading}
                   className="mfr-button-primary flex-1 overflow-hidden group"
                 >
                   <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                  {progress > 0 && progress < 100 ? (
+                  {isUploading ? (
                     <>
                       <Loader2 className="animate-spin relative z-10" size={18} />
                       <span className="relative z-10">Processing...</span>
@@ -266,7 +287,7 @@ function FileUpload() {
                   <button
                     type="button"
                     onClick={handleLocalBook}
-                    disabled={progress > 0 && progress < 100}
+                    disabled={isUploading}
                     className="mfr-button-secondary sm:flex-1"
                   >
                     <File size={18} className="text-primary" />
@@ -279,6 +300,7 @@ function FileUpload() {
                 <div className="pt-1 text-center">
                   <button
                     type="button"
+                    disabled={isUploading}
                     onClick={handleOpenLocalDirect}
                     className="text-xs font-semibold text-foreground-muted hover:text-primary transition-colors inline-flex items-center gap-1.5 cursor-pointer py-1"
                   >
@@ -310,7 +332,7 @@ function FileUpload() {
                   <BookOpen size={16} className="relative z-10" />
                   <span className="relative z-10">Read Now</span>
                 </button>
-                
+
                 <div className="grid grid-cols-2 gap-2.5">
                   <button
                     onClick={() => router.push('/files')}
@@ -338,4 +360,3 @@ function FileUpload() {
 }
 
 export default FileUpload;
-

@@ -33,12 +33,16 @@ async function middleware(req, res, next) {
             Message: "Invalid authentication token"
         });
     }
-    catch {
-        return res.status(401).json({
-            message: "Invalid or expired token, please log in again",
-            Message: "Invalid or expired token, please log in again"
-        });
+    catch (err) {
+        if (['TokenExpiredError', 'JsonWebTokenError', 'NotBeforeError'].includes(err.name)) {
+            return res.status(401).json({
+                message: "Invalid or expired token, please log in again",
+                Message: "Invalid or expired token, please log in again"
+            });
+        }
+        console.error('Authentication middleware failed:', err);
+        return res.status(500).json({ message: "Authentication failed", Message: "Authentication failed" });
     }
 }
 
-module.exports = middleware
+module.exports = middleware;

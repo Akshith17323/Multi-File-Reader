@@ -1,22 +1,36 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useEnvironment } from '../hooks/useEnvironment';
-import { Minus, Square, X } from 'lucide-react';
 import { WindowAdapter } from '../services/windowAdapter';
 
 export default function DesktopTitlebar() {
   const { isElectron } = useEnvironment();
   const [mounted, setMounted] = useState(false);
+  const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!isElectron) return;
-    document.documentElement.style.setProperty("--titlebar-height", "32px");
+    document.documentElement.style.setProperty("--titlebar-height", isElectron ? "32px" : "0px");
+    return () => { document.documentElement.style.removeProperty("--titlebar-height"); };
+  }, [isElectron]);
+
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (!isElectron || !api) return;
+    let active = true;
+    const updateState = (state: unknown) => {
+      if (active && state && typeof state === "object" && "maximized" in state) {
+        setMaximized(Boolean(state.maximized));
+      }
+    };
+    const unsubscribe = api.on("window-state-changed", updateState);
+    void api.invoke("get-window-state").then(updateState).catch(() => {});
     return () => {
-      document.documentElement.style.removeProperty("--titlebar-height");
+      active = false;
+      unsubscribe?.();
     };
   }, [isElectron]);
 
@@ -53,25 +67,31 @@ export default function DesktopTitlebar() {
           style={{ WebkitAppRegion: 'no-drag' } as any}
         >
           <button 
+            type="button"
+            title="Minimize window"
+            aria-label="Minimize window"
             onClick={handleMinimize} 
             className="hover:bg-surface-hover w-7 h-7 flex items-center justify-center rounded transition-colors text-foreground-muted hover:text-foreground"
-            title="Minimize"
           >
-            <Minus size={13} />
+            ─
           </button>
           <button 
+            type="button"
+            title={maximized ? "Restore window" : "Maximize window"}
+            aria-label={maximized ? "Restore window" : "Maximize window"}
             onClick={handleMaximize} 
             className="hover:bg-surface-hover w-7 h-7 flex items-center justify-center rounded transition-colors text-foreground-muted hover:text-foreground"
-            title="Maximize"
           >
-            <Square size={11} />
+            {maximized ? "❐" : "□"}
           </button>
           <button 
+            type="button"
+            title="Close window"
+            aria-label="Close window"
             onClick={handleClose} 
             className="hover:bg-red-500 w-7 h-7 flex items-center justify-center rounded transition-colors hover:text-white text-foreground-muted"
-            title="Close"
           >
-            <X size={14} />
+            ✕
           </button>
         </div>
       </div>

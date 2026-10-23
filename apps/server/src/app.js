@@ -11,19 +11,6 @@ const middleware = require('./middleware/authMiddleware')
 
 const app = express();
 
-app.get('/debug-env', (req, res) => {
-  const key = process.env.GCP_PRIVATE_KEY || '';
-  res.json({
-    project_id: process.env.GCP_PROJECT_ID,
-    key_length: key.length,
-    key_start: key.substring(0, 20),
-    has_escaped_newlines: key.includes('\\n'),
-    has_real_newlines: key.includes('\n'),
-    bucket: process.env.GCP_BUCKET_NAME || 'hardcoded-in-file' // checking if they set it
-  });
-});
-
-
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   process.env.FRONTEND_N_URL,
@@ -40,14 +27,14 @@ app.use(
       if (!origin || allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
         return callback(null, true);
       }
-      return callback(null, true);
+      return callback(new Error("Origin is not allowed"));
     },
+    exposedHeaders: ["Content-Length", "Content-Range", "Accept-Ranges"],
+    allowedHeaders: ["Content-Type", "Authorization", "Range"],
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     credentials: true
   })
 );
-const cookieParser = require('cookie-parser');
-app.use(cookieParser());
 app.use(express.json());
 // proxy route to stream external resources (useful if GCS CORS can't be changed)
 app.use('/', proxyRouter)
@@ -72,5 +59,11 @@ app.post('/files/local', middleware, registerLocalFile)
 // mount upload router (it defines POST /fileUpload)
 
 
+
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = err.type === "entity.parse.failed" ? 400 : err.message === "Origin is not allowed" ? 403 : 500;
+  res.status(status).json({ message: status === 400 ? "Invalid JSON request" : status === 403 ? err.message : "Server error" });
+});
 
 module.exports = app;

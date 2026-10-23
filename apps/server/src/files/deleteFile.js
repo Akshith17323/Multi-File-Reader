@@ -1,5 +1,6 @@
-const { bucket } = require("../gcs");
+const { bucket, bucketName } = require("../gcs");
 const prisma = require('../prisma');
+const { getStorageObjectPath } = require('../utils/fileTypes');
 
 async function deleteFile(req, res) {
     console.log("[Delete] deleteFile handler called");
@@ -27,53 +28,15 @@ async function deleteFile(req, res) {
             return res.status(404).json({ message: "File not found or access denied" });
         }
 
-        // 2. Delete from GCS only if it is a cloud file
-        if (!dbFile.fileUrl.startsWith("mfr-local://")) {
-            let gcsPath = dbFile.fileName;
-            try {
-                const urlObj = new URL(dbFile.fileUrl);
-                const pathParts = urlObj.pathname.split('/').filter(Boolean);
-                // pathParts format: [bucketName, ...objectPath]
-                if (pathParts.length > 1) {
-                    gcsPath = decodeURIComponent(pathParts.slice(1).join('/'));
-                }
-            } catch {
-                gcsPath = dbFile.fileName;
-            }
-
-            const file = bucket.file(gcsPath);
-            try {
-                const [exists] = await file.exists();
-                if (exists) {
-                    await file.delete();
-                    console.log(`[Delete] Deleted ${gcsPath} from GCS`);
-                } else {
-                    console.warn(`[Delete] File ${gcsPath} not found in GCS, skipping GCS delete`);
-                }
-            } catch (gcsErr) {
-                console.error("[Delete] Error deleting from GCS:", gcsErr);
-            }
+        // Only remove objects from this application's bucket for cloud files.
+        if (dbFile.source === "CLOUD") {
+            const paths = [dbFile.fileUrl, dbFile.thumbnailUrl].map(url => getStorageObjectPath(url, bucketName)).filter(Boolean);
+            await Promise.all(paths.map(objectPath => bucket.file(objectPath).delete({ ignoreNotFound: true })));
         }
 
-        // 3. Delete associated bookmarks first to prevent foreign key constraint failures
-        try {
-            await prisma.bookmark.deleteMany({
-                where: {
-                    OR: [
-                        { fileId: dbFile.id },
-                        { fileUrl: dbFile.fileUrl }
-                    ]
-                }
-            });
-        } catch (bErr) {
-            console.warn("[Delete] Warning deleting associated bookmarks:", bErr);
-        }
-
-        // 4. Delete from DB
-        await prisma.file.delete({
-            where: {
-                id: dbFile.id
-            }
+        await prisma.$transaction(async (tx) => {
+            await tx.bookmark.deleteMany({ where: { userId, OR: [{ fileId: dbFile.id }, ...(dbFile.fileUrl ? [{ fileUrl: dbFile.fileUrl }] : [])] } });
+            await tx.file.delete({ where: { id: dbFile.id } });
         });
         console.log("[Delete] Deleted from Database");
 

@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/services/apiClient";
+import { getLocalBookmarksMap, mergeBookmarks, deleteBookmarkUnified } from "@/utils/localBookmarks";
+import { createReaderUrl } from "@/utils/readerSession";
+import { isElectron } from "@/hooks/useEnvironment";
+import { isLocalFileUrl } from "@/utils/fileUrls";
 import { BookOpen, Trash2, Clock, AlertCircle, FileText, Layers, ArrowRight, BookmarkCheck } from "lucide-react";
 import { toast } from "react-toastify";
 import AppShell, { PageHeader } from "@/components/ui/AppShell";
@@ -31,17 +35,23 @@ export default function BookmarksPage() {
 
         try {
             const token = localStorage.getItem("token");
-            if (!token) {
+            if (!token && !isElectron()) {
                 toast.error("Please login to view bookmarks");
                 router.push("/auth/login");
                 setLoading(false);
                 return;
             }
 
-            const data = await apiClient.getAllBookmarks(token);
-            setBookmarks(data.bookmarks || []);
+            const local = getLocalBookmarksMap();
+            const remote = token ? (await apiClient.getAllBookmarks(token)).bookmarks || [] : [];
+            setBookmarks(mergeBookmarks(remote, local).map(bookmark => ({ ...bookmark, id: bookmark.fileUrl, fileName: bookmark.fileName || "Untitled document", lastRead: bookmark.lastRead || "" })));
 
         } catch (error: unknown) {
+            const local = mergeBookmarks([], getLocalBookmarksMap());
+            if (local.length) {
+                setBookmarks(local.map(bookmark => ({ ...bookmark, id: bookmark.fileUrl, fileName: bookmark.fileName || "Untitled document", lastRead: bookmark.lastRead || "" })));
+                return;
+            }
             const err = error as Error;
             console.error("❌ Error fetching bookmarks:", err);
             setError(err.message || "Failed to load bookmarks");
@@ -67,12 +77,7 @@ export default function BookmarksPage() {
 
         try {
             const token = localStorage.getItem("token");
-            if (!token) {
-                toast.error("Please login");
-                return;
-            }
-
-            await apiClient.deleteBookmark(token, bookmark.fileUrl);
+            await deleteBookmarkUnified(token, bookmark.fileUrl);
 
             toast.success("Progress cleared successfully");
             setBookmarks(prev => prev.filter(b => b.id !== bookmark.id));
@@ -85,7 +90,8 @@ export default function BookmarksPage() {
     };
 
     const handleContinueReading = (bookmark: Bookmark) => {
-        router.push(`/reader?files=${encodeURIComponent(bookmark.fileUrl)}&active=0`);
+        if (isLocalFileUrl(bookmark.fileUrl) && !isElectron()) { toast.info("Open this local document in the desktop app."); return; }
+        router.push(createReaderUrl([bookmark.fileUrl]));
     };
 
     const getProgressText = (bookmark: Bookmark) => {
@@ -219,7 +225,7 @@ export default function BookmarksPage() {
                                                     handleDelete(bookmark);
                                                 }}
                                                 className="text-foreground-muted hover:text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg transition-colors shrink-0"
-                                                title="Clear Bookmark"
+                                                title="Clear Progress"
                                             >
                                                 <Trash2 size={13} />
                                             </button>
@@ -298,4 +304,3 @@ export default function BookmarksPage() {
         </AppShell>
     );
 }
-

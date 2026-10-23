@@ -95,21 +95,18 @@ You may add these if you plan to expand:
 
 ---
 
-## Installation & Setup (Optional)
-If you'd like, I can generate full setup instructions.  
-For now, here’s a basic template:
+## Installation & Setup
+
+Install dependencies from the repository root with `npm install`, configure the web and backend environment variables, and run `npm run dev` for the web app.
+
+Run `npm run electron` to start the backend, frontend, and desktop app together. If the servers are already running, use `npm run start:electron`. Electron waits for the frontend during startup and displays a Retry button if it cannot connect.
+
+The desktop entry points remain `apps/electron/main.js` and `apps/electron/preload.js`. By default they connect to the frontend on port 3000 and the backend on port 2007. To use different ports or hosted servers:
 
 ```bash
-# Clone the repo
-git clone https://github.com/yourusername/multi-file-reader.git
+ELECTRON_FRONTEND_URL=https://your-frontend.example \
+ELECTRON_BACKEND_URL=https://your-backend.example \
+npm run start:electron
+```
 
-# Install frontend dependencies
-cd frontend
-npm install
-
-# Install backend dependencies
-cd backend
-npm install
-
-# Start development servers
-npm run dev
+Set `NEXT_PUBLIC_BACKEND_URL` for browser builds. Electron also uses it as a fallback when `ELECTRON_BACKEND_URL` is unset. These variables must be exported to the desktop process; Next.js's `.env.local` does not configure Electron automatically. The desktop window loads the configured web app, so that server must remain available.

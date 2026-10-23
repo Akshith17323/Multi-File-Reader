@@ -1,129 +1,57 @@
 import { isElectron } from "@/hooks/useEnvironment";
+import { handleApiFailure } from "./apiClient";
 
 export class FileAdapter {
-  /**
-   * Triggers the native local file picker in Electron and saves the metadata.
-   * Throws an error if called from the Web.
-   */
   static async addLocalBook(token: string) {
-    if (!isElectron()) {
-      throw new Error("Local books are only supported in the Desktop app.");
+    if (!isElectron()) throw new Error("Local books are only supported in the desktop app.");
+    const result = await window.electronAPI!.invoke('open-local-file-dialog', token);
+    if (result.ok) {
+      if (!result.data?.file?.fileUrl) throw new Error("The selected file has no readable location.");
+      return { url: result.data.file.fileUrl, fileName: result.data.file.fileName };
     }
-
-    try {
-      const result = await (window as any).electronAPI.invoke('open-local-file-dialog', token);
-      if (result.ok) {
-        return {
-          url: `local://${result.data.file.localId}`,
-          fileName: result.data.file.fileName
-        };
-      } else if (result.error === "Canceled") {
-        return null;
-      } else {
-        throw new Error(result.error || "Failed to add local book");
-      }
-    } catch (err: any) {
-      throw new Error(err.message || "Failed to add local book");
-    }
+    if (result.error === "Canceled") return null;
+    handleApiFailure(result.status || 0, result.error || "Failed to add local book", true);
   }
 
-  /**
-   * Uploads a file to the Cloud.
-   * Adapts the transport mechanism based on the environment (Electron IPC vs Web XMLHttpRequest).
-   */
   static async uploadFile(file: File, token: string, uploadEndpoint: string, onProgress: (progress: number) => void): Promise<string> {
     if (isElectron()) {
-      onProgress(50);
-      try {
-        const filePath = (window as any).electronAPI?.getFilePath?.(file) || (file as any).path;
-        if (!filePath) throw new Error("Could not find file path for desktop upload. Try selecting the file again.");
-
-        const result = await (window as any).electronAPI.invoke('upload-dropped-file', {
-          filePath,
-          token
-        });
-
-        if (result.ok) {
-          onProgress(100);
-          return result.data.url;
-        } else {
-          throw new Error(result.error || "Upload failed");
-        }
-      } catch (err: any) {
-        throw new Error(err.message || "Upload failed in Electron");
+      onProgress(5);
+      const filePath = window.electronAPI?.getFilePath?.(file) || (file as File & { path?: string }).path;
+      if (!filePath) throw new Error("Could not find the file on disk. Select it again.");
+      const result = await window.electronAPI!.invoke('upload-dropped-file', { filePath, token });
+      if (!result.ok) {
+        handleApiFailure(result.status || 0, result.error || "Upload failed", true);
       }
+      if (typeof result.data?.url !== "string" || !result.data.url) throw new Error("Upload returned no document URL.");
+      onProgress(100);
+      return result.data.url;
     }
 
-    // Web Standard Upload
-    return new Promise(async (resolve, reject) => {
-      const fd = new FormData();
-      fd.append("UploadingFile", file);
-
-      try {
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        const objectUrl = URL.createObjectURL(file);
-
-        if (ext === 'pdf') {
-          const { pdfjs } = await import("react-pdf");
-          pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-
-          const pdf = await pdfjs.getDocument(objectUrl).promise;
-          const page = await pdf.getPage(1);
-          const viewport = page.getViewport({ scale: 1.0 });
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
-
-          if (context) {
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            await page.render({ canvasContext: context, viewport } as any).promise;
-            const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/jpeg', 0.8));
-            if (blob) fd.append("thumbnail", blob, "thumbnail.jpg");
-          }
-        } else if (ext === 'epub') {
-          const ePub = (await import("epubjs")).default;
-          const book = ePub(objectUrl);
-          await book.ready;
-          const coverUrl = await book.coverUrl();
-          if (coverUrl) {
-            const response = await fetch(coverUrl);
-            const blob = await response.blob();
-            fd.append("thumbnail", blob, "thumbnail.jpg");
-          }
-        }
-
-        URL.revokeObjectURL(objectUrl);
-      } catch (e) {
-        console.warn("Could not generate thumbnail:", e);
-      }
-
+    // Thumbnails are optional. Uploading the document must never wait for a cover renderer.
+    const fd = new FormData();
+    fd.append("UploadingFile", file);
+    return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("POST", uploadEndpoint);
+      xhr.timeout = 120000;
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-
-      xhr.upload.onprogress = (ev) => {
-        if (ev.lengthComputable) onProgress(Math.round((ev.loaded / ev.total) * 100));
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) onProgress(Math.min(95, Math.round((event.loaded / event.total) * 95)));
       };
-
       xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const body = JSON.parse(xhr.responseText);
-            resolve(body.url);
-          } catch {
-            reject(new Error("Upload succeeded but response parsing failed"));
+        try {
+          const body = JSON.parse(xhr.responseText);
+          if (xhr.status < 200 || xhr.status >= 300) {
+            handleApiFailure(xhr.status, body.error || body.message || `Upload failed (${xhr.status})`, true);
           }
-        } else {
-          try {
-            const errBody = JSON.parse(xhr.responseText);
-            reject(new Error(errBody.error || errBody.message || `Upload failed: ${xhr.status}`));
-          } catch {
-            reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
-          }
-        }
+          if (typeof body.url !== "string" || !body.url) throw new Error("Upload returned no document URL.");
+          onProgress(100);
+          resolve(body.url);
+        } catch (error) { reject(error); }
       };
-
-      xhr.onerror = () => reject(new Error("Network/error during upload"));
+      xhr.onerror = () => reject(new Error("Could not reach the server. Check your connection and retry."));
+      xhr.ontimeout = () => reject(new Error("Upload timed out. Please try again."));
+      xhr.onabort = () => reject(new Error("Upload was canceled."));
       xhr.send(fd);
     });
   }

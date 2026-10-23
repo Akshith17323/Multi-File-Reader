@@ -1,13 +1,16 @@
 "use client";
 
-import { forwardRef, useImperativeHandle } from "react";
+import { forwardRef, useImperativeHandle, useEffect, useRef } from "react";
 import { FileQuestion, ExternalLink, Download } from "lucide-react";
 import { BaseReaderProps, ReaderHandle } from "../types";
 
 const UnsupportedReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function UnsupportedReaderAdapter(
-    { file },
+    { file, onStatusChange },
     ref
 ) {
+    const statusRef = useRef(onStatusChange);
+    useEffect(() => { statusRef.current = onStatusChange; }, [onStatusChange]);
+    useEffect(() => { statusRef.current?.('ready'); }, []);
     useImperativeHandle(ref, () => ({
         next: () => {},
         prev: () => {},

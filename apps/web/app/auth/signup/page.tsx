@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AuthLayout from "@/components/ui/AuthLayout";
+import { setAuthSession } from "@/utils/authSession";
 import { apiClient } from "@/services/apiClient";
 import { useGoogleLogin } from '@react-oauth/google';
 
@@ -109,7 +110,7 @@ function Signuppage() {
         e.preventDefault();
         setError("");
 
-        if (!name || !email || !password || !confirmPassword) {
+        if (!name.trim() || !email.trim() || !password || !confirmPassword) {
             setError("Please fill in all fields");
             return;
         }
@@ -126,17 +127,11 @@ function Signuppage() {
 
         setIsLoading(true);
         try {
-            const data = await apiClient.signup({ name, email, password });
+            const data = await apiClient.signup({ name: name.trim(), email: email.trim().toLowerCase(), password });
 
             toast.success(`Welcome, ${name}! Account created successfully.`);
 
-            if (data.token) {
-                localStorage.setItem("token", data.token);
-                if (data.user) {
-                    localStorage.setItem("user", data.user);
-                    window.dispatchEvent(new Event("auth-change"));
-                }
-            }
+            setAuthSession(data);
 
             router.push('/files');
 
@@ -163,15 +158,9 @@ function Signuppage() {
 
             toast.success(`Welcome, ${data.user}! Account linked successfully.`);
 
-            if (data.token) {
-                localStorage.setItem("token", data.token);
-                if (data.user) {
-                    localStorage.setItem("user", data.user);
-                    window.dispatchEvent(new Event("auth-change"));
-                }
-            }
+            setAuthSession(data);
 
-            router.push("/fileupload");
+            router.push("/files");
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : "Google Signup failed. Please try again.";
             setError(errorMessage);

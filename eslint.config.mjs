@@ -30,6 +30,14 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    files: ["tests/**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "@next/next/no-assign-module-variable": "off",
+      "@typescript-eslint/no-this-alias": "off",
+    },
+  },
+  {
     files: ["apps/server/**/*.js", "apps/electron/**/*.js"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",

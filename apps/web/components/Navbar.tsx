@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { LogOut, Menu, X } from "lucide-react";
 import { toast } from "react-toastify";
 import { apiClient } from "@/services/apiClient";
+import { clearAuthSession } from "@/utils/authSession";
 import ThemeToggle from "./ThemeToggle";
 import Brand from "./ui/Brand";
 import { useEnvironment } from "@/hooks/useEnvironment";
@@ -51,10 +52,7 @@ export default function Navbar() {
         } catch (error) {
             console.error("Logout failed", error);
         } finally {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            // Notify other components
-            window.dispatchEvent(new Event("auth-change"));
+            clearAuthSession();
             toast.info("Logged out successfully");
             router.push("/auth/login");
         }

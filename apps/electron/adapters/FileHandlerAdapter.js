@@ -1,23 +1,28 @@
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL, fileURLToPath } = require('url');
+const { getDocumentType, MAX_FILE_SIZE, toLocalUrl } = require('../../server/src/utils/fileTypes');
 const { net, BrowserWindow } = require('electron');
 
 let isRegistered = false;
 
-function extractPathFromLocalUrl(rawUrl) {
+function extractPathFromLocalUrl(rawUrl, platform = process.platform) {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
   let filePath = rawUrl;
   if (filePath.startsWith('mfr-local://')) {
     filePath = decodeURIComponent(filePath.replace(/^mfr-local:\/\//, ''));
+    if (filePath.startsWith('localhost/')) filePath = filePath.slice('localhost'.length);
+    // Older URLs without an explicit host are rewritten by Chromium as host/path.
+    if (!filePath.startsWith('/') && !/^[a-zA-Z]:[\\/]/.test(filePath)) filePath = `/${filePath}`;
   } else if (filePath.startsWith('file://')) {
-    filePath = decodeURIComponent(filePath.replace(/^file:\/\//, ''));
-  } else {
-    filePath = decodeURIComponent(filePath);
+    filePath = fileURLToPath(filePath, { windows: platform === 'win32' });
+  } else if (filePath.startsWith('local://')) {
+    filePath = filePath.slice(8);
   }
-  if (process.platform === 'win32' && filePath.startsWith('/') && filePath[2] === ':') {
+  if (platform === 'win32' && filePath.startsWith('/') && filePath[2] === ':') {
     filePath = filePath.slice(1);
   }
-  return filePath;
+  return platform === 'win32' ? path.win32.normalize(filePath) : filePath;
 }
 
 function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, maybeBackend) {
@@ -27,18 +32,32 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
   const BACKEND_URL = typeof maybeWindowOrBackend === 'string' ? maybeWindowOrBackend : maybeBackend;
   const targetWindow = typeof maybeWindowOrBackend === 'object' ? maybeWindowOrBackend : null;
   const getWindow = (event) => (event?.sender ? BrowserWindow.fromWebContents(event.sender) : null) || BrowserWindow.getFocusedWindow() || targetWindow;
+  const handle = (channel, handler) => ipcMain.handle(channel, async (event, ...args) => {
+    try { return await handler(event, ...args); }
+    catch (error) {
+      console.error(`Desktop action failed (${channel}):`, error.message);
+      return { ok: false, canceled: false, error: error.message || 'The desktop action failed' };
+    }
+  });
+  const readableFile = async filePath => {
+    if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) throw new Error('Choose a valid file on disk');
+    await fs.promises.access(filePath, fs.constants.R_OK);
+    const stat = await fs.promises.stat(filePath);
+    if (!stat.isFile()) throw new Error('The selected location is not a file');
+    return stat;
+  };
 
   // Local File Picker (Saves metadata via /localUpload instead of uploading blob)
-  ipcMain.handle('open-local-file-dialog', async (event, token) => {
+  handle('open-local-file-dialog', async (event, token) => {
     const win = getWindow(event);
     const dialogOptions = {
       title: 'Select a Local Book',
       properties: ['openFile'],
       filters: [
-        { name: 'Supported Books', extensions: ['pdf', 'epub'] }
+        { name: 'Supported Books', extensions: ['pdf', 'epub', 'txt'] }
       ]
     };
-    const { canceled, filePaths } = win 
+    const { canceled, filePaths } = win
       ? await dialog.showOpenDialog(win, dialogOptions)
       : await dialog.showOpenDialog(dialogOptions);
 
@@ -46,18 +65,14 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
 
     const filePath = filePaths[0];
     const fileName = path.basename(filePath);
-    
-    // Quick stat for file size
-    const stat = fs.statSync(filePath);
-    
-    // Guess mime type
-    let fileType = 'application/octet-stream';
-    if (filePath.endsWith('.pdf')) fileType = 'application/pdf';
-    else if (filePath.endsWith('.epub')) fileType = 'application/epub+zip';
 
     try {
+      const stat = await readableFile(filePath);
+      const fileType = getDocumentType(fileName);
+      if (!fileType) return { ok: false, error: 'Choose a PDF, EPUB, or TXT file' };
       // Send metadata to the backend to register the local file
       const response = await fetch(`${BACKEND_URL}/localUpload`, {
+        signal: AbortSignal.timeout(15000),
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,13 +83,14 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
           fileType,
           fileSize: stat.size,
           localId: filePath,
-          fileUrl: `mfr-local://${filePath}`
+          fileUrl: toLocalUrl(filePath)
         })
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || data.message || 'Failed to register local file');
-      
+      const data = await response.json().catch(() => null);
+      if (!response.ok) return { ok: false, status: response.status, error: data?.error || data?.message || 'Failed to register local file' };
+      if (!data?.file?.fileUrl) return { ok: false, error: 'The server returned no local file location' };
+
       return { ok: true, data };
     } catch (err) {
       console.error('Local File Error:', err);
@@ -83,7 +99,7 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
   });
 
   // Explicit native file picker for local files (prompts OS dialog & grants file access)
-  ipcMain.handle('open-local-file', async (event) => {
+  handle('open-local-file', async (event) => {
     const win = getWindow(event);
     const dialogOptions = {
       title: 'Select a Local Book or Document',
@@ -105,12 +121,8 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
     const fileName = path.basename(filePath);
 
     try {
-      fs.accessSync(filePath, fs.constants.R_OK);
-      const stat = fs.statSync(filePath);
-      const ext = path.extname(filePath).toLowerCase();
-      let fileType = 'text/plain';
-      if (ext === '.pdf') fileType = 'application/pdf';
-      else if (ext === '.epub') fileType = 'application/epub+zip';
+      const stat = await readableFile(filePath);
+      const fileType = getDocumentType(fileName) || 'application/octet-stream';
 
       return {
         canceled: false,
@@ -118,7 +130,7 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
         fileName,
         fileSize: stat.size,
         fileType,
-        url: `mfr-local://${filePath}`
+        url: toLocalUrl(filePath)
       };
     } catch (err) {
       console.error('Permission check failed for selected file:', err);
@@ -133,12 +145,9 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
   });
 
   // Check file permission IPC handler
-  ipcMain.handle('check-file-permission', async (event, filePath) => {
+  handle('check-file-permission', async (event, filePath) => {
     try {
-      if (!filePath || !fs.existsSync(filePath)) {
-        return { hasPermission: false, error: 'File does not exist' };
-      }
-      fs.accessSync(filePath, fs.constants.R_OK);
+      await readableFile(extractPathFromLocalUrl(filePath));
       return { hasPermission: true };
     } catch (err) {
       return { hasPermission: false, error: err.message };
@@ -146,39 +155,32 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
   });
 
   // Batch check status (existence & permissions) for local file URLs
-  ipcMain.handle('check-local-files-status', async (event, urls) => {
+  handle('check-local-files-status', async (event, urls) => {
     if (!Array.isArray(urls)) return {};
     const results = {};
     for (const url of urls) {
       if (!url || typeof url !== 'string') continue;
       const isLocal =
         url.startsWith('mfr-local://') ||
+        url.startsWith('local://') ||
         url.startsWith('file://') ||
         url.startsWith('/') ||
-        /^[a-zA-Z]:[\\/]/.test(url);
+        /^[a-zA-Z]:[\\/]/.test(url) ||
+        url.startsWith('\\\\');
 
       if (!isLocal) {
         results[url] = { exists: true, isLocal: false, readable: true, path: url };
         continue;
       }
 
-      const filePath = extractPathFromLocalUrl(url);
+      let filePath = url;
       try {
-        if (!fs.existsSync(filePath)) {
-          results[url] = {
-            exists: false,
-            isLocal: true,
-            readable: false,
-            path: filePath,
-            error: 'File not found at specified path (Media Offline)',
-          };
-        } else {
-          fs.accessSync(filePath, fs.constants.R_OK);
-          results[url] = { exists: true, isLocal: true, readable: true, path: filePath };
-        }
+        filePath = extractPathFromLocalUrl(url);
+        await readableFile(filePath);
+        results[url] = { exists: true, isLocal: true, readable: true, path: filePath };
       } catch (err) {
         results[url] = {
-          exists: true,
+          exists: err.code !== 'ENOENT' && err.code !== 'ENOTDIR',
           isLocal: true,
           readable: false,
           path: filePath,
@@ -190,9 +192,11 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
   });
 
   // Relink a missing local file via native OS open dialog
-  ipcMain.handle('relink-local-file', async (event, { oldUrl, originalFileName } = {}) => {
+  handle('relink-local-file', async (event, { oldUrl, originalFileName } = {}) => {
     const win = getWindow(event);
-    const oldPath = extractPathFromLocalUrl(oldUrl || '');
+    let oldPath;
+    try { oldPath = extractPathFromLocalUrl(oldUrl || ''); }
+    catch { return { canceled: false, error: 'The original file location is invalid' }; }
     const ext = path.extname(oldPath || originalFileName || '').toLowerCase().replace(/^\./, '');
 
     const filters = [];
@@ -230,25 +234,23 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
     const newFileName = path.basename(newPath);
 
     try {
-      fs.accessSync(newPath, fs.constants.R_OK);
-      const stat = fs.statSync(newPath);
+      const stat = await readableFile(newPath);
       const newExt = path.extname(newPath).toLowerCase();
-      let fileType = 'text/plain';
-      if (newExt === '.pdf') fileType = 'application/pdf';
-      else if (newExt === '.epub') fileType = 'application/epub+zip';
+      if (ext && newExt !== `.${ext}`) return { canceled: false, error: 'Choose a file with the same format as the original document' };
+      const fileType = getDocumentType(newFileName) || 'application/octet-stream';
 
       const formatSize = (bytes) => {
         if (!bytes || bytes === 0) return '0 B';
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        const i = Math.min(sizes.length - 1, Math.max(0, Math.floor(Math.log(bytes) / Math.log(k))));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
       };
 
       return {
         canceled: false,
         oldUrl,
-        newUrl: `mfr-local://${newPath}`,
+        newUrl: toLocalUrl(newPath),
         newPath,
         fileName: newFileName,
         fileSize: formatSize(stat.size),
@@ -268,7 +270,7 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
   });
 
   // Native file picker and upload to backend (Cloud)
-  ipcMain.handle('select-and-upload-file', async (event, token) => {
+  handle('select-and-upload-file', async (event, token) => {
     const win = getWindow(event);
     const dialogOptions = {
       title: 'Select a File to Upload',
@@ -284,16 +286,18 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
 
     if (canceled || filePaths.length === 0) return { canceled: true };
 
-    const filePath = filePaths[0];
-    const fileName = path.basename(filePath);
-    const fileBuffer = fs.readFileSync(filePath);
-    
-    const formData = new FormData();
-    const blob = new Blob([fileBuffer]);
-    formData.append('UploadingFile', blob, fileName);
-
     try {
+      const filePath = filePaths[0];
+      const fileName = path.basename(filePath);
+      const stat = await readableFile(filePath);
+      if (!getDocumentType(fileName)) return { canceled: false, error: 'Choose a PDF, EPUB, or TXT file' };
+      if (stat.size > MAX_FILE_SIZE) return { canceled: false, error: "Files must be 50 MB or smaller" };
+      const fileBuffer = await fs.promises.readFile(filePath);
+      const formData = new FormData();
+      const blob = new Blob([fileBuffer], { type: getDocumentType(fileName) || 'application/octet-stream' });
+      formData.append('UploadingFile', blob, fileName);
       const response = await fetch(`${BACKEND_URL}/fileUpload`, {
+        signal: AbortSignal.timeout(120000),
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -301,9 +305,10 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
         body: formData
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || data.message || 'Upload failed');
-      
+      const data = await response.json().catch(() => null);
+      if (!response.ok) return { canceled: false, status: response.status, error: data?.error || data?.message || 'Upload failed' };
+      if (!data?.url) return { canceled: false, error: 'The server returned no document URL' };
+
       return { canceled: false, data };
     } catch (err) {
       console.error('File selection upload error:', err);
@@ -312,20 +317,20 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
   });
 
   // Handle drag-and-drop file upload (Cloud)
-  ipcMain.handle('upload-dropped-file', async (event, { token, filePath }) => {
+  handle('upload-dropped-file', async (event, { token, filePath } = {}) => {
     try {
-      if (!filePath || !fs.existsSync(filePath)) {
-        return { ok: false, error: 'File does not exist on disk' };
-      }
-
+      const stat = await readableFile(filePath);
       const fileName = path.basename(filePath);
-      const fileBuffer = fs.readFileSync(filePath);
-      
+      if (!getDocumentType(fileName)) return { ok: false, error: 'Choose a PDF, EPUB, or TXT file' };
+      if (stat.size > MAX_FILE_SIZE) return { ok: false, error: "Files must be 50 MB or smaller" };
+      const fileBuffer = await fs.promises.readFile(filePath);
+
       const formData = new FormData();
-      const blob = new Blob([fileBuffer]);
+      const blob = new Blob([fileBuffer], { type: getDocumentType(fileName) || 'application/octet-stream' });
       formData.append('UploadingFile', blob, fileName);
 
       const response = await fetch(`${BACKEND_URL}/fileUpload`, {
+        signal: AbortSignal.timeout(120000),
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -333,11 +338,12 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
         body: formData
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
       if (!response.ok) {
-        return { ok: false, error: data.error || data.message || 'Upload failed' };
+        return { ok: false, status: response.status, error: data?.error || data?.message || 'Upload failed' };
       }
-      
+      if (!data?.url) return { ok: false, error: 'The server returned no document URL' };
+
       return { ok: true, data };
     } catch (err) {
       console.error('Drop upload error:', err);
@@ -347,19 +353,23 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
 
   // Register secure protocol to read local files natively via absolute path
   protocol.handle('mfr-local', async (request) => {
-    const filePath = extractPathFromLocalUrl(request.url);
-
-    if (!fs.existsSync(filePath)) {
-      console.warn('[mfr-local] Media offline - file not found at:', filePath);
-      return new Response('Media Offline: File not found on disk', {
-        status: 404,
-        headers: { 'Content-Type': 'text/plain' },
-      });
+    let filePath;
+    try {
+      filePath = extractPathFromLocalUrl(request.url);
+      if (!path.isAbsolute(filePath) || filePath.includes('\0')) throw new Error('Invalid path');
+    } catch {
+      return new Response('Invalid local file URL', { status: 400 });
     }
 
     try {
-      fs.accessSync(filePath, fs.constants.R_OK);
+      const stat = await fs.promises.stat(filePath);
+      if (!stat.isFile()) return new Response('The location is not a file', { status: 400 });
+      await fs.promises.access(filePath, fs.constants.R_OK);
+      return await net.fetch(pathToFileURL(filePath).href, { method: request.method, headers: request.headers });
     } catch (err) {
+      if (err.code === 'ENOENT' || err.code === 'ENOTDIR') {
+        return new Response('Media Offline: File not found on disk', { status: 404 });
+      }
       console.error('[mfr-local] File permission error for path:', filePath, err);
       return new Response('File read permission denied', {
         status: 403,
@@ -367,7 +377,6 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
       });
     }
 
-    return net.fetch('file://' + filePath);
   });
 }
 
