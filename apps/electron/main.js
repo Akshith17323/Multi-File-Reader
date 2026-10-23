@@ -52,7 +52,6 @@ function createWindow() {
     minHeight: 480,
     frame: process.platform === 'darwin',
     ...(process.platform === 'darwin' ? {
-      titleBarStyle: 'hidden',
       trafficLightPosition: { x: 16, y: 14 },
     } : {}),
     backgroundColor: '#000000',

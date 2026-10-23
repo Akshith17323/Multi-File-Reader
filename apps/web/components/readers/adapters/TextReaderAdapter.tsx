@@ -20,7 +20,7 @@ const TextReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function Tex
     const callbackRef = useRef(onLocationChange);
     const initialProgressRef = useRef(initialLocation?.progress || 0);
     const restoredRef = useRef(false);
-    const savedOffsetRef = useRef(0);
+    const readingAnchorRef = useRef<{ index: number; offset: number } | null>(null);
     const frameRef = useRef(0);
     const fontSize = viewOptions.fontSize / 100 * 14;
     useEffect(() => { statusRef.current = onStatusChange; }, [onStatusChange]);
@@ -44,7 +44,7 @@ const TextReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function Tex
         let canceled = false;
         const controller = new AbortController();
         restoredRef.current = false;
-        savedOffsetRef.current = 0;
+        readingAnchorRef.current = null;
         initialProgressRef.current = Math.min(100, Math.max(0, initialLocation?.progress || 0));
         setLoading(true);
         setError(null);
@@ -75,13 +75,21 @@ const TextReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function Tex
         const container = scrollContainerRef.current;
         if (!container || !restoredRef.current || !isActive) return;
         const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-        savedOffsetRef.current = container.scrollTop;
+        const top = container.getBoundingClientRect().top;
+        const row = [...container.querySelectorAll<HTMLElement>('[data-index]')].find(element => element.getBoundingClientRect().bottom > top);
+        const bounds = row?.getBoundingClientRect();
+        const index = row ? Number(row.dataset.index) : readingAnchorRef.current?.index || 0;
+        const offset = bounds ? Math.max(0, top - bounds.top) : 0;
+        readingAnchorRef.current = { index, offset };
+        // Save a line fraction rather than a fraction of estimated virtual
+        // height, which changes when fonts, wrapping, or the viewport change.
+        const fraction = bounds?.height ? Math.min(1, offset / bounds.height) : 0;
         callbackRef.current?.({
-            progress: maxScroll ? Math.min(100, Math.max(0, container.scrollTop / maxScroll * 100)) : 0,
+            progress: maxScroll - container.scrollTop <= 1 ? 100 : container.scrollTop <= 1 ? 0 : (index + fraction) / Math.max(1, lines.length) * 100,
             atStart: container.scrollTop <= 1,
             atEnd: maxScroll - container.scrollTop <= 1,
         });
-    }, [isActive]);
+    }, [isActive, lines.length]);
 
     useEffect(() => {
         const container = scrollContainerRef.current;
@@ -99,25 +107,22 @@ const TextReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function Tex
         if (!container) return;
         // Retain the visible line through wrapping/font changes. Re-measure only
         // when the layout changes, not on every scroll/progress update.
-        const anchor = virtualizer.getVirtualItems().find(item => item.end > container.scrollTop);
-        const offset = anchor ? container.scrollTop - anchor.start : 0;
+        const anchor = readingAnchorRef.current || { index: Math.min(lines.length - 1, Math.floor(lines.length * initialProgressRef.current / 100)), offset: 0 };
+        readingAnchorRef.current = anchor;
+        restoredRef.current = false;
         virtualizer.measure();
+        let settleFrame = 0;
         const frame = requestAnimationFrame(() => {
-            if (!restoredRef.current) {
-                const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-                container.scrollTop = maxScroll * initialProgressRef.current / 100;
+            virtualizer.scrollToIndex(Math.max(0, anchor.index), { align: 'start' });
+            container.scrollTop += anchor.offset;
+            settleFrame = requestAnimationFrame(() => {
                 restoredRef.current = true;
-            } else if (anchor) {
-                virtualizer.scrollToIndex(anchor.index, { align: 'start' });
-                container.scrollTop += offset;
-            } else {
-                container.scrollTop = savedOffsetRef.current;
-            }
-            statusRef.current?.('ready');
-            reportLocation();
+                statusRef.current?.('ready');
+                reportLocation();
+            });
         });
-        return () => cancelAnimationFrame(frame);
-    }, [loading, error, isActive, fontSize, width, virtualizer, reportLocation]);
+        return () => { cancelAnimationFrame(frame); cancelAnimationFrame(settleFrame); };
+    }, [loading, error, isActive, fontSize, width, virtualizer, reportLocation, lines.length]);
 
     useEffect(() => () => cancelAnimationFrame(frameRef.current), []);
 

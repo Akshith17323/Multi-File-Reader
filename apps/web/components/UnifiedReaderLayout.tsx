@@ -93,7 +93,7 @@ export default function UnifiedReaderLayout(props: Props) {
 
   return (
     <main aria-label="Document reader" className="flex h-[calc(100svh-var(--titlebar-height))] min-h-0 flex-col overflow-hidden bg-background">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle bg-surface px-3 py-2 sm:px-5">
+      <header className="mfr-window-header flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle bg-surface px-3 py-2 sm:px-5">
         <div className="flex min-w-0 items-center gap-2">
           <button type="button" onClick={() => router.push('/files')} aria-label="Back to library" title="Back to library" className={iconClass}><ArrowLeft size={18} /></button>
           <BookOpen aria-hidden="true" size={18} className="hidden shrink-0 text-primary sm:block" />

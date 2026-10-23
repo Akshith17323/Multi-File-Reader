@@ -2,9 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
+import type { PDFPageProxy } from 'pdfjs-dist';
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Loader2, AlertCircle } from "lucide-react";
+import RetainedReaderSurface from "./readers/RetainedReaderSurface";
 import type { ReaderStatus, ViewMode } from './readers/types';
 
 // Configure worker
@@ -39,6 +41,26 @@ export default function PDFRenderer({
     const [containerWidth, setContainerWidth] = useState<number>(0);
     const [containerHeight, setContainerHeight] = useState<number>(0);
     const containerRef = useRef<HTMLDivElement>(null);
+    const surfaceRef = useRef<RetainedReaderSurface>(null);
+    const [nearbyPages, setNearbyPages] = useState<Set<number>>(new Set());
+    const [pageRatios, setPageRatios] = useState<Record<number, number>>({});
+    const [loadError, setLoadError] = useState<string | null>(null);
+    // ResizeObserver reports the content box, excluding padding.
+    const availableWidth = twoPages ? (containerWidth - 16) / 2 : containerWidth;
+    const pageProps = !containerWidth || (fitMode === 'height' && !containerHeight) ? {} :
+        fitMode === 'height' ? { height: Math.max(100, containerHeight) } :
+            fitMode === 'none' ? { scale } : { width: Math.max(100, availableWidth) };
+    const renderKey = `${pageProps.width}:${pageProps.height}:${pageProps.scale}`;
+    const layoutKey = `${viewMode}:${fitMode}:${scale}:${containerWidth}:${containerHeight}:${continuous ? '' : pageNumber}`;
+    const finishLayout = () => {
+        const container = containerRef.current;
+        if (!container) return;
+        const required = [pageNumber, ...(twoPages && pageNumber < numPages ? [pageNumber + 1] : [])];
+        if (required.every(page => {
+            const canvas = container.querySelector<HTMLCanvasElement>(`[data-page-number="${page}"] canvas`);
+            return canvas && canvas.width > 0 && getComputedStyle(canvas).visibility !== 'hidden' && canvas.dataset.renderedLayout === renderKey;
+        })) surfaceRef.current?.reveal(layoutKey);
+    };
 
     // Touch handling for swipe navigation
     const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -61,8 +83,18 @@ export default function PDFRenderer({
     }, []);
 
     function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
+        setLoadError(null);
         setNumPages(numPages);
         onLoadSuccess(numPages);
+    }
+
+    function onDocumentError(error: Error) {
+        const status = (error as Error & { status?: number }).status;
+        setLoadError(status === 503
+            ? 'Cloud storage is temporarily unavailable. Try again later or open a downloaded copy.'
+            : status === 404 ? 'This PDF is no longer available in cloud storage.'
+                : 'Could not load this PDF. Check the file and try opening it again.');
+        onStatusChange?.('error');
     }
 
     // Swipe handlers
@@ -92,27 +124,6 @@ export default function PDFRenderer({
         }
     };
 
-    // Calculate Page Dimensions based on Fit Mode
-    const getPageDimensions = () => {
-        if (!containerWidth || (fitMode === "height" && !containerHeight)) return {};
-
-        let availableWidth = containerWidth; // ResizeObserver reports the content box, excluding padding.
-        if (twoPages) {
-            availableWidth = (containerWidth - 16) / 2;
-        }
-
-        switch (fitMode) {
-            case "width":
-                return { width: Math.max(100, availableWidth) };
-            case "height":
-                return { height: Math.max(100, containerHeight) };
-            case "none":
-                return { scale: scale };
-            default:
-                return { width: Math.max(100, availableWidth) };
-        }
-    };
-
     const visiblePageRef = useRef(pageNumber);
     const onPageChangeRef = useRef(onPageChange);
     const pendingRestoreRef = useRef<number | null>(null);
@@ -122,16 +133,26 @@ export default function PDFRenderer({
         const target = pendingRestoreRef.current;
         if (!container || target === null) return;
         userScrollingRef.current = false;
-        // Earlier canvases must have their final heights before we can restore a later page.
-        for (let page = 1; page <= target; page++) {
-            if (!container.querySelector(`[data-page-number="${page}"] canvas`)) return;
-        }
-        const element = container.querySelector<HTMLElement>(`[data-page-number="${target}"]`);
+        const element = container.querySelector<HTMLElement>(`[data-pdf-page="${target}"]`);
         if (!element) return;
         container.scrollTop += element.getBoundingClientRect().top - container.getBoundingClientRect().top - 16;
         visiblePageRef.current = target;
-        pendingRestoreRef.current = null;
+        const canvas = element.querySelector('canvas');
+        if (canvas && canvas.width > 0 && getComputedStyle(canvas).visibility !== 'hidden') pendingRestoreRef.current = null;
     };
+    const onPageLoadSuccess = (loaded: PDFPageProxy) => {
+        const viewport = loaded.getViewport({ scale: 1 });
+        const nextRatio = viewport.width / viewport.height;
+        setPageRatios(previous => previous[loaded.pageNumber] === nextRatio ? previous : { ...previous, [loaded.pageNumber]: nextRatio });
+    };
+    const onPageRenderSuccess = (loaded: PDFPageProxy) => {
+        const canvas = containerRef.current?.querySelector<HTMLCanvasElement>(`[data-pdf-page="${loaded.pageNumber}"] canvas`);
+        if (canvas) canvas.dataset.renderedLayout = renderKey;
+        restoreRenderedPage();
+        finishLayout();
+        onStatusChange?.('ready');
+    };
+    const onPageRenderError = () => surfaceRef.current?.reveal(layoutKey);
     useEffect(() => { onPageChangeRef.current = onPageChange; }, [onPageChange]);
     useEffect(() => {
         if (!isActive || !continuous || !numPages || !containerRef.current) return;
@@ -150,7 +171,7 @@ export default function PDFRenderer({
             if (pendingRestoreRef.current !== null || !userScrollingRef.current) return;
             const visible = [...visiblePages].sort((a, b) => b[1] - a[1])[0]?.[0];
             if (visible) {
-                const visiblePage = Number((visible as HTMLElement).dataset.pageNumber);
+                const visiblePage = Number((visible as HTMLElement).dataset.pdfPage);
                 const page = twoPages ? Math.floor((visiblePage - 1) / 2) * 2 + 1 : visiblePage;
                 if (page && page !== visiblePageRef.current) {
                     visiblePageRef.current = page;
@@ -158,7 +179,7 @@ export default function PDFRenderer({
                 }
             }
         }, { root: container, threshold: [0.1, 0.5, 0.9] });
-        container.querySelectorAll(".react-pdf__Page").forEach(page => observer.observe(page));
+        container.querySelectorAll("[data-pdf-page]").forEach(page => observer.observe(page));
         return () => observer.disconnect();
         // Page changes caused by scrolling must not recreate the observer.
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -172,9 +193,36 @@ export default function PDFRenderer({
         }
     }, [pageNumber, continuous]);
 
-    const pageProps = getPageDimensions();
+    // Observe cheap page placeholders. Mount PDF canvases only near the
+    // viewport instead of rendering the entire document in continuous mode.
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!continuous || !container || !numPages) return;
+        const nearby = new Set<number>();
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                const page = Number((entry.target as HTMLElement).dataset.pdfPage);
+                if (entry.isIntersecting) nearby.add(page);
+                else nearby.delete(page);
+            });
+            setNearbyPages(new Set(nearby));
+        }, { root: container, rootMargin: '100% 0px' });
+        container.querySelectorAll('[data-pdf-page]').forEach(page => observer.observe(page));
+        return () => observer.disconnect();
+    }, [continuous, twoPages, numPages]);
+
+    useEffect(() => {
+        const frame = requestAnimationFrame(finishLayout);
+        return () => cancelAnimationFrame(frame);
+        // Callbacks always inspect the current committed page canvases.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [layoutKey, numPages, pageNumber]);
+
+    const fallbackRatio = pageRatios[1] || pageRatios[pageNumber] || 612 / 792;
+    const pages = continuous ? Array.from({ length: numPages }, (_, index) => index + 1) : [pageNumber, ...(twoPages && pageNumber < numPages ? [pageNumber + 1] : [])];
 
     return (
+        <RetainedReaderSurface ref={surfaceRef} layoutKey={layoutKey} pageNumber={pageNumber}>
         <div
             ref={containerRef}
             tabIndex={0}
@@ -192,12 +240,12 @@ export default function PDFRenderer({
             <Document
                 file={blobUrl}
                 onSourceSuccess={() => onStatusChange?.('loading')}
-                onLoadError={() => onStatusChange?.('error')}
-                onSourceError={() => onStatusChange?.('error')}
+                onLoadError={onDocumentError}
+                onSourceError={onDocumentError}
                 onItemClick={({ pageNumber: page }) => { if (page) onPageChange(page); }}
                 onLoadSuccess={onDocumentLoadSuccess}
-                error={<div role="alert" className="flex flex-col items-center gap-3 p-6 text-foreground"><AlertCircle /><p>Could not load this PDF. Check the file and try opening it again.</p></div>}
-                className="flex flex-col items-center min-h-full"
+                error={<div role="alert" className="flex flex-col items-center gap-3 p-6 text-foreground"><AlertCircle /><p>{loadError || 'Could not load this PDF. Check the file and try opening it again.'}</p></div>}
+                className={`grid w-max min-w-full content-start justify-items-center gap-4 ${twoPages ? 'grid-cols-2' : 'grid-cols-1'}`}
                 loading={
                     <div className="flex flex-col items-center justify-center h-40 text-foreground gap-3">
                         <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -205,59 +253,21 @@ export default function PDFRenderer({
                     </div>
                 }
             >
-                {numPages > 0 && (
-                    <>
-                        {/* Single Page Mode */}
-                        {viewMode === "single" && (
-                            <Page
-                                pageNumber={pageNumber}
-                                renderTextLayer={true}
-                                renderAnnotationLayer={true}
-                                {...pageProps}
-                                className="shadow-2xl mb-4 transition-all duration-300"
-                            />
-                        )}
-
-                        {/* Continuous pages, grouped into spreads when two pages are selected. */}
-                        {continuous && Array.from({ length: Math.ceil(numPages / (twoPages ? 2 : 1)) }, (_, row) => {
-                            const first = row * (twoPages ? 2 : 1) + 1;
-                            return <div key={first} className="mb-4 flex shrink-0 gap-4">
-                                {Array.from({ length: twoPages && first < numPages ? 2 : 1 }, (_, column) => <Page
-                                    key={first + column}
-                                    pageNumber={first + column}
-                                    renderTextLayer={true}
-                                    renderAnnotationLayer={true}
-                                    onRenderSuccess={restoreRenderedPage}
-                                    {...pageProps}
-                                    className="shadow-2xl"
-                                />)}
-                            </div>;
-                        })}
-
-                        {/* Two Page Mode */}
-                        {viewMode === "two-page" && (
-                            <div className="flex justify-center gap-4">
-                                <Page
-                                    pageNumber={pageNumber}
-                                    renderTextLayer={true}
-                                    renderAnnotationLayer={true}
-                                    {...pageProps}
-                                    className="shadow-2xl"
-                                />
-                                {pageNumber + 1 <= numPages && (
-                                    <Page
-                                        pageNumber={pageNumber + 1}
-                                        renderTextLayer={true}
-                                        renderAnnotationLayer={true}
-                                        {...pageProps}
-                                        className="shadow-2xl"
-                                    />
-                                )}
-                            </div>
-                        )}
-                    </>
-                )}
+                {numPages > 0 && pages.map(page => {
+                    const ratio = pageRatios[page] || fallbackRatio;
+                    const width = pageProps.width || (pageProps.height ? pageProps.height * ratio : 612 * scale);
+                    const height = pageProps.height || width / ratio;
+                    const render = !continuous || nearbyPages.has(page) || page === pageNumber || (twoPages && page === pageNumber + 1);
+                    return <div key={page} data-pdf-page={page} data-page-number={page} className="relative shrink-0 bg-white shadow-2xl" style={{ width, minHeight: height }}>
+                        {render && <Page pageNumber={page} renderTextLayer renderAnnotationLayer {...pageProps}
+                            onLoadSuccess={onPageLoadSuccess}
+                            onRenderSuccess={onPageRenderSuccess}
+                            onRenderError={onPageRenderError}
+                        />}
+                    </div>;
+                })}
             </Document>
         </div>
+        </RetainedReaderSurface>
     );
 }

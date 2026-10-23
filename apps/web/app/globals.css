@@ -57,7 +57,6 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 300ms ease, color 300ms ease;
 }
 
 /* Shared visual language from the landing page. */
@@ -232,27 +231,16 @@ button, a, input, select, [role="button"], [role="separator"] {
   }
 }
 
-/* View Transitions for Dark Mode Toggle */
-::view-transition-group(root) {
-  animation-duration: 300ms;
+/* Theme changes should paint immediately; hover transitions resume afterward. */
+.theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after {
+  transition: none !important;
 }
 
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
+/* Window controls share the existing app header instead of a separate strip. */
+html[data-desktop] .mfr-window-header {
+  -webkit-app-region: drag;
+  padding-left: 104px;
 }
-
-::view-transition-old(root) {
-  z-index: 1;
-}
-::view-transition-new(root) {
-  z-index: 9999;
-}
-
-.dark::view-transition-old(root) {
-  z-index: 9999;
-}
-.dark::view-transition-new(root) {
-  z-index: 1;
+html[data-desktop] .mfr-window-header :is(button, a, input, select, [role="button"]) {
+  -webkit-app-region: no-drag;
 }
