@@ -38,10 +38,10 @@ export default function FormatShowcase({ className = "" }: { className?: string 
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <FormatCard icon={<FileText size={22} />} label="PDF" detail="Documents" color="text-red-500" />
-        <FormatCard icon={<BookOpen size={22} />} label="EPUB" detail="Books" color="text-emerald-500" />
-        <FormatCard icon={<FileText size={22} />} label="TXT" detail="Plain text" color="text-sky-500" />
-        <FormatCard icon={<Layers size={22} />} label="Multi-tab" detail="Read together" color="text-violet-500" />
+        <FormatCard icon={<FileText size={22} />} label="PDF" detail="Documents" color="text-foreground" />
+        <FormatCard icon={<BookOpen size={22} />} label="EPUB" detail="Books" color="text-foreground" />
+        <FormatCard icon={<FileText size={22} />} label="TXT" detail="Plain text" color="text-foreground" />
+        <FormatCard icon={<Layers size={22} />} label="Multi-tab" detail="Read together" color="text-foreground" />
       </div>
       <div className="mt-4 flex items-center gap-2 rounded-xl border border-border-subtle bg-surface-hover/70 px-3 py-2.5">
         <BookmarkCheck size={16} className="shrink-0 text-primary" aria-hidden="true" />

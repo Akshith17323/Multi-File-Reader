@@ -39,16 +39,16 @@ export default function Home() {
           {/* Quick Feature Badges */}
           <div className="pt-1 flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-hover/80 backdrop-blur-md border border-border-subtle text-xs font-semibold text-foreground">
-              <FileText size={13} className="text-red-500" /> PDF
+              <FileText size={13} className="text-foreground" /> PDF
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-hover/80 backdrop-blur-md border border-border-subtle text-xs font-semibold text-foreground">
-              <BookOpen size={13} className="text-green-500" /> EPUB
+              <BookOpen size={13} className="text-foreground" /> EPUB
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-hover/80 backdrop-blur-md border border-border-subtle text-xs font-semibold text-foreground">
-              <Layers size={13} className="text-blue-500" /> Multi-Tab
+              <Layers size={13} className="text-foreground" /> Multi-Tab
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-hover/80 backdrop-blur-md border border-border-subtle text-xs font-semibold text-foreground">
-              <BookmarkCheck size={13} className="text-purple-500" /> Auto-Bookmarks
+              <BookmarkCheck size={13} className="text-foreground" /> Auto-Bookmarks
             </span>
           </div>
         </div>

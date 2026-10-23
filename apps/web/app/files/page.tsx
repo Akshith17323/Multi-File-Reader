@@ -2,15 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, BookOpen, AlertCircle, Edit2, ChevronDown, Search, FileText, Layers, Upload } from "lucide-react";
+import { Trash2, BookOpen, AlertCircle, Edit2, ChevronDown, Search, FileText, Layers, Upload, Monitor, Cloud, FolderOpen } from "lucide-react";
 import { toast } from "react-toastify";
 import AppShell, { PageHeader } from "@/components/ui/AppShell";
 import { apiClient } from "@/services/apiClient";
 import dynamic from "next/dynamic";
 import { createReaderUrl, getLastReaderSession, removeFileFromReaderSession } from "@/utils/readerSession";
-import { getLocalLibraryFiles, removeLocalLibraryFile, updateLocalLibraryFile } from "@/utils/localLibrary";
+import { removeLocalLibraryFile, updateLocalLibraryFile } from "@/utils/localLibrary";
 import { deleteBookmarkUnified, getLocalBookmark, saveLocalBookmark } from "@/utils/localBookmarks";
 import { isLocalFileUrl, normalizeFileUrl } from "@/utils/fileUrls";
+import { FileAdapter } from "@/services/fileAdapter";
+import { loadLibraryPage } from "@/services/library";
+import { useEnvironment } from "@/hooks/useEnvironment";
 import { isElectron } from "@/hooks/useEnvironment";
 
 const FilePreview = dynamic(() => import("@/components/FilePreview"), { ssr: false });
@@ -28,6 +31,10 @@ interface FileData {
 }
 
 export default function FilesPage() {
+  const { isElectron: isDesktop } = useEnvironment();
+  const [openingLocal, setOpeningLocal] = useState(false);
+  const localPickerBusy = useRef(false);
+  const [warning, setWarning] = useState("");
   const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,22 +65,10 @@ export default function FilesPage() {
     try {
       const token = localStorage.getItem("token");
       if (!token && !isElectron()) { router.replace("/auth/login"); return; }
-      if (!token) {
-        const localFiles = getLocalLibraryFiles().filter(file => file.name.toLowerCase().includes(search.toLowerCase()) && (!typeFilter || file.metadata.contentType.includes(typeFilter === "txt" ? "text/plain" : typeFilter)));
-        localFiles.sort((a, b) => (sortBy === "name" ? a.name.localeCompare(b.name) : Date.parse(a.metadata.updated) - Date.parse(b.metadata.updated)) * (sortOrder === "asc" ? 1 : -1));
-        const pages = Math.max(1, Math.ceil(localFiles.length / 24));
-        const currentPage = Math.min(page, pages);
-        setTotalPages(pages);
-        setPage(currentPage);
-        setFiles(localFiles.slice((currentPage - 1) * 24, currentPage * 24));
-        return;
-      }
-      const params = new URLSearchParams({ page: String(page), limit: "24", sortBy, order: sortOrder });
-      if (search) params.set("search", search);
-      if (typeFilter) params.set("type", typeFilter);
-      const data = await apiClient.getAllFiles(token, params.toString());
+      const data = await loadLibraryPage(token, { page, limit: 24, sortBy, order: sortOrder, search, type: typeFilter });
       if (version !== requestVersion.current) return;
       if (!Array.isArray(data?.files)) throw new Error("Invalid file list returned by server");
+      setWarning(data.warning || "");
       setFiles(data.files.map((file: FileData) => ({ ...file, url: normalizeFileUrl(file.url) })));
       setTotalPages(Math.max(1, data.pagination?.totalPages || 1));
       if (data.pagination?.currentPage && data.pagination.currentPage !== page) setPage(data.pagination.currentPage);
@@ -92,6 +87,19 @@ export default function FilesPage() {
     return () => { clearTimeout(timeoutId); requests.current++; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, typeFilter, page, sortBy, sortOrder]);
+
+  const openLocal = async (folder = false) => {
+    if (localPickerBusy.current) return;
+    localPickerBusy.current = true; setOpeningLocal(true);
+    try {
+      const result = await FileAdapter.openLocalFiles(folder);
+      if (!result) return;
+      if (!result.files.length) toast.info("No readable PDF, EPUB, or TXT files found.");
+      else { await fetchFiles(); toast.success(`${result.files.length} local ${result.files.length === 1 ? 'file' : 'files'} added`); }
+      if (result.skipped) toast.info(`${result.skipped} files or folders could not be read.`);
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not open local files"); }
+    finally { localPickerBusy.current = false; setOpeningLocal(false); }
+  };
 
   const handleDelete = (filename: string, fileId: string) => {
     setFileToDelete({ id: fileId, name: filename });
@@ -157,9 +165,11 @@ export default function FilesPage() {
   };
 
   const getFileBadge = (type: string) => {
-    if (type === "application/pdf") return { label: "PDF", color: "text-red-500", bg: "bg-red-500/10 border-red-500/20" };
-    if (type === "application/epub+zip") return { label: "EPUB", color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/20" };
-    return { label: "TXT", color: "text-sky-500", bg: "bg-sky-500/10 border-sky-500/20" };
+    return {
+      label: type === "application/pdf" ? "PDF" : type === "application/epub+zip" ? "EPUB" : "TXT",
+      color: "text-foreground",
+      bg: "bg-surface-hover/95 border-border-subtle",
+    };
   };
 
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -177,7 +187,13 @@ export default function FilesPage() {
           title="My"
           accent="Collection"
           description="Browse, search, and continue reading your documents."
-          action={<button onClick={() => router.push("/fileupload")} className="mfr-button-primary"><Upload size={16} />Upload New</button>}
+          action={<div className="flex flex-wrap gap-2">
+            {isDesktop && <>
+              <button disabled={openingLocal} onClick={() => openLocal()} className="mfr-button-primary"><Monitor size={16} />{openingLocal ? 'Opening…' : 'Open local files'}</button>
+              <button disabled={openingLocal} onClick={() => openLocal(true)} className="mfr-button-secondary"><FolderOpen size={16} />Open folder</button>
+            </>}
+            <button onClick={() => router.push("/fileupload")} className={isDesktop ? "mfr-button-secondary" : "mfr-button-primary"}><Upload size={16} />{isDesktop ? 'Add files' : 'Upload files'}</button>
+          </div>}
         />
 
         {/* Controls Bar (Glassmorphic Card) */}
@@ -226,16 +242,18 @@ export default function FilesPage() {
           </div>
         </div>
 
+        {warning && <p role="status" className="text-sm text-foreground-muted">{warning}</p>}
+
         {/* Error State */}
         {error && !loading && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 sm:p-5 flex items-start gap-3 text-xs sm:text-sm">
-            <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+          <div className="bg-foreground/10 border border-foreground/30 rounded-2xl p-4 sm:p-5 flex items-start gap-3 text-xs sm:text-sm">
+            <AlertCircle className="text-foreground shrink-0 mt-0.5" size={20} />
             <div className="flex-1">
-              <h3 className="text-red-500 font-bold mb-0.5">Error Loading Collection</h3>
-              <p className="text-red-500 font-medium">{error}</p>
+              <h3 className="text-foreground font-bold mb-0.5">Error Loading Collection</h3>
+              <p className="text-foreground font-medium">{error}</p>
               <button
                 onClick={fetchFiles}
-                className="mt-2 text-xs text-red-500 hover:text-red-300 underline font-semibold cursor-pointer"
+                className="mt-2 text-xs text-foreground hover:text-foreground underline font-semibold cursor-pointer"
               >
                 Try Again
               </button>
@@ -264,25 +282,25 @@ export default function FilesPage() {
               <p className="text-foreground-muted text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
                 {search || typeFilter
                   ? "Try clearing your search query or format filter to discover your documents."
-                  : "Upload your first PDF, EPUB, or TXT file and keep all your reading in one place."}
+                  : isDesktop ? "Open local files or a folder to start your library." : "Upload your first PDF, EPUB, or TXT file and keep all your reading in one place."}
               </p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-w-lg mx-auto pt-2">
               <div className="flex items-center gap-2 rounded-xl bg-surface-hover/65 border border-border-subtle p-2.5 text-left">
-                <FileText size={16} className="text-red-500 shrink-0" />
+                <FileText size={16} className="text-foreground shrink-0" />
                 <span className="text-xs font-bold text-foreground">PDF</span>
               </div>
               <div className="flex items-center gap-2 rounded-xl bg-surface-hover/65 border border-border-subtle p-2.5 text-left">
-                <BookOpen size={16} className="text-emerald-500 shrink-0" />
+                <BookOpen size={16} className="text-foreground shrink-0" />
                 <span className="text-xs font-bold text-foreground">EPUB</span>
               </div>
               <div className="flex items-center gap-2 rounded-xl bg-surface-hover/65 border border-border-subtle p-2.5 text-left">
-                <FileText size={16} className="text-sky-500 shrink-0" />
+                <FileText size={16} className="text-foreground shrink-0" />
                 <span className="text-xs font-bold text-foreground">TXT</span>
               </div>
               <div className="flex items-center gap-2 rounded-xl bg-surface-hover/65 border border-border-subtle p-2.5 text-left">
-                <Layers size={16} className="text-purple-500 shrink-0" />
+                <Layers size={16} className="text-foreground shrink-0" />
                 <span className="text-xs font-bold text-foreground">Multi-Tab</span>
               </div>
             </div>
@@ -292,7 +310,7 @@ export default function FilesPage() {
                 onClick={() => router.push("/fileupload")}
                 className="mfr-button-primary overflow-hidden group"
               >
-                <span className="relative z-10">Upload Your First File</span>
+                <span className="relative z-10">{isDesktop ? "Add your first files" : "Upload your first file"}</span>
                 <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
               </button>
             </div>
@@ -300,7 +318,7 @@ export default function FilesPage() {
         ) : (
           <>
             {/* File Cards Grid */}
-            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 pb-4">
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 pb-4">
               {files.map((file) => {
                 const badge = getFileBadge(file.metadata.contentType);
 
@@ -310,11 +328,16 @@ export default function FilesPage() {
                     className="mfr-panel group relative rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-xl hover:border-primary/40 transition-all duration-300 hover:-translate-y-1"
                   >
                     {/* Cover Preview Area */}
-                    <div className="aspect-[4/3] relative bg-background overflow-hidden group-hover:scale-102 transition-transform duration-300">
+                    <div className="aspect-[3/4] relative bg-background overflow-hidden group-hover:scale-102 transition-transform duration-300">
                       <div className="w-full h-full">
                         <FilePreview url={file.url} type={file.metadata.contentType} thumbnailUrl={file.thumbnailUrl} />
                       </div>
 
+                      <span title={isLocalFileUrl(file.url) ? "Local file · on your computer" : "Cloud file"}
+                        className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-border-subtle bg-surface-hover/90 text-foreground shadow-sm backdrop-blur-md">
+                        {isLocalFileUrl(file.url) ? <Monitor size={16} aria-hidden="true" /> : <Cloud size={16} aria-hidden="true" />}
+                        <span className="sr-only">{isLocalFileUrl(file.url) ? 'Local file' : 'Cloud file'}</span>
+                      </span>
                       {/* Format Badge */}
                       <div className="absolute top-2 left-2 z-10">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur-md shadow-xs border ${badge.bg} ${badge.color}`}>
@@ -323,10 +346,10 @@ export default function FilesPage() {
                       </div>
 
                       {/* Hover Overlay with Quick Actions */}
-                      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] opacity-100 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-1.5 p-2">
+                      <div className="absolute inset-x-0 bottom-0 bg-surface/80 backdrop-blur-xl opacity-100 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-1.5 p-3">
                         <button
                           onClick={() => handleRead(file)}
-                          className="bg-primary hover:bg-primary-hover text-white px-3 py-1.5 rounded-xl shadow-md transform scale-90 group-hover:scale-100 transition-all duration-200 font-bold text-xs cursor-pointer"
+                          className="bg-primary hover:bg-primary-hover text-on-primary px-3 py-1.5 rounded-xl shadow-md transform scale-90 group-hover:scale-100 transition-all duration-200 font-bold text-xs cursor-pointer"
                         >
                           Open
                         </button>
@@ -363,7 +386,7 @@ export default function FilesPage() {
                                 <button
                                   disabled={mutating}
                                   onClick={() => handleRename(file.id)}
-                                  className="flex-1 px-2 py-1 bg-primary hover:bg-primary-hover text-white rounded-md text-[10px] font-bold transition-all"
+                                  className="flex-1 px-2 py-1 bg-primary hover:bg-primary-hover text-on-primary rounded-md text-[10px] font-bold transition-all"
                                 >
                                   Save
                                 </button>
@@ -419,7 +442,7 @@ export default function FilesPage() {
                                 e.stopPropagation();
                                 handleDelete(file.name, file.id);
                               }}
-                              className="text-foreground-muted hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-500/10"
+                              className="text-foreground-muted hover:text-foreground transition-colors p-1 rounded-md hover:bg-foreground/10"
                               title="Delete File"
                             >
                               <Trash2 size={13} />
@@ -462,7 +485,7 @@ export default function FilesPage() {
       {fileToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-surface/90 backdrop-blur-2xl border border-border-subtle rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-4">
-            <div className="w-11 h-11 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center">
+            <div className="w-11 h-11 rounded-2xl bg-foreground/10 border border-foreground/20 text-foreground flex items-center justify-center">
               <Trash2 size={22} />
             </div>
             <div>
@@ -481,7 +504,7 @@ export default function FilesPage() {
               </button>
               <button
                 onClick={confirmDelete}
-                className="flex-1 py-2 px-3 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-xl shadow-md hover:shadow-red-600/30 transition-all duration-200 cursor-pointer"
+                className="flex-1 py-2 px-3 bg-primary hover:bg-primary text-on-primary font-semibold text-xs rounded-xl shadow-md hover:shadow-foreground/30 transition-all duration-200 cursor-pointer"
               >
                 Delete
               </button>

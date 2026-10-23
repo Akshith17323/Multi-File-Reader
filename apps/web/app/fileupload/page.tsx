@@ -1,6 +1,6 @@
 "use client";
 import React, { useRef, useState } from "react";
-import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, File, X, BookOpen, ArrowLeft } from "lucide-react";
+import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, Monitor, FolderOpen, Cloud, X, BookOpen, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEnvironment } from "@/hooks/useEnvironment";
 import { FileAdapter } from "@/services/fileAdapter";
@@ -10,6 +10,7 @@ import { createReaderUrl } from "@/utils/readerSession";
 
 function FileUpload() {
   const { isElectron: isDesktop } = useEnvironment();
+  const [showCloud, setShowCloud] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [progress, setProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -91,50 +92,24 @@ function FileUpload() {
     }
   };
 
-  const handleLocalBook = async () => {
+  const openLocal = async (folder = false) => {
     if (uploadInFlight.current) return;
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setError("Please login to add local files");
-      return;
-    }
-
-    uploadInFlight.current = true;
-    setIsUploading(true);
+    uploadInFlight.current = true; setIsUploading(true); setError(null);
     try {
-      setError(null);
-      const data = await FileAdapter.addLocalBook(token);
-      if (data) {
-        setResultUrl(data.url);
-        setSelectedFile({ name: data.fileName } as any);
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to add local book");
-    } finally {
-      uploadInFlight.current = false;
-      setIsUploading(false);
-    }
-  };
-
-  const handleOpenLocalDirect = async () => {
-    try {
-      const result = await (window as any).electronAPI?.invoke('open-local-file');
-      if (result && !result.canceled && result.url) {
-        router.push(createReaderUrl([result.url]));
-      } else if (result?.error) {
-        setError(`Permission/access error: ${result.error}`);
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to open local file");
-    }
+      const result = await FileAdapter.openLocalFiles(folder);
+      if (!result) return;
+      if (!result.files.length) { setError("No readable PDF, EPUB, or TXT files found."); return; }
+      router.push(folder ? '/files' : createReaderUrl(result.files.map(file => file.url)));
+    } catch (error) { setError(error instanceof Error ? error.message : "Could not open local files"); }
+    finally { uploadInFlight.current = false; setIsUploading(false); }
   };
 
   const getFileIcon = () => {
     if (!selectedFile) return <Upload size={32} className="text-primary" />;
     const ext = selectedFile.name.split('.').pop()?.toLowerCase();
-    if (ext === 'pdf') return <FileText size={32} className="text-red-500" />;
-    if (ext === 'epub') return <FileText size={32} className="text-green-500" />;
-    return <FileText size={32} className="text-blue-500" />;
+    if (ext === 'pdf') return <FileText size={32} className="text-foreground" />;
+    if (ext === 'epub') return <FileText size={32} className="text-foreground" />;
+    return <FileText size={32} className="text-foreground" />;
   };
 
   const getReaderUrl = (url: string) => {
@@ -155,14 +130,29 @@ function FileUpload() {
 
         <PageHeader
           eyebrow="Your digital library"
-          title="Add to"
-          accent="Collection"
-          description="Upload your books and documents, then start reading."
+          title="Add"
+          accent="files"
+          description={isDesktop ? "Open files from your computer or upload them to the cloud." : "Upload your books and documents, then start reading."}
           className="mb-6"
         />
 
         <div className="mfr-panel rounded-3xl p-5 shadow-xl sm:p-8">
-          {!resultUrl ? (
+          {isDesktop && !resultUrl && <div className="mb-6 flex gap-2" role="group" aria-label="File source">
+            <button type="button" disabled={isUploading} aria-pressed={!showCloud} onClick={() => { setShowCloud(false); setError(null); }} className={!showCloud ? "mfr-button-primary flex-1" : "mfr-button-secondary flex-1"}><Monitor size={16} />Local files</button>
+            <button type="button" disabled={isUploading} aria-pressed={showCloud} onClick={() => { setShowCloud(true); setError(null); }} className={showCloud ? "mfr-button-primary flex-1" : "mfr-button-secondary flex-1"}><Cloud size={16} />Cloud upload</button>
+          </div>}
+          {isDesktop && !showCloud ? <div className="space-y-5 py-4 text-center">
+            <Monitor size={40} className="mx-auto text-primary" />
+            <h2 className="text-xl font-semibold">Read from your computer</h2>
+            <p className="text-sm text-foreground-muted">Your files stay on your computer. No upload or sign-in needed.</p>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button disabled={isUploading} onClick={() => openLocal()} className="mfr-button-primary flex-1"><FileText size={18} />Open local files</button>
+              <button disabled={isUploading} onClick={() => openLocal(true)} className="mfr-button-secondary flex-1"><FolderOpen size={18} />Open folder</button>
+            </div>
+            <p className="text-xs text-foreground-muted">PDF, EPUB, and TXT · Folders include files in subfolders.</p>
+            {isUploading && <p role="status" className="text-sm text-foreground-muted">Adding your files…</p>}
+            {error && <p role="alert" className="text-sm text-foreground">{error}</p>}
+          </div> : !resultUrl ? (
             <form onSubmit={uploadFile} className="space-y-5">
               <div
                 onDragOver={handleDragOver}
@@ -215,7 +205,7 @@ function FileUpload() {
                             setError(null);
                             if (fileRef.current) fileRef.current.value = '';
                           }}
-                          className="absolute -top-3 -right-6 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-full p-1 opacity-80 sm:opacity-0 sm:group-hover/file:opacity-100 transition-all duration-200"
+                          className="absolute -top-3 -right-6 bg-foreground/10 text-foreground hover:bg-primary hover:text-on-primary rounded-full p-1 opacity-80 sm:opacity-0 sm:group-hover/file:opacity-100 transition-all duration-200"
                           title="Remove file"
                         >
                           <X size={14} />
@@ -234,9 +224,9 @@ function FileUpload() {
               </div>
 
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                <FormatCard icon={<FileText size={20} />} label="PDF" detail="Documents" color="text-red-500" />
-                <FormatCard icon={<BookOpen size={20} />} label="EPUB" detail="Books" color="text-emerald-500" />
-                <FormatCard icon={<FileText size={20} />} label="TXT" detail="Plain text" color="text-sky-500" />
+                <FormatCard icon={<FileText size={20} />} label="PDF" detail="Documents" color="text-foreground" />
+                <FormatCard icon={<BookOpen size={20} />} label="EPUB" detail="Books" color="text-foreground" />
+                <FormatCard icon={<FileText size={20} />} label="TXT" detail="Plain text" color="text-foreground" />
               </div>
 
               {isUploading && (
@@ -250,7 +240,7 @@ function FileUpload() {
                   </div>
                   <div className="h-2 bg-surface/60 backdrop-blur-md rounded-full overflow-hidden border border-border-subtle">
                     <div
-                      className="h-full bg-linear-to-r from-primary via-purple-500 to-blue-500 transition-all duration-300 shadow-[0_0_8px_var(--color-primary-glow)]"
+                      className="h-full bg-primary transition-all duration-300 shadow-[0_0_8px_var(--color-primary-glow)]"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -258,7 +248,7 @@ function FileUpload() {
               )}
 
               {error && (
-                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-2.5 text-red-500 text-xs">
+                <div className="p-3 bg-foreground/10 border border-foreground/30 rounded-xl flex items-center gap-2.5 text-foreground text-xs">
                   <AlertCircle size={18} className="shrink-0" />
                   <p className="font-medium">{error}</p>
                 </div>
@@ -279,47 +269,22 @@ function FileUpload() {
                   ) : (
                     <>
                       <Upload size={18} className="relative z-10" />
-                      <span className="relative z-10">Start Upload</span>
+                      <span className="relative z-10">Upload to cloud</span>
                     </>
                   )}
                 </button>
-                {isDesktop && (
-                  <button
-                    type="button"
-                    onClick={handleLocalBook}
-                    disabled={isUploading}
-                    className="mfr-button-secondary sm:flex-1"
-                  >
-                    <File size={18} className="text-primary" />
-                    <span>Add Local Book</span>
-                  </button>
-                )}
               </div>
-
-              {isDesktop && (
-                <div className="pt-1 text-center">
-                  <button
-                    type="button"
-                    disabled={isUploading}
-                    onClick={handleOpenLocalDirect}
-                    className="text-xs font-semibold text-foreground-muted hover:text-primary transition-colors inline-flex items-center gap-1.5 cursor-pointer py-1"
-                  >
-                    <FileText size={13} className="text-primary" />
-                    <span>Or open a local file directly (read without adding)</span>
-                  </button>
-                </div>
-              )}
             </form>
           ) : (
             <div className="text-center space-y-5 py-4 animate-in fade-in zoom-in duration-300">
-              <div className="w-16 h-16 bg-green-500/10 border border-green-500/30 rounded-2xl flex items-center justify-center mx-auto shadow-[0_0_25px_rgba(34,197,94,0.25)]">
-                <CheckCircle2 size={32} className="text-green-500" />
+              <div className="w-16 h-16 bg-foreground/10 border border-foreground/30 rounded-2xl flex items-center justify-center mx-auto shadow-[0_0_25px_var(--primary-glow)]">
+                <CheckCircle2 size={32} className="text-foreground" />
               </div>
 
               <div>
                 <h2 className="text-2xl font-extrabold text-foreground mb-1">Upload Successful!</h2>
                 <p className="text-foreground-muted text-xs sm:text-sm max-w-sm mx-auto">
-                  &quot;<span className="font-bold text-foreground">{selectedFile?.name}</span>&quot; is now ready to read in your unified library.
+                  &quot;<span className="font-bold text-foreground">{selectedFile?.name}</span>&quot; is now ready to read in your library.
                 </p>
               </div>
 

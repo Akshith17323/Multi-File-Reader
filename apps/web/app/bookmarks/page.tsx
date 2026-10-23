@@ -109,21 +109,21 @@ export default function BookmarksPage() {
         if (ext === 'pdf') {
             return {
                 label: 'PDF',
-                icon: <FileText size={12} className="text-red-500" />,
-                badgeClass: 'bg-red-500/10 text-red-500 border-red-500/20'
+                icon: <FileText size={12} className="text-foreground" />,
+                badgeClass: 'bg-foreground/10 text-foreground border-foreground/20'
             };
         }
         if (ext === 'epub') {
             return {
                 label: 'EPUB',
-                icon: <BookOpen size={12} className="text-green-500" />,
-                badgeClass: 'bg-green-500/10 text-green-500 border-green-500/20'
+                icon: <BookOpen size={12} className="text-foreground" />,
+                badgeClass: 'bg-foreground/10 text-foreground border-foreground/20'
             };
         }
         return {
             label: ext ? ext.toUpperCase() : 'DOC',
-            icon: <Layers size={12} className="text-blue-500" />,
-            badgeClass: 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+            icon: <Layers size={12} className="text-foreground" />,
+            badgeClass: 'bg-foreground/10 text-foreground border-foreground/20'
         };
     };
 
@@ -139,15 +139,15 @@ export default function BookmarksPage() {
 
                 {/* Error State */}
                 {error && !loading && (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-6 flex items-center gap-3 backdrop-blur-md">
-                        <AlertCircle className="text-red-500 shrink-0" size={20} />
+                    <div className="bg-foreground/10 border border-foreground/30 rounded-2xl p-4 mb-6 flex items-center gap-3 backdrop-blur-md">
+                        <AlertCircle className="text-foreground shrink-0" size={20} />
                         <div className="flex-1">
-                            <h3 className="text-red-500 font-bold text-sm mb-0.5">Error Loading Bookmarks</h3>
-                            <p className="text-red-500 text-xs">{error}</p>
+                            <h3 className="text-foreground font-bold text-sm mb-0.5">Error Loading Bookmarks</h3>
+                            <p className="text-foreground text-xs">{error}</p>
                         </div>
                         <button
                             onClick={fetchBookmarks}
-                            className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-bold hover:bg-red-600 transition-colors shrink-0"
+                            className="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-xs font-bold hover:bg-primary transition-colors shrink-0"
                         >
                             Retry
                         </button>
@@ -175,15 +175,15 @@ export default function BookmarksPage() {
                         {/* Supported Formats preview */}
                         <div className="grid grid-cols-3 gap-2.5 max-w-sm mx-auto mb-6">
                             <div className="p-2 rounded-xl bg-surface-hover/50 border border-border-subtle text-center">
-                                <span className="text-xs font-bold text-red-500">PDF</span>
+                                <span className="text-xs font-bold text-foreground">PDF</span>
                                 <p className="text-[10px] text-foreground-muted">Saved page</p>
                             </div>
                             <div className="p-2 rounded-xl bg-surface-hover/50 border border-border-subtle text-center">
-                                <span className="text-xs font-bold text-green-500">EPUB</span>
+                                <span className="text-xs font-bold text-foreground">EPUB</span>
                                 <p className="text-[10px] text-foreground-muted">Reading position</p>
                             </div>
                             <div className="p-2 rounded-xl bg-surface-hover/50 border border-border-subtle text-center">
-                                <span className="text-xs font-bold text-blue-500">TXT</span>
+                                <span className="text-xs font-bold text-foreground">TXT</span>
                                 <p className="text-[10px] text-foreground-muted">Saved progress</p>
                             </div>
                         </div>
@@ -224,7 +224,7 @@ export default function BookmarksPage() {
                                                     e.stopPropagation();
                                                     handleDelete(bookmark);
                                                 }}
-                                                className="text-foreground-muted hover:text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg transition-colors shrink-0"
+                                                className="text-foreground-muted hover:text-foreground hover:bg-foreground/10 p-1.5 rounded-lg transition-colors shrink-0"
                                                 title="Clear Progress"
                                             >
                                                 <Trash2 size={13} />
@@ -250,7 +250,7 @@ export default function BookmarksPage() {
                                             </div>
                                             <div className="w-full h-1.5 bg-surface-hover/80 backdrop-blur-md rounded-full overflow-hidden border border-border-subtle">
                                                 <div
-                                                    className="h-full bg-linear-to-r from-primary via-purple-500 to-blue-500 shadow-[0_0_8px_var(--color-primary-glow)] transition-all duration-300"
+                                                    className="h-full bg-primary shadow-[0_0_8px_var(--color-primary-glow)] transition-all duration-300"
                                                     style={{ width: `${Math.min(100, Math.max(0, bookmark.progress || 0))}%` }}
                                                 />
                                             </div>
@@ -275,7 +275,7 @@ export default function BookmarksPage() {
             {bookmarkToDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200">
                     <div className="bg-surface/90 backdrop-blur-2xl border border-border-subtle rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-4">
-                        <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-2xl bg-foreground/10 border border-foreground/20 text-foreground flex items-center justify-center">
                             <Trash2 size={22} />
                         </div>
                         <div>
@@ -293,7 +293,7 @@ export default function BookmarksPage() {
                             </button>
                             <button
                                 onClick={confirmDeleteBookmark}
-                                className="flex-1 py-2.5 px-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-red-600/30 transition-all duration-200"
+                                className="flex-1 py-2.5 px-3 bg-primary hover:bg-primary text-on-primary font-bold text-xs rounded-xl shadow-md hover:shadow-foreground/30 transition-all duration-200"
                             >
                                 Clear
                             </button>

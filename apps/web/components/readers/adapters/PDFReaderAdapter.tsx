@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useState, useCallback } from "react";
+import { forwardRef, useImperativeHandle, useState, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { getDocumentUrl } from "@/utils/fileUrls";
 import { BaseReaderProps, ReaderHandle } from "../types";
@@ -14,13 +14,17 @@ const PDFReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function PDFR
     const [totalPages, setTotalPages] = useState(initialLocation?.totalPages || 0);
     const changePage = useCallback((target: number) => {
         if (!totalPages || !Number.isFinite(target)) return;
-        const next = Math.max(1, Math.min(Math.trunc(target), totalPages));
+        const requested = Math.max(1, Math.min(Math.trunc(target), totalPages));
+        const next = viewOptions.viewMode === 'two-page-continuous' ? Math.floor((requested - 1) / 2) * 2 + 1 : requested;
         setPage(next);
         onLocationChange?.({ pageNumber: next, totalPages, progress: Math.round((next / totalPages) * 100) });
-    }, [totalPages, onLocationChange]);
+    }, [totalPages, onLocationChange, viewOptions.viewMode]);
+    useEffect(() => {
+        if (viewOptions.viewMode === 'two-page-continuous' && page % 2 === 0) changePage(page);
+    }, [viewOptions.viewMode, page, changePage]);
     useImperativeHandle(ref, () => ({
-        next: () => changePage(page + (viewOptions.viewMode === "two-page" ? 2 : 1)),
-        prev: () => changePage(page - (viewOptions.viewMode === "two-page" ? 2 : 1)),
+        next: () => changePage(page + (viewOptions.viewMode.startsWith("two-page") ? 2 : 1)),
+        prev: () => changePage(page - (viewOptions.viewMode.startsWith("two-page") ? 2 : 1)),
         goToPage: changePage,
     }), [changePage, page, viewOptions.viewMode]);
     const handleLoad = (pages: number) => {

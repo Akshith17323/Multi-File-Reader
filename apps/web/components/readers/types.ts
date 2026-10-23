@@ -1,4 +1,4 @@
-export type ViewMode = "single" | "continuous" | "two-page";
+export type ViewMode = "single" | "continuous" | "two-page" | "two-page-continuous";
 export type FitMode = "width" | "height" | "none";
 export type ReaderStatus = 'loading' | 'ready' | 'error';
 

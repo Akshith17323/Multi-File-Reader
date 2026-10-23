@@ -31,7 +31,7 @@ export async function saveLocalFileToLibrary(file: {
   url: string;
   size?: string | number;
   contentType?: string;
-}): Promise<LocalFileRecord> {
+}, sync = true): Promise<LocalFileRecord> {
   const storageKey = scopedStorageKey(LOCAL_STORAGE_KEY);
   const size = typeof file.size === "number" ? `${(file.size / 1024).toFixed(1)} KB` : file.size;
   const existingFiles = getLocalLibraryFiles();
@@ -74,7 +74,7 @@ export async function saveLocalFileToLibrary(file: {
   // If user is authenticated, sync to backend database as well
   try {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    if (token) {
+    if (token && sync) {
       const res = await apiClient.registerLocalFile(token, {
         fileName: file.name,
         fileUrl: file.url,

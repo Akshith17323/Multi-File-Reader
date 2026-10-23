@@ -20,8 +20,8 @@ const UnsupportedReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(funct
 
     return (
         <div className="w-full h-full flex flex-col items-center justify-center bg-background/60 text-foreground p-8">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4">
-                <FileQuestion className="w-8 h-8 text-amber-400" />
+            <div className="w-16 h-16 rounded-2xl bg-foreground/10 border border-foreground/20 flex items-center justify-center mb-4">
+                <FileQuestion className="w-8 h-8 text-foreground" />
             </div>
             <h3 className="text-lg font-semibold mb-1">No Dedicated Viewer</h3>
             <p className="text-sm text-foreground-muted max-w-md text-center mb-6">

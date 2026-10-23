@@ -50,8 +50,12 @@ function createWindow() {
     height: 800,
     minWidth: 640,
     minHeight: 480,
-    frame: false, // React renders the custom titlebar and its window buttons.
-    backgroundColor: '#101014',
+    frame: process.platform === 'darwin',
+    ...(process.platform === 'darwin' ? {
+      titleBarStyle: 'hidden',
+      trafficLightPosition: { x: 16, y: 14 },
+    } : {}),
+    backgroundColor: '#000000',
     title: 'MultiReader',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -60,7 +64,6 @@ function createWindow() {
       ],
       nodeIntegration: false, // React cannot call Node.js directly.
       contextIsolation: true, // Preload and the page have separate JS contexts.
-      sandbox: true,
     },
   });
 
@@ -357,24 +360,24 @@ async function showStartupPage(mainWindow, unavailable = false) {
     <meta http-equiv="Content-Security-Policy"
           content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
     <style>
-      body { margin: 0; background: #101014; color: #eee; font: 16px system-ui; }
+      body { margin: 0; background: #000; color: #fff; font: 16px system-ui; }
       header {
         height: 36px; -webkit-app-region: drag; display: flex;
         align-items: center; justify-content: space-between; padding: 0 16px;
       }
       button {
         -webkit-app-region: no-drag; cursor: pointer; border: 1px solid #555;
-        border-radius: 8px; background: #24242c; color: white; padding: 10px 16px;
+        border-radius: 8px; background: #222; color: white; padding: 10px 16px;
       }
       header button { padding: 4px 12px; }
       main { max-width: 480px; margin: 18vh auto; padding: 24px; }
-      p { color: #b8b8c4; line-height: 1.6; }
+      p { color: #a3a3a3; line-height: 1.6; }
     </style>
   </head>
   <body>
     <header>
-      MultiReader
-      <button aria-label="Close window" onclick="window.electronAPI.send('window-close')">×</button>
+      <span style="margin-left: ${process.platform === 'darwin' ? '76px' : '0'}">MultiReader</span>
+      ${process.platform === 'darwin' ? '' : '<button aria-label="Close window" onclick="window.electronAPI.send(\'window-close\')">×</button>'}
     </header>
     <main>
       <h1>${title}</h1>
