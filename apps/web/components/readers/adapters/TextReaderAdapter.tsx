@@ -73,8 +73,8 @@ const TextReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function Tex
 
     if (loading) {
         return (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-[#0d0e12] text-[#a2a2a2]">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-3" />
+            <div className="w-full h-full flex flex-col items-center justify-center bg-background/60 text-foreground-muted">
+                <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
                 <p className="text-sm">Loading document...</p>
             </div>
         );
@@ -82,10 +82,10 @@ const TextReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function Tex
 
     if (error) {
         return (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-[#0d0e12] text-red-400 p-6">
+            <div className="w-full h-full flex flex-col items-center justify-center bg-background/60 text-red-400 p-6">
                 <AlertCircle className="w-10 h-10 mb-3" />
                 <p className="text-sm font-medium mb-1">Failed to display file</p>
-                <p className="text-xs text-[#737373]">{error}</p>
+                <p className="text-xs text-foreground-muted">{error}</p>
             </div>
         );
     }
@@ -96,13 +96,13 @@ const TextReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function Tex
         <div
             ref={scrollContainerRef}
             onScroll={handleScroll}
-            className="w-full h-full overflow-y-auto bg-[#0d0e12] text-[#e0e0e0] font-mono p-6 select-text"
+            className="w-full h-full overflow-y-auto bg-background/60 text-foreground font-mono p-6 select-text"
             style={{ fontSize: `${(viewOptions.fontSize / 100) * 14}px` }}
         >
             <div className="max-w-5xl mx-auto space-y-0.5">
                 {lines.map((line, idx) => (
-                    <div key={idx} className="flex hover:bg-white/5 px-2 py-0.5 rounded transition-colors">
-                        <span className="w-12 text-right pr-4 text-[#525252] select-none font-light text-xs leading-relaxed">
+                    <div key={idx} className="flex hover:bg-surface-hover px-2 py-0.5 rounded transition-colors">
+                        <span className="w-12 text-right pr-4 text-foreground-muted select-none font-light text-xs leading-relaxed">
                             {idx + 1}
                         </span>
                         <span className="flex-1 whitespace-pre-wrap break-words leading-relaxed">

@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/services/apiClient";
-import { BookOpen, Trash2, Clock, AlertCircle, Sparkles, FileText, Layers, ArrowRight } from "lucide-react";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { BookOpen, Trash2, Clock, AlertCircle, FileText, Layers, ArrowRight, BookmarkCheck } from "lucide-react";
+import { toast } from "react-toastify";
+import AppShell, { PageHeader } from "@/components/ui/AppShell";
 
 interface Bookmark {
     id: string;
@@ -122,41 +122,14 @@ export default function BookmarksPage() {
     };
 
     return (
-        <div className="min-h-screen px-4 sm:px-6 lg:px-8 py-6 relative bg-background overflow-hidden">
-            <ToastContainer position="top-right" theme="light" />
-
-            {/* Ambient Blurred Glowing Orbs for Glassmorphism Depth */}
-            <div className="absolute top-1/4 left-10 w-80 h-80 bg-primary/15 rounded-full blur-3xl pointer-events-none -z-0" />
-            <div className="absolute bottom-1/4 right-10 w-[400px] h-[400px] bg-purple-600/15 rounded-full blur-3xl pointer-events-none -z-0" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-3xl pointer-events-none -z-0" />
-
-            <div className="w-full max-w-[1700px] mx-auto relative z-10">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                    <div>
-                        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface/80 backdrop-blur-2xl border border-border-subtle shadow-xs mb-2">
-                            <Sparkles size={14} className="text-primary animate-pulse" />
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-foreground-muted">
-                                Reading History
-                            </span>
-                        </div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
-                            My{" "}
-                            <span className="bg-clip-text text-transparent bg-linear-to-r from-primary via-purple-500 to-blue-500 drop-shadow-[0_0_12px_var(--color-primary-glow)]">
-                                Bookmarks
-                            </span>
-                        </h1>
-                        <p className="text-foreground-muted text-xs sm:text-sm font-medium">
-                            Pick up right where you left off across any document
-                        </p>
-                    </div>
-
-                    {bookmarks.length > 0 && (
-                        <div className="px-3.5 py-2 bg-surface/80 backdrop-blur-2xl border border-border-subtle rounded-xl shadow-xs text-xs font-semibold text-foreground-muted">
-                            <span className="text-foreground font-bold">{bookmarks.length}</span> {bookmarks.length === 1 ? 'bookmark saved' : 'bookmarks saved'}
-                        </div>
-                    )}
-                </div>
+        <AppShell contentClassName="space-y-7">
+                <PageHeader
+                    eyebrow="Reading history"
+                    title="My"
+                    accent="Bookmarks"
+                    description="Pick up right where you left off across any document."
+                    action={bookmarks.length > 0 ? <div className="mfr-panel flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold text-foreground-muted"><BookmarkCheck size={16} className="text-primary" /><span className="font-bold text-foreground">{bookmarks.length}</span>{bookmarks.length === 1 ? "bookmark saved" : "bookmarks saved"}</div> : undefined}
+                />
 
                 {/* Error State */}
                 {error && !loading && (
@@ -164,7 +137,7 @@ export default function BookmarksPage() {
                         <AlertCircle className="text-red-500 shrink-0" size={20} />
                         <div className="flex-1">
                             <h3 className="text-red-500 font-bold text-sm mb-0.5">Error Loading Bookmarks</h3>
-                            <p className="text-red-400 text-xs">{error}</p>
+                            <p className="text-red-500 text-xs">{error}</p>
                         </div>
                         <button
                             onClick={fetchBookmarks}
@@ -181,8 +154,8 @@ export default function BookmarksPage() {
                         <div className="w-12 h-12 border-3 border-border-subtle border-t-primary rounded-full animate-spin"></div>
                         <p className="text-xs text-foreground-muted font-medium">Loading reading history...</p>
                     </div>
-                ) : bookmarks.length === 0 ? (
-                    <div className="text-center py-16 px-6 rounded-3xl bg-surface/65 backdrop-blur-2xl border border-border-subtle shadow-xl max-w-2xl mx-auto">
+                ) : error ? null : bookmarks.length === 0 ? (
+                    <div className="mfr-panel text-center py-12 px-6 rounded-3xl shadow-sm">
                         <div className="w-16 h-16 rounded-2xl bg-surface-hover/80 border border-border-subtle flex items-center justify-center mx-auto mb-4 text-primary shadow-sm">
                             <BookOpen size={30} />
                         </div>
@@ -197,21 +170,21 @@ export default function BookmarksPage() {
                         <div className="grid grid-cols-3 gap-2.5 max-w-sm mx-auto mb-6">
                             <div className="p-2 rounded-xl bg-surface-hover/50 border border-border-subtle text-center">
                                 <span className="text-xs font-bold text-red-500">PDF</span>
-                                <p className="text-[10px] text-foreground-muted">Page sync</p>
+                                <p className="text-[10px] text-foreground-muted">Saved page</p>
                             </div>
                             <div className="p-2 rounded-xl bg-surface-hover/50 border border-border-subtle text-center">
                                 <span className="text-xs font-bold text-green-500">EPUB</span>
-                                <p className="text-[10px] text-foreground-muted">CFI sync</p>
+                                <p className="text-[10px] text-foreground-muted">Reading position</p>
                             </div>
                             <div className="p-2 rounded-xl bg-surface-hover/50 border border-border-subtle text-center">
                                 <span className="text-xs font-bold text-blue-500">TXT</span>
-                                <p className="text-[10px] text-foreground-muted">Scroll sync</p>
+                                <p className="text-[10px] text-foreground-muted">Saved progress</p>
                             </div>
                         </div>
 
                         <button
                             onClick={() => router.push("/files")}
-                            className="relative overflow-hidden px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-sm shadow-[0_4px_15px_var(--color-primary-glow)] hover:shadow-[0_8px_20px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-300 group inline-flex items-center gap-2"
+                            className="mfr-button-primary overflow-hidden group"
                         >
                             <span className="relative z-10">Explore Library</span>
                             <ArrowRight size={14} className="relative z-10 group-hover:translate-x-0.5 transition-transform" />
@@ -219,13 +192,13 @@ export default function BookmarksPage() {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-4">
                         {bookmarks.map((bookmark) => {
                             const badge = getFormatBadge(bookmark.fileName || '');
                             return (
                                 <div
                                     key={bookmark.id}
-                                    className="group bg-surface/75 backdrop-blur-2xl rounded-2xl p-4 border border-border-subtle hover:border-primary/40 hover:-translate-y-1 transition-all duration-300 shadow-sm hover:shadow-xl dark:shadow-[0_8px_25px_rgb(0,0,0,0.3)] flex flex-col justify-between"
+                                    className="mfr-panel group rounded-2xl p-5 hover:border-primary/40 hover:-translate-y-1 transition-all duration-300 shadow-sm hover:shadow-xl flex flex-col justify-between"
                                 >
                                     <div>
                                         <div className="flex items-start justify-between gap-2 mb-3">
@@ -280,7 +253,7 @@ export default function BookmarksPage() {
                                         {/* Continue Reading Button */}
                                         <button
                                             onClick={() => handleContinueReading(bookmark)}
-                                            className="relative overflow-hidden w-full flex items-center justify-center gap-2 px-3.5 py-2.5 bg-primary text-white rounded-xl font-bold text-xs sm:text-sm shadow-[0_4px_15px_var(--color-primary-glow)] hover:shadow-[0_8px_20px_var(--color-primary-glow)] hover:bg-primary-hover hover:-translate-y-0.5 transition-all duration-200 group/btn"
+                                            className="mfr-button-primary w-full overflow-hidden group/btn"
                                         >
                                             <div className="absolute inset-0 bg-white/20 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-200" />
                                             <BookOpen size={14} className="relative z-10" />
@@ -292,8 +265,6 @@ export default function BookmarksPage() {
                         })}
                     </div>
                 )}
-            </div>
-
             {/* Glassmorphic Clear Progress Confirmation Modal */}
             {bookmarkToDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200">
@@ -324,7 +295,7 @@ export default function BookmarksPage() {
                     </div>
                 </div>
             )}
-        </div>
+        </AppShell>
     );
 }
 

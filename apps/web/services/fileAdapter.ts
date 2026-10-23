@@ -35,7 +35,7 @@ export class FileAdapter {
     if (isElectron()) {
       onProgress(50);
       try {
-        const filePath = (file as any).path;
+        const filePath = (window as any).electronAPI?.getFilePath?.(file) || (file as any).path;
         if (!filePath) throw new Error("Could not find file path for desktop upload. Try selecting the file again.");
 
         const result = await (window as any).electronAPI.invoke('upload-dropped-file', {

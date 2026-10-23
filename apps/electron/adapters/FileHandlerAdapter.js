@@ -67,7 +67,8 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
           fileName,
           fileType,
           fileSize: stat.size,
-          localId: filePath
+          localId: filePath,
+          fileUrl: `mfr-local://${filePath}`
         })
       });
 

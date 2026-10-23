@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
 import Navbar from "../components/Navbar";
 import DesktopTitlebar from "../components/DesktopTitlebar";
@@ -20,7 +21,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Multi File Reader",
-  description: "A common reader for you books and documents",
+  description: "Read and manage your books and documents in one place.",
 };
 
 export default function RootLayout({
@@ -51,7 +52,10 @@ export default function RootLayout({
   );
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `try { const theme = localStorage.getItem("theme"); document.documentElement.classList.toggle("dark", theme === "dark" || (!theme && window.matchMedia("(prefers-color-scheme: dark)").matches)); } catch {}` }} />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen relative`} suppressHydrationWarning>
         {googleClientId ? (
           <GoogleOAuthProvider clientId={googleClientId}>
