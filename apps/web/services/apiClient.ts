@@ -12,6 +12,9 @@ export function handleApiFailure(status: number, message: string, authenticated:
   if (status === 401 && authenticated) {
     clearAuthSession();
     if (!window.location.pathname.startsWith("/auth/")) {
+      // A full navigation clears mounted readers after authentication expires.
+      // This service runs outside React, where router hooks are unavailable.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign("/auth/login");
     }
   }

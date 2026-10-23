@@ -526,3 +526,23 @@ test('desktop API proxy rejects malformed endpoints and preserves backend status
   assert.equal(requests[0].options.headers.Authorization, 'Bearer token');
   assert.equal(result.status, 401);
 });
+
+test('authentication middleware returns 401 for invalid and expired JWTs', async () => {
+  const jwt = require('jsonwebtoken');
+  const middleware = serverModule('apps/server/src/middleware/authMiddleware.js', {
+    globals: { process: { env: { JWT_SECRET: 'test-secret' } } },
+  });
+  const expired = jwt.sign({ userId: 'test' }, 'test-secret', { expiresIn: -1 });
+  const future = jwt.sign({ userId: 'test' }, 'test-secret', { notBefore: 3600 });
+  for (const token of ['invalid-token', expired, future]) {
+    const res = response();
+    await middleware({ headers: { authorization: 'Bearer ' + token } }, res, () => assert.fail('Invalid token must not continue'));
+    assert.equal(res.statusCode, 401);
+  }
+  const valid = jwt.sign({ userId: 'test' }, 'test-secret');
+  const req = { headers: { authorization: 'Bearer ' + valid } };
+  let called = false;
+  await middleware(req, response(), () => { called = true; });
+  assert.equal(called, true);
+  assert.equal(req.user.userId, 'test');
+});
