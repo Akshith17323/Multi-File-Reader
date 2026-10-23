@@ -47,6 +47,7 @@ export class ApiAdapter {
       const baseUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:2007').replace(/\/$/, '');
       const response = await fetch(`${baseUrl}${endpoint}`, {
         method,
+        signal: AbortSignal.timeout(15000),
         headers: {
           'Content-Type': 'application/json',
           ...headers,

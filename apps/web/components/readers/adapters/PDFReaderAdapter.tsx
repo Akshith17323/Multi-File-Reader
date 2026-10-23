@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useState, useEffect } from "react";
+import { forwardRef, useImperativeHandle, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { getDocumentUrl } from "@/utils/fileUrls";
 import { BaseReaderProps, ReaderHandle } from "../types";
@@ -8,96 +8,30 @@ import { BaseReaderProps, ReaderHandle } from "../types";
 const PDFRenderer = dynamic(() => import("@/components/PDFRenderer"), { ssr: false });
 
 const PDFReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function PDFReaderAdapter(
-    { file, viewOptions, initialLocation, onLocationChange },
-    ref
+    { file, viewOptions, initialLocation, onLocationChange, isActive, onStatusChange }, ref
 ) {
-    const [page, setPage] = useState<number>(initialLocation?.pageNumber || 1);
-    const [totalPages, setTotalPages] = useState<number>(initialLocation?.totalPages || 0);
-
-    // Sync if initial location is updated from bookmark
-    useEffect(() => {
-        if (initialLocation?.pageNumber && initialLocation.pageNumber !== page) {
-            setPage(initialLocation.pageNumber);
-        }
-        if (initialLocation?.totalPages) {
-            setTotalPages(initialLocation.totalPages);
-        }
-    // Saved position is an initial value, not a controlled live page.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialLocation?.pageNumber, initialLocation?.totalPages]);
-
-    // Expose unified ReaderHandle to parent multi-tab controller
+    const [page, setPage] = useState(initialLocation?.pageNumber || 1);
+    const [totalPages, setTotalPages] = useState(initialLocation?.totalPages || 0);
+    const changePage = useCallback((target: number) => {
+        if (!totalPages || !Number.isFinite(target)) return;
+        const next = Math.max(1, Math.min(Math.trunc(target), totalPages));
+        setPage(next);
+        onLocationChange?.({ pageNumber: next, totalPages, progress: Math.round((next / totalPages) * 100) });
+    }, [totalPages, onLocationChange]);
     useImperativeHandle(ref, () => ({
-        next: () => {
-            const increment = viewOptions.viewMode === "two-page" ? 2 : 1;
-            setPage((prev) => {
-                const nextVal = totalPages > 0 ? Math.min(prev + increment, totalPages) : prev + increment;
-                onLocationChange?.({
-                    pageNumber: nextVal,
-                    totalPages,
-                    progress: totalPages > 0 ? Math.round((nextVal / totalPages) * 100) : 0,
-                });
-                return nextVal;
-            });
-        },
-        prev: () => {
-            const increment = viewOptions.viewMode === "two-page" ? 2 : 1;
-            setPage((prev) => {
-                const prevVal = Math.max(prev - increment, 1);
-                onLocationChange?.({
-                    pageNumber: prevVal,
-                    totalPages,
-                    progress: totalPages > 0 ? Math.round((prevVal / totalPages) * 100) : 0,
-                });
-                return prevVal;
-            });
-        },
-        goToPage: (targetPage: number) => {
-            const clamped = Math.max(1, totalPages > 0 ? Math.min(targetPage, totalPages) : targetPage);
-            setPage(clamped);
-            onLocationChange?.({
-                pageNumber: clamped,
-                totalPages,
-                progress: totalPages > 0 ? Math.round((clamped / totalPages) * 100) : 0,
-            });
-        },
-    }));
-
-    const handlePageChange = (newPage: number) => {
-        setPage(newPage);
-        onLocationChange?.({
-            pageNumber: newPage,
-            totalPages,
-            progress: totalPages > 0 ? Math.round((newPage / totalPages) * 100) : 0,
-        });
-    };
-
-    const handleLoadSuccess = (pages: number) => {
+        next: () => changePage(page + (viewOptions.viewMode === "two-page" ? 2 : 1)),
+        prev: () => changePage(page - (viewOptions.viewMode === "two-page" ? 2 : 1)),
+        goToPage: changePage,
+    }), [changePage, page, viewOptions.viewMode]);
+    const handleLoad = (pages: number) => {
+        const current = Math.max(1, Math.min(page, pages));
+        onStatusChange?.('ready');
         setTotalPages(pages);
-        const clampedPage = Math.min(Math.max(1, page), pages);
-        setPage(clampedPage);
-        onLocationChange?.({
-            pageNumber: clampedPage,
-            totalPages: pages,
-            progress: Math.round((clampedPage / pages) * 100),
-        });
+        setPage(current);
+        onLocationChange?.({ pageNumber: current, totalPages: pages, progress: Math.round((current / pages) * 100) });
     };
-
-    const proxiedBlobUrl = getDocumentUrl(file.url);
-
-    return (
-        <div className="w-full h-full">
-            <PDFRenderer
-                blobUrl={proxiedBlobUrl}
-                pageNumber={page}
-                onPageChange={handlePageChange}
-                onLoadSuccess={handleLoadSuccess}
-                viewMode={viewOptions.viewMode}
-                fitMode={viewOptions.fitMode}
-                scale={viewOptions.zoom}
-            />
-        </div>
-    );
+    return <PDFRenderer blobUrl={getDocumentUrl(file.url)} pageNumber={page} onPageChange={changePage}
+        onLoadSuccess={handleLoad} onStatusChange={onStatusChange} viewMode={viewOptions.viewMode} fitMode={viewOptions.fitMode} scale={viewOptions.zoom} isActive={isActive} />;
 });
 
 export default PDFReaderAdapter;

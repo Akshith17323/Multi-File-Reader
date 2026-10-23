@@ -7,6 +7,11 @@ const BACKEND_URL = 'http://localhost:2007';
 
 let isInitialized = false;
 
+// Fetch-based readers need a standard, secure local scheme with streaming support.
+protocol.registerSchemesAsPrivileged([{ scheme: 'mfr-local', privileges: {
+  standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true,
+} }]);
+
 function setupAppHandlers() {
   if (isInitialized) return;
   isInitialized = true;

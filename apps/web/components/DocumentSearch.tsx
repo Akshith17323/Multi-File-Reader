@@ -5,13 +5,14 @@ import { Search, X, Loader2 } from "lucide-react";
 import { getDocumentUrl } from "@/utils/fileUrls";
 import type { FileTabData } from "./FileTab";
 
-type Result = { text: string; page?: number; cfi?: string };
+type Result = { text: string; page?: number; cfi?: string; line?: number };
 
-export function DocumentSearch({ file, onClose, onGoToPage, onGoToCfi }: {
+export function DocumentSearch({ file, onClose, onGoToPage, onGoToCfi, onGoToLine }: {
   file: FileTabData;
   onClose: () => void;
   onGoToPage: (page: number) => void;
   onGoToCfi?: (cfi: string) => void;
+  onGoToLine?: (line: number) => void;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Result[]>([]);
@@ -67,7 +68,7 @@ export function DocumentSearch({ file, onClose, onGoToPage, onGoToCfi }: {
           if (!response.ok) throw new Error("Could not load document for search");
           const text = await response.text();
           text.split("\n").forEach((line, index) => {
-            if (matches.length < 50 && line.toLowerCase().includes(needle)) matches.push({ text: `Line ${index + 1}: ${line.slice(0, 200)}` });
+            if (matches.length < 50 && line.toLowerCase().includes(needle)) matches.push({ line: index + 1, text: `Line ${index + 1}: ${line.slice(0, 200)}` });
           });
         }
         if (!canceled) setResults(matches.slice(0, 50));
@@ -91,8 +92,8 @@ export function DocumentSearch({ file, onClose, onGoToPage, onGoToCfi }: {
       </div>
       <div role="status" className="mt-2 max-h-40 overflow-y-auto text-xs text-foreground-muted">
         {!supported ? "Search is unavailable for this format." : loading ? <span className="inline-flex items-center gap-2"><Loader2 size={12} className="animate-spin" />Searching...</span> : error || (query.trim() && !results.length ? "No matches found." : "")}
-        {results.map((result, index) => result.page || result.cfi ? (
-          <button key={index} type="button" className="block w-full rounded-lg p-2 text-left hover:bg-surface-hover" onClick={() => result.page ? onGoToPage(result.page) : onGoToCfi?.(result.cfi!)}>
+        {results.map((result, index) => result.page || result.cfi || result.line ? (
+          <button key={index} type="button" className="block w-full rounded-lg p-2 text-left hover:bg-surface-hover" onClick={() => result.page ? onGoToPage(result.page) : result.cfi ? onGoToCfi?.(result.cfi) : onGoToLine?.(result.line!)}>
             {result.page && <strong className="mr-2 text-primary">Page {result.page}</strong>}{result.text}
           </button>
         ) : <p key={index} className="p-2">{result.text}</p>)}

@@ -48,6 +48,7 @@ function FileUpload() {
       return;
     }
 
+    if (file.size > 50 * 1024 * 1024) { setError("Files must be 50 MB or smaller"); return; }
     setSelectedFile(file);
   };
 
@@ -225,7 +226,7 @@ function FileUpload() {
                     ) : (
                       <div className="space-y-1">
                         <p className="text-sm sm:text-base font-bold text-foreground">Drop your document here</p>
-                        <p className="text-xs text-foreground-muted">or click to browse your local device</p>
+                        <p className="text-xs text-foreground-muted">or click to browse · up to 50 MB</p>
                       </div>
                     )}
                   </div>

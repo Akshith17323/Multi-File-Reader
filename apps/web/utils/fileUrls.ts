@@ -18,7 +18,7 @@ export function getDocumentUrl(url: string): string {
 
 export function getFileName(url: string): string {
   const segment = url.split(/[?#]/)[0].split("/").pop() || "Untitled document";
-  try { return decodeURIComponent(segment).replace(/^\d{10,14}-/, ""); }
+  try { return decodeURIComponent(segment).replace(/^(?:\d{10,14}|[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12})-/i, ""); }
   catch { return segment; }
 }
 

@@ -1,12 +1,14 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   invoke: (channel, ...args) => {
-    let validChannels = ['get-version', 'select-and-upload-file', 'api-request', 'upload-dropped-file', 'open-local-file-dialog'];
+    const validChannels = ['get-version', 'select-and-upload-file', 'api-request', 'upload-dropped-file', 'open-local-file-dialog', 'open-local-file', 'check-file-permission', 'check-local-files-status', 'relink-local-file'];
     if (validChannels.includes(channel)) {
       return ipcRenderer.invoke(channel, ...args);
     }
+    return Promise.reject(new Error(`Unsupported desktop action: ${channel}`));
   },
+  getFilePath: (file) => webUtils.getPathForFile(file),
   send: (channel, ...args) => {
     let validChannels = ['window-minimize', 'window-maximize', 'window-close'];
     if (validChannels.includes(channel)) {

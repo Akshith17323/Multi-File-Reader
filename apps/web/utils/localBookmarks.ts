@@ -44,15 +44,18 @@ export function deleteLocalBookmark(fileUrl: string): void {
 }
 
 export async function getBookmarkUnified(token: string | null, fileUrl: string): Promise<BookmarkRecord | null> {
+  const storageKey = scopedStorageKey(LOCAL_BOOKMARKS_KEY);
   const local = getLocalBookmark(fileUrl);
   if (!token) return local;
   try {
     const remote = await apiClient.getBookmark(token, fileUrl);
-    if (!remote?.fileUrl) return local;
-    if (local && Date.parse(local.lastRead || "") > Date.parse(remote.lastRead || "")) return local;
+    if (scopedStorageKey(LOCAL_BOOKMARKS_KEY) !== storageKey) return null;
+    const currentLocal = getLocalBookmark(fileUrl);
+    if (!remote?.fileUrl) return currentLocal;
+    if (currentLocal && Date.parse(currentLocal.lastRead || "") > Date.parse(remote.lastRead || "")) return currentLocal;
     saveLocalBookmark(remote, true);
     return remote;
-  } catch { return local; }
+  } catch { return scopedStorageKey(LOCAL_BOOKMARKS_KEY) === storageKey ? getLocalBookmark(fileUrl) : null; }
 }
 
 // Coalesce rapid scrolling and serialize writes so an older request cannot replace a newer position.
@@ -77,6 +80,7 @@ export async function saveBookmarkUnified(token: string | null, bookmark: Bookma
 }
 
 export async function deleteBookmarkUnified(token: string | null, fileUrl: string): Promise<void> {
+  const storageKey = scopedStorageKey(LOCAL_BOOKMARKS_KEY);
   const key = `${token}:${fileUrl}`;
   const entry = pending.get(key);
   if (entry) {
@@ -85,7 +89,22 @@ export async function deleteBookmarkUnified(token: string | null, fileUrl: strin
     pending.delete(key);
   }
   if (token) await apiClient.deleteBookmark(token, fileUrl);
-  deleteLocalBookmark(fileUrl);
+  if (scopedStorageKey(LOCAL_BOOKMARKS_KEY) === storageKey) deleteLocalBookmark(fileUrl);
+}
+
+// Drain the old URL before a relink changes the server's bookmark key.
+export async function flushBookmarkSync(token: string | null, fileUrl: string): Promise<void> {
+  if (!token) return;
+  const key = `${token}:${fileUrl}`;
+  const entry = pending.get(key);
+  if (!entry) return;
+  clearTimeout(entry.timer);
+  const snapshot = { ...entry.bookmark };
+  entry.chain = entry.chain.then(async () => {
+    if (localStorage.getItem('token') === token) await apiClient.upsertBookmark(token, snapshot);
+  }).catch(error => console.warn('Progress is saved locally; cloud sync failed:', error));
+  await entry.chain;
+  pending.delete(key);
 }
 
 export function mergeBookmarks(remote: BookmarkRecord[], local: Record<string, BookmarkRecord>): BookmarkRecord[] {

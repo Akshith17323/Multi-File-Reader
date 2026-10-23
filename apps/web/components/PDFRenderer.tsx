@@ -5,6 +5,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 import { Loader2, AlertCircle } from "lucide-react";
+import type { ReaderStatus } from './readers/types';
 
 // Configure worker
 pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
@@ -17,6 +18,8 @@ interface PDFRendererProps {
     viewMode: "single" | "continuous" | "two-page";
     fitMode: "width" | "height" | "none";
     scale: number;
+    isActive: boolean;
+    onStatusChange?: (status: ReaderStatus) => void;
 }
 
 export default function PDFRenderer({
@@ -27,6 +30,8 @@ export default function PDFRenderer({
     viewMode,
     fitMode,
     scale,
+    isActive,
+    onStatusChange,
 }: PDFRendererProps) {
     const [numPages, setNumPages] = useState<number>(0);
     const [containerWidth, setContainerWidth] = useState<number>(0);
@@ -106,27 +111,58 @@ export default function PDFRenderer({
         }
     };
 
-    useEffect(() => {
-        if (viewMode !== "continuous" || !numPages || !containerRef.current) return;
+    const visiblePageRef = useRef(pageNumber);
+    const onPageChangeRef = useRef(onPageChange);
+    const pendingRestoreRef = useRef<number | null>(null);
+    const restoreRenderedPage = () => {
         const container = containerRef.current;
+        const target = pendingRestoreRef.current;
+        if (!container || target === null) return;
+        // Earlier canvases must have their final heights before we can restore a later page.
+        for (let page = 1; page <= target; page++) {
+            if (!container.querySelector(`[data-page-number="${page}"] canvas`)) return;
+        }
+        const element = container.querySelector<HTMLElement>(`[data-page-number="${target}"]`);
+        if (!element) return;
+        container.scrollTop += element.getBoundingClientRect().top - container.getBoundingClientRect().top - 16;
+        visiblePageRef.current = target;
+        pendingRestoreRef.current = null;
+    };
+    useEffect(() => { onPageChangeRef.current = onPageChange; }, [onPageChange]);
+    useEffect(() => {
+        if (!isActive || viewMode !== "continuous" || !numPages || !containerRef.current) return;
+        const container = containerRef.current;
+        // Restore the current page before observing scroll updates.
+        pendingRestoreRef.current = pageNumber;
+        restoreRenderedPage();
+        visiblePageRef.current = pageNumber;
+        const visiblePages = new Map<Element, number>();
         const observer = new IntersectionObserver(entries => {
-            const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+            for (const entry of entries) {
+                if (entry.isIntersecting) visiblePages.set(entry.target, entry.intersectionRatio);
+                else visiblePages.delete(entry.target);
+            }
+            if (pendingRestoreRef.current !== null) return;
+            const visible = [...visiblePages].sort((a, b) => b[1] - a[1])[0]?.[0];
             if (visible) {
-                const page = Number((visible.target as HTMLElement).dataset.pageNumber);
-                if (page && page !== pageNumber) onPageChange(page);
+                const page = Number((visible as HTMLElement).dataset.pageNumber);
+                if (page && page !== visiblePageRef.current) {
+                    visiblePageRef.current = page;
+                    onPageChangeRef.current(page);
+                }
             }
         }, { root: container, threshold: [0.1, 0.5, 0.9] });
         container.querySelectorAll(".react-pdf__Page").forEach(page => observer.observe(page));
         return () => observer.disconnect();
-    }, [viewMode, numPages, pageNumber, onPageChange]);
+        // Page changes caused by scrolling must not recreate the observer.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isActive, viewMode, numPages]);
 
-    const previousPageRef = useRef(pageNumber);
     useEffect(() => {
-        if (viewMode === "continuous" && containerRef.current && previousPageRef.current !== pageNumber) {
-            const page = containerRef.current.querySelector<HTMLElement>(`[data-page-number="${pageNumber}"]`);
-            if (page && (page.offsetTop < containerRef.current.scrollTop || page.offsetTop > containerRef.current.scrollTop + containerRef.current.clientHeight)) containerRef.current.scrollTop = page.offsetTop;
+        if (viewMode === "continuous" && containerRef.current && visiblePageRef.current !== pageNumber) {
+            pendingRestoreRef.current = pageNumber;
+            restoreRenderedPage();
         }
-        previousPageRef.current = pageNumber;
     }, [pageNumber, viewMode]);
 
     const pageProps = getPageDimensions();
@@ -141,6 +177,10 @@ export default function PDFRenderer({
         >
             <Document
                 file={blobUrl}
+                onSourceSuccess={() => onStatusChange?.('loading')}
+                onLoadError={() => onStatusChange?.('error')}
+                onSourceError={() => onStatusChange?.('error')}
+                onItemClick={({ pageNumber: page }) => { if (page) onPageChange(page); }}
                 onLoadSuccess={onDocumentLoadSuccess}
                 error={<div role="alert" className="flex flex-col items-center gap-3 p-6 text-red-500"><AlertCircle /><p>Could not load this PDF. Check the file and try opening it again.</p></div>}
                 className="flex flex-col items-center min-h-full"
@@ -170,6 +210,7 @@ export default function PDFRenderer({
                                 <Page
                                     key={`page_${index + 1}`}
                                     pageNumber={index + 1}
+                                    onRenderSuccess={restoreRenderedPage}
                                     renderTextLayer={true}
                                     renderAnnotationLayer={true}
                                     {...pageProps}

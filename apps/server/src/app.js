@@ -29,6 +29,8 @@ app.use(
       }
       return callback(new Error("Origin is not allowed"));
     },
+    exposedHeaders: ["Content-Length", "Content-Range", "Accept-Ranges"],
+    allowedHeaders: ["Content-Type", "Authorization", "Range"],
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     credentials: true
   })

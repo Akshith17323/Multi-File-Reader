@@ -8,19 +8,19 @@ import type { EPUBRendererRef } from "@/components/EPUBRenderer";
 const EPUBRenderer = dynamic(() => import("@/components/EPUBRenderer"), { ssr: false });
 
 const EPUBReaderAdapter = forwardRef<ReaderHandle, BaseReaderProps>(function EPUBReaderAdapter(
-    { file, viewOptions, initialLocation, onLocationChange, isActive }, ref
+    { file, viewOptions, initialLocation, onLocationChange, isActive, onStatusChange }, ref
 ) {
     const epubRef = useRef<EPUBRendererRef>(null);
     useImperativeHandle(ref, () => ({
-        next: () => { void epubRef.current?.next(); },
-        prev: () => { void epubRef.current?.prev(); },
-        goToCfi: (cfi) => { void epubRef.current?.display(cfi); },
+        next: () => { void epubRef.current?.next()?.catch(() => {}); },
+        prev: () => { void epubRef.current?.prev()?.catch(() => {}); },
+        goToCfi: (cfi) => { void epubRef.current?.display(cfi)?.catch(() => {}); },
     }));
-    const handleLocation = useCallback((cfi: string, progress?: number) => {
-        onLocationChange?.({ cfi, ...(progress !== undefined ? { progress } : {}) });
+    const handleLocation = useCallback((cfi: string, progress?: number, atStart?: boolean, atEnd?: boolean) => {
+        onLocationChange?.({ cfi, atStart, atEnd, ...(progress !== undefined ? { progress } : {}) });
     }, [onLocationChange]);
     return <EPUBRenderer ref={epubRef} url={file.url} initialCfi={initialLocation?.cfi}
-        onLocationChange={handleLocation} viewMode={viewOptions.viewMode} fontSize={viewOptions.fontSize} isActive={isActive} />;
+        onLocationChange={handleLocation} onStatusChange={onStatusChange} viewMode={viewOptions.viewMode} fontSize={viewOptions.fontSize} isActive={isActive} />;
 });
 
 export default EPUBReaderAdapter;

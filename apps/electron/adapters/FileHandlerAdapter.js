@@ -55,6 +55,7 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
       const fileType = getDocumentType(fileName);
       // Send metadata to the backend to register the local file
       const response = await fetch(`${BACKEND_URL}/localUpload`, {
+        signal: AbortSignal.timeout(15000),
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -104,7 +105,6 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
     try {
       fs.accessSync(filePath, fs.constants.R_OK);
       const stat = fs.statSync(filePath);
-      const ext = path.extname(filePath).toLowerCase();
       const fileType = getDocumentType(fileName) || 'application/octet-stream';
 
       return {
@@ -158,8 +158,9 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
         continue;
       }
 
-      const filePath = extractPathFromLocalUrl(url);
+      let filePath = url;
       try {
+        filePath = extractPathFromLocalUrl(url);
         if (!fs.existsSync(filePath)) {
           results[url] = {
             exists: false,
@@ -279,16 +280,14 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
 
     if (canceled || filePaths.length === 0) return { canceled: true };
 
-    const filePath = filePaths[0];
-    const fileName = path.basename(filePath);
-    if (fs.statSync(filePath).size > MAX_FILE_SIZE) return { canceled: false, error: "Files must be 50 MB or smaller" };
-    const fileBuffer = fs.readFileSync(filePath);
-
-    const formData = new FormData();
-    const blob = new Blob([fileBuffer], { type: getDocumentType(fileName) || 'application/octet-stream' });
-    formData.append('UploadingFile', blob, fileName);
-
     try {
+      const filePath = filePaths[0];
+      const fileName = path.basename(filePath);
+      if (fs.statSync(filePath).size > MAX_FILE_SIZE) return { canceled: false, error: "Files must be 50 MB or smaller" };
+      const fileBuffer = fs.readFileSync(filePath);
+      const formData = new FormData();
+      const blob = new Blob([fileBuffer], { type: getDocumentType(fileName) || 'application/octet-stream' });
+      formData.append('UploadingFile', blob, fileName);
       const response = await fetch(`${BACKEND_URL}/fileUpload`, {
         signal: AbortSignal.timeout(120000),
         method: 'POST',
@@ -346,7 +345,12 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
 
   // Register secure protocol to read local files natively via absolute path
   protocol.handle('mfr-local', async (request) => {
-    const filePath = extractPathFromLocalUrl(request.url);
+    let filePath;
+    try {
+      filePath = extractPathFromLocalUrl(request.url);
+    } catch {
+      return new Response('Invalid local file URL', { status: 400 });
+    }
 
     if (!fs.existsSync(filePath)) {
       console.warn('[mfr-local] Media offline - file not found at:', filePath);
@@ -358,6 +362,7 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
 
     try {
       fs.accessSync(filePath, fs.constants.R_OK);
+      return await net.fetch(pathToFileURL(filePath).href);
     } catch (err) {
       console.error('[mfr-local] File permission error for path:', filePath, err);
       return new Response('File read permission denied', {
@@ -366,7 +371,6 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
       });
     }
 
-    return net.fetch(pathToFileURL(filePath).href);
   });
 }
 

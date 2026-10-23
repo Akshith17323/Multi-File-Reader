@@ -25,6 +25,8 @@ async function updateFile(req, res) {
             updateData.fileType = req.body.fileType;
         }
 
+        if (Object.values(updateData).some(value => typeof value !== "string")) return res.status(400).json({ message: "File metadata must be text" });
+
         if (Object.keys(updateData).length === 0) {
             return res.status(400).json({ message: 'No valid fields provided for update' });
         }
@@ -50,7 +52,7 @@ async function updateFile(req, res) {
         }
         const updatedFile = await prisma.$transaction(async (tx) => {
             const updated = await tx.file.update({ where: { id }, data: updateData });
-            await tx.bookmark.updateMany({
+            if (existingFile.fileUrl && (updateData.fileName || updateData.fileUrl)) await tx.bookmark.updateMany({
                 where: { userId, fileUrl: existingFile.fileUrl },
                 data: { ...(updateData.fileName ? { fileName: updated.fileName } : {}), ...(updateData.fileUrl ? { fileUrl: updated.fileUrl } : {}) },
             });

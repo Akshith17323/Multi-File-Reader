@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "re
 import ePub, { Rendition } from "epubjs";
 import { Loader2, AlertCircle } from "lucide-react";
 import { getDocumentUrl } from "@/utils/fileUrls";
+import type { ReaderStatus } from './readers/types';
 
 export interface EPUBRendererRef {
     next: () => Promise<unknown> | undefined;
@@ -13,7 +14,8 @@ export interface EPUBRendererRef {
 
 interface EPUBRendererProps {
     url: string;
-    onLocationChange: (cfi: string, progress?: number) => void;
+    onLocationChange: (cfi: string, progress?: number, atStart?: boolean, atEnd?: boolean) => void;
+    onStatusChange?: (status: ReaderStatus) => void;
     viewMode: "single" | "continuous" | "two-page";
     fontSize: number;
     initialCfi?: string;
@@ -32,16 +34,18 @@ function applyReaderTheme(rendition: Rendition) {
 }
 
 const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPUBRenderer(
-    { url, onLocationChange, viewMode, fontSize, initialCfi, isActive = true }, ref
+    { url, onLocationChange, onStatusChange, viewMode, fontSize, initialCfi, isActive = true }, ref
 ) {
     const viewerRef = useRef<HTMLDivElement>(null);
     const renditionRef = useRef<Rendition | null>(null);
     const locationRef = useRef(initialCfi || "");
     const callbackRef = useRef(onLocationChange);
     const fontSizeRef = useRef(fontSize);
+    const statusRef = useRef(onStatusChange);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     useEffect(() => { callbackRef.current = onLocationChange; }, [onLocationChange]);
+    useEffect(() => { statusRef.current = onStatusChange; }, [onStatusChange]);
     useEffect(() => { fontSizeRef.current = fontSize; renditionRef.current?.themes.fontSize(`${fontSize}%`); }, [fontSize]);
 
     useImperativeHandle(ref, () => ({
@@ -59,12 +63,13 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPU
         let readyToReport = false;
         setLoading(true);
         setError(null);
+        statusRef.current?.('loading');
         const reportLocation = () => {
             const location = rendition?.location?.start?.cfi;
             if (canceled || !readyToReport || !location) return;
             locationRef.current = location;
             const percentage = book.locations.length() ? book.locations.percentageFromCfi(location) : undefined;
-            callbackRef.current(location, percentage !== undefined && Number.isFinite(percentage) ? Math.min(100, Math.max(0, percentage * 100)) : undefined);
+            callbackRef.current(location, percentage !== undefined && Number.isFinite(percentage) ? Math.min(100, Math.max(0, percentage * 100)) : undefined, rendition?.location?.atStart, rendition?.location?.atEnd);
         };
         const initialize = async () => {
             try {
@@ -81,6 +86,15 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPU
                     spread: viewMode === "two-page" ? "always" : "none",
                 });
                 renditionRef.current = rendition;
+                rendition.on('keydown', (event: KeyboardEvent) => {
+                    const target = event.target as HTMLElement;
+                    if (event.defaultPrevented || target?.closest('input, textarea, select, [contenteditable=true]')) return;
+                    if (event.key === 'ArrowRight') { event.preventDefault(); void rendition?.next()?.catch(() => {}); }
+                    else if (event.key === 'ArrowLeft') { event.preventDefault(); void rendition?.prev()?.catch(() => {}); }
+                    else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+                        event.preventDefault(); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: event.ctrlKey, metaKey: event.metaKey }));
+                    }
+                });
                 applyReaderTheme(rendition);
                 rendition.themes.fontSize(`${fontSizeRef.current}%`);
                 rendition.on("relocated", reportLocation);
@@ -89,8 +103,8 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPU
                 rendition.on("touchend", (event: TouchEvent) => {
                     if (touchX === null || viewMode === "continuous") return;
                     const distance = touchX - event.changedTouches[0].clientX;
-                    if (distance > 50) void rendition?.next();
-                    else if (distance < -50) void rendition?.prev();
+                    if (distance > 50) void rendition?.next()?.catch(() => {});
+                    else if (distance < -50) void rendition?.prev()?.catch(() => {});
                     touchX = null;
                 });
                 try { await rendition.display(locationRef.current || initialCfi || undefined); }
@@ -98,11 +112,12 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPU
                 if (canceled) return;
                 readyToReport = true;
                 setLoading(false);
+                statusRef.current?.('ready');
                 reportLocation();
                 try { await book.locations.generate(1000); reportLocation(); }
                 catch { /* The CFI remains sufficient to save position. */ }
             } catch (err) {
-                if (!canceled) { setError(err instanceof Error ? err.message : "Could not load book"); setLoading(false); }
+                if (!canceled) { setError(err instanceof Error ? err.message : "Could not load book"); setLoading(false); statusRef.current?.('error'); }
             }
         };
         void initialize();

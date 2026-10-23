@@ -84,7 +84,8 @@ export async function saveLocalFileToLibrary(file: {
       if (res && res.file && res.file.id) {
         record.id = res.file.id;
         // update id in localStorage
-        const updated = existingFiles.map((f) => (f.url === file.url ? record : f));
+        const currentFiles: LocalFileRecord[] = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const updated = currentFiles.map((f) => (f.url === file.url ? { ...f, id: record.id } : f));
         localStorage.setItem(storageKey, JSON.stringify(updated));
       }
     }

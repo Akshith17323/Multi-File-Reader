@@ -9,6 +9,7 @@ function registerApiProxy(ipcMain, BACKEND_URL) {
     try {
       const response = await fetch(`${BACKEND_URL}${endpoint}`, {
         method,
+        signal: AbortSignal.timeout(15000),
         headers: {
           'Content-Type': 'application/json',
           ...headers,

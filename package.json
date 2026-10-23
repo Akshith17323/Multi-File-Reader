@@ -25,7 +25,8 @@
     "start:electron": "electron apps/electron",
     "electron": "concurrently \"npm run server\" \"npm run web\" \"npm run start:electron\" --names \"SERVER,WEB,ELECTRON\" --prefix-colors \"blue,green,magenta\"",
     "build": "npm --workspace=apps/web run build",
-    "lint": "npm --workspace=apps/web run lint"
+    "lint": "npm --workspace=apps/web run lint",
+    "test": "node --test tests/*.test.cjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

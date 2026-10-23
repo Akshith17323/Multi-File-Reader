@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, BookOpen, AlertCircle, Edit2 } from "lucide-react";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { apiClient } from "@/services/apiClient";
 import dynamic from "next/dynamic";
+import { createReaderUrl, getLastReaderSession, removeFileFromReaderSession } from "@/utils/readerSession";
+import { getLocalLibraryFiles, removeLocalLibraryFile, updateLocalLibraryFile } from "@/utils/localLibrary";
+import { deleteBookmarkUnified, getLocalBookmark, saveLocalBookmark } from "@/utils/localBookmarks";
+import { isLocalFileUrl, normalizeFileUrl } from "@/utils/fileUrls";
+import { isElectron } from "@/hooks/useEnvironment";
 
 const FilePreview = dynamic(() => import("@/components/FilePreview"), { ssr: false });
 
@@ -38,56 +43,44 @@ export default function FilesPage() {
   const [sortOrder, setSortOrder] = useState("desc");
 
   const router = useRouter();
+  const requestVersion = useRef(0);
+  const mutationInFlight = useRef(false);
+  const [mutating, setMutating] = useState(false);
 
   useEffect(() => {
     setPage(1);
   }, [search, typeFilter, sortBy, sortOrder]);
 
   const fetchFiles = async () => {
+    const version = ++requestVersion.current;
     setLoading(true);
     setError(null);
-
     try {
-      const params = new URLSearchParams();
-      if (search) params.append("search", search);
-      if (typeFilter) params.append("type", typeFilter);
-
-      params.append("page", page.toString());
-      params.append("limit", "24");
-      params.append("sortBy", sortBy);
-      params.append("order", sortOrder);
-
       const token = localStorage.getItem("token");
+      if (!token && !isElectron()) { router.replace("/auth/login"); return; }
       if (!token) {
-        toast.error("Please login to view files");
-        router.push("/auth/login");
-        setLoading(false);
+        const localFiles = getLocalLibraryFiles().filter(file => file.name.toLowerCase().includes(search.toLowerCase()) && (!typeFilter || file.metadata.contentType.includes(typeFilter === "txt" ? "text/plain" : typeFilter)));
+        localFiles.sort((a, b) => (sortBy === "name" ? a.name.localeCompare(b.name) : Date.parse(a.metadata.updated) - Date.parse(b.metadata.updated)) * (sortOrder === "asc" ? 1 : -1));
+        const pages = Math.max(1, Math.ceil(localFiles.length / 24));
+        const currentPage = Math.min(page, pages);
+        setTotalPages(pages);
+        setPage(currentPage);
+        setFiles(localFiles.slice((currentPage - 1) * 24, currentPage * 24));
         return;
       }
-
+      const params = new URLSearchParams({ page: String(page), limit: "24", sortBy, order: sortOrder });
+      if (search) params.set("search", search);
+      if (typeFilter) params.set("type", typeFilter);
       const data = await apiClient.getAllFiles(token, params.toString());
-
-      // Handle paginated response
-      if (data.files && data.pagination) {
-        setFiles(data.files);
-        setTotalPages(data.pagination.totalPages);
-      }
-      // Fallback for non-paginated response (backward compatibility)
-      else if (Array.isArray(data)) {
-        setFiles(data);
-        setTotalPages(1);
-      }
-      else {
-        throw new Error('Invalid response format from server');
-      }
-
-    } catch (error: unknown) {
-      console.error("❌ Error fetching files:", error);
-      const msg = error instanceof Error ? error.message : "Failed to load files";
-      setError(msg);
-      toast.error(msg);
+      if (version !== requestVersion.current) return;
+      if (!Array.isArray(data?.files)) throw new Error("Invalid file list returned by server");
+      setFiles(data.files.map((file: FileData) => ({ ...file, url: normalizeFileUrl(file.url) })));
+      setTotalPages(Math.max(1, data.pagination?.totalPages || 1));
+      if (data.pagination?.currentPage && data.pagination.currentPage !== page) setPage(data.pagination.currentPage);
+    } catch (error) {
+      if (version === requestVersion.current) setError(error instanceof Error ? error.message : "Failed to load files");
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   };
 
@@ -95,7 +88,8 @@ export default function FilesPage() {
     const timeoutId = setTimeout(() => {
       fetchFiles();
     }, 500);
-    return () => clearTimeout(timeoutId);
+    const requests = requestVersion;
+    return () => { clearTimeout(timeoutId); requests.current++; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, typeFilter, page, sortBy, sortOrder]);
 
@@ -104,101 +98,63 @@ export default function FilesPage() {
   };
 
   const confirmDelete = async () => {
-    if (!fileToDelete) return;
-    const { id: fileId } = fileToDelete;
+    if (!fileToDelete || mutationInFlight.current) return;
+    mutationInFlight.current = true;
+    setMutating(true);
+    const deletingFile = files.find(file => file.id === fileToDelete.id);
     setFileToDelete(null);
-
     try {
       const token = localStorage.getItem("token");
-      if (!token) {
-        toast.error("Please login");
-        return;
+      if (!token && !isElectron()) throw new Error("Please sign in again");
+      if (deletingFile) {
+        if (token && !deletingFile.id.startsWith("local_")) await apiClient.deleteFile(token, deletingFile.id);
+        removeLocalLibraryFile(deletingFile.url);
+        await deleteBookmarkUnified(token, deletingFile.url);
+        removeFileFromReaderSession(deletingFile.url);
+        setFiles(prev => prev.filter(file => file.id !== deletingFile.id));
+        await fetchFiles();
+        toast.success("File deleted successfully");
       }
-
-      await apiClient.deleteFile(token, fileId);
-
-      toast.success("File deleted successfully");
-
-      // Remove from local state immediately for better UX
-      setFiles(prev => prev.filter((f) => f.id !== fileId));
-
-      // Re-fetch to update pagination
-      setTimeout(() => fetchFiles(), 500);
-
-    } catch (error: unknown) {
-      console.error("❌ Error deleting file:", error);
-      const msg = error instanceof Error ? error.message : "Failed to delete file";
-      toast.error(msg);
-    }
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not delete file"); }
+    finally { mutationInFlight.current = false; setMutating(false); }
   };
 
   const handleRename = async (fileId: string) => {
-    if (!newFileName.trim()) {
-      toast.error("File name cannot be empty");
-      return;
-    }
-
+    if (mutationInFlight.current) return;
+    if (!newFileName.trim()) { toast.error("File name cannot be empty"); return; }
+    mutationInFlight.current = true;
+    setMutating(true);
     try {
       const token = localStorage.getItem("token");
-      if (!token) {
-        toast.error("Please login");
-        return;
-      }
-
-      await apiClient.updateFile(token, fileId, newFileName.trim());
-
-      toast.success("File renamed successfully");
-
-      // Update local state
-      setFiles(prev => prev.map(f =>
-        f.id === fileId ? { ...f, name: newFileName.trim() } : f
-      ));
-
-      // Reset edit state
+      if (!token && !isElectron()) throw new Error("Please sign in again");
+      const original = files.find(file => file.id === fileId)!;
+      const extension = original.name.includes(".") ? original.name.slice(original.name.lastIndexOf(".")) : "";
+      const requestedName = newFileName.trim().toLowerCase().endsWith(extension.toLowerCase()) ? newFileName.trim() : newFileName.trim() + extension;
+      const result = token && !fileId.startsWith("local_") ? await apiClient.updateFile(token, fileId, requestedName) : null;
+      const name = result?.file?.fileName || requestedName;
+      updateLocalLibraryFile(original.url, { name });
+      const bookmark = getLocalBookmark(original.url);
+      if (bookmark) saveLocalBookmark({ ...bookmark, fileName: name }, true);
+      setFiles(prev => prev.map(file => file.id === fileId ? { ...file, name } : file));
       setEditingFileId(null);
       setNewFileName("");
-
-    } catch (error: unknown) {
-      console.error("❌ Error renaming file:", error);
-      const msg = error instanceof Error ? error.message : "Failed to rename file";
-      toast.error(msg);
-    }
+      toast.success("File renamed successfully");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not rename file"); }
+    finally { mutationInFlight.current = false; setMutating(false); }
   };
 
   const handleRead = (file: FileData) => {
-    // Route to unified reader with file URL
-    router.push(`/reader?files=${encodeURIComponent(file.url)}&active=0`);
+    if (isLocalFileUrl(file.url) && !isElectron()) { toast.info("Open this local file in the desktop app."); return; }
+    router.push(createReaderUrl([file.url]));
   };
 
   const handleOpenInNewTab = (file: FileData) => {
-    // Check if reader is already open by trying to access sessionStorage
-    const currentReaderFiles = sessionStorage.getItem("readerFiles");
-
-    if (currentReaderFiles) {
-      // Reader is open, append the new file
-      const existingUrls = currentReaderFiles.split(",");
-
-      // Check if file is already open
-      if (existingUrls.includes(file.url)) {
-        toast.info("File is already open");
-        // Navigate to reader and set this as active
-        const activeIndex = existingUrls.indexOf(file.url);
-        const encodedFiles = existingUrls.map(encodeURIComponent).join(",");
-        router.push(`/reader?files=${encodedFiles}&active=${activeIndex}`);
-        return;
-      }
-
-      // Add new file to the list
-      const newFilesList = [...existingUrls, file.url].map(encodeURIComponent).join(",");
-      const newActiveIndex = existingUrls.length; // New file will be last
-
-      router.push(`/reader?files=${newFilesList}&active=${newActiveIndex}`);
-    } else {
-      // No reader open, just open this file
-      handleRead(file);
-    }
+    if (isLocalFileUrl(file.url) && !isElectron()) { toast.info("Open this local file in the desktop app."); return; }
+    const urls = getLastReaderSession()?.fileUrls || [];
+    const existing = urls.indexOf(file.url);
+    if (existing >= 0) router.push(createReaderUrl(urls, existing));
+    else router.push(createReaderUrl([...urls, file.url], urls.length));
   };
-
 
   const getFileIcon = (type: string) => {
     if (type === "application/pdf") return "PDF";
@@ -216,7 +172,6 @@ export default function FilesPage() {
 
   return (
     <div className="min-h-screen px-4 sm:px-6 lg:px-8 py-4 sm:py-6 relative bg-background overflow-hidden">
-      <ToastContainer position="top-right" theme="light" />
 
       {/* Ambient Glowing Orbs for Glassmorphism Depth */}
       <div className="absolute top-20 left-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none -z-0" />
@@ -239,7 +194,7 @@ export default function FilesPage() {
             onClick={() => router.push("/fileupload")}
             className="group flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-bold text-sm shadow-[0_4px_15px_var(--color-primary-glow)] hover:shadow-[0_8px_20px_var(--color-primary-glow)] hover:-translate-y-0.5 transition-all duration-300 ease-out relative overflow-hidden shrink-0"
           >
-            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out" />
+            <div className="absolute inset-0 bg-white/20 opacity-100 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-300 ease-in-out" />
             <span className="text-lg font-light leading-none relative z-10">+</span>
             <span className="relative z-10">Upload New</span>
           </button>
@@ -265,6 +220,7 @@ export default function FilesPage() {
                 <option value="">All Types</option>
                 <option value="pdf">PDF</option>
                 <option value="epub">EPUB</option>
+                <option value="txt">TXT</option>
               </select>
               <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-foreground-muted text-xs">▼</div>
             </div>
@@ -308,7 +264,7 @@ export default function FilesPage() {
               <div className="w-16 h-16 border-4 border-border-subtle border-t-primary rounded-full animate-spin"></div>
             </div>
           </div>
-        ) : files.length === 0 ? (
+        ) : error ? null : files.length === 0 ? (
           <div className="text-center py-32 px-4 rounded-3xl bg-surface backdrop-blur-2xl border border-border-subtle border-dashed">
             <BookOpen size={80} className="mx-auto mb-6 text-border-subtle" />
             <h3 className="text-3xl font-bold text-foreground mb-3">
@@ -348,7 +304,7 @@ export default function FilesPage() {
                       </span>
                     </div>
 
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-in-out flex items-center justify-center gap-1.5 p-2">
+                    <div className="absolute inset-0 bg-black/40 opacity-100 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 ease-in-out flex items-center justify-center gap-1.5 p-2">
                       <button
                         onClick={() => handleRead(file)}
                         className="bg-primary/95 text-white border border-white/20 px-3 py-1.5 rounded-lg shadow-md transform scale-90 group-hover:scale-100 transition-all duration-200 hover:bg-primary font-semibold text-xs"
@@ -382,7 +338,8 @@ export default function FilesPage() {
                             />
                             <div className="flex gap-1.5">
                               <button
-                                onClick={() => handleRename(file.id)}
+                                disabled={mutating}
+                                  onClick={() => handleRename(file.id)}
                                 className="flex-1 px-2 py-1 bg-primary hover:bg-primary-hover text-white rounded text-[10px] font-bold transition-all"
                               >
                                 Save
