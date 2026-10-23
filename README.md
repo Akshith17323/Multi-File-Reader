@@ -99,7 +99,7 @@ You may add these if you plan to expand:
 
 Install dependencies from the repository root with `npm install`, configure the web and backend environment variables, and run `npm run dev` for the web app.
 
-Run `npm run electron` to start the backend, frontend, and desktop app together. If the servers are already running, use `npm run start:electron`. Electron waits for the frontend during startup and displays a Retry button if it cannot connect.
+Run `npm run electron` to start the backend, frontend, and desktop app together. The launcher reuses healthy servers already running on the configured ports and starts missing servers. It reports an unhealthy server or an existing project server on a different port instead of starting a duplicate. Quitting Electron stops only servers started by that launcher. Use `npm run start:electron` to open only the desktop window. Electron waits for the frontend during startup and displays a Retry button if it cannot connect.
 
 The desktop entry points remain `apps/electron/main.js` and `apps/electron/preload.js`. By default they connect to the frontend on port 3000 and the backend on port 2007. To use different ports or hosted servers:
 

@@ -19,11 +19,11 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run web\" --names \"SERVER,WEB\" --prefix-colors \"blue,green\"",
-    "dev:all": "concurrently \"npm run server\" \"npm run web\" \"npm run start:electron\" --names \"SERVER,WEB,ELECTRON\" --prefix-colors \"blue,green,magenta\"",
+    "dev:all": "npm run electron",
     "web": "npm --workspace=apps/web run dev",
     "server": "npm --workspace=apps/server start",
-    "start:electron": "electron apps/electron",
-    "electron": "concurrently \"npm run server\" \"npm run web\" \"npm run start:electron\" --names \"SERVER,WEB,ELECTRON\" --prefix-colors \"blue,green,magenta\"",
+    "start:electron": "node apps/electron/services/DevLauncher.js --desktop-only",
+    "electron": "node apps/electron/services/DevLauncher.js",
     "build": "npm --workspace=apps/web run build",
     "lint": "npm --workspace=apps/web run lint",
     "test": "node --test tests/*.test.cjs"
