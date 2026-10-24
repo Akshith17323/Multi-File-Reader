@@ -1,12 +1,15 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import { fileURLToPath } from "node:url";
+
+const webRoot = fileURLToPath(new URL("./apps/web/", import.meta.url));
 
 const eslintConfig = defineConfig([
   {
     settings: {
       next: {
-        rootDir: ["apps/web/"],
+        rootDir: [webRoot],
       },
     },
   },
@@ -22,11 +25,6 @@ const eslintConfig = defineConfig([
       "react-hooks/exhaustive-deps": "warn",
       "react-hooks/set-state-in-effect": "off",
       "@next/next/no-html-link-for-pages": "off",
-    },
-    settings: {
-      next: {
-        rootDir: "apps/web/",
-      },
     },
   },
   {

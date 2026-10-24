@@ -110,3 +110,17 @@ npm run start:electron
 ```
 
 Set `NEXT_PUBLIC_BACKEND_URL` for browser builds. Electron also uses it as a fallback when `ELECTRON_BACKEND_URL` is unset. These variables must be exported to the desktop process; Next.js's `.env.local` does not configure Electron automatically. The desktop window loads the configured web app, so that server must remain available.
+
+## Build the desktop application
+
+Run `npm run build` from the repository root. The `scripts` and `build` sections in `package.json` build the Next.js reader and run Electron Builder. Installers and an application archive for the build machine's platform and architecture go into `release/`. On macOS this includes a `.dmg`, `.zip`, and unpacked `.app`. Use `npm run package:electron` to produce only the unpacked application, or `npm run build:web` for the web application alone. `npm start` opens Electron with the configured development servers already running.
+
+The packaged application includes the production Next.js reader and starts it on `127.0.0.1:17767`. You do not need to start development servers to read local documents. The stable address preserves local library entries and bookmarks between launches.
+
+Cloud features use `https://multi-file-reader-server.vercel.app` by default. To package the app for another backend, set its public address during the build:
+
+```bash
+ELECTRON_BACKEND_URL=https://your-backend.example npm run build
+```
+
+The backend service and its database/storage credentials are not bundled. The macOS build is unsigned for local use; public distribution requires signing and notarization.

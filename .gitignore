@@ -29,6 +29,7 @@ build/
 **/build/
 dist/
 **/dist/
+/release/
 
 # TypeScript & Cache
 *.tsbuildinfo
@@ -66,9 +67,10 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
-# Personal notes and reference material (kept locally)
+# Study notes and reference material: keep locally, exclude from Git
 /PROJECT_DOCS.md
 /ELECTRON_REFERENCE.local.md
+/EXPECTED_FEATURES.md
 *.local.md
 *.local.txt
 *.local.json
@@ -78,7 +80,6 @@ Thumbs.db
 
 # Additional personal reference notes
 /UI_Imporvemetns.md
-/EXPECTED_FEATURES.md
 
 # Next.js generates local agent instructions during development.
 /apps/web/AGENTS.md

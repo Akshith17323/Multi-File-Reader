@@ -13,15 +13,18 @@ const { registerFileHandlers } = require('./adapters/FileHandlerAdapter');
 const { registerApiProxy } = require('./services/ApiProxyService');
 
 // The frontend is displayed in BrowserWindow. The backend serves HTTP API requests.
-const FRONTEND_URL = readServerUrl(
+let FRONTEND_URL = readServerUrl(
   process.env.ELECTRON_FRONTEND_URL,
   'http://localhost:3000',
 );
 const BACKEND_URL = readServerUrl(
   process.env.ELECTRON_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL,
-  'http://localhost:2007',
+  app.isPackaged
+    ? require(path.join(app.getAppPath(), 'package.json')).desktop.backendUrl
+    : 'http://localhost:2007',
 );
-const FRONTEND_ORIGIN = new URL(FRONTEND_URL).origin;
+let FRONTEND_ORIGIN = new URL(FRONTEND_URL).origin;
+let packagedWebServer;
 const STARTUP_TIMEOUT_MS = 30000;
 const REQUEST_TIMEOUT_MS = 5000;
 const RETRY_DELAY_MS = 1000;
@@ -398,7 +401,18 @@ async function showStartupPage(mainWindow, unavailable = false) {
 }
 
 // App lifecycle: initialize IPC once and recreate the window when reopened on macOS.
-app.whenReady().then(() => {
+const ownsInstance = !app.isPackaged || app.requestSingleInstanceLock();
+if (!ownsInstance) app.quit();
+else app.whenReady().then(() => {
+  if (app.isPackaged && !process.env.ELECTRON_FRONTEND_URL) {
+    const { startPackagedWebServer } = require('./services/PackagedWebServer');
+    packagedWebServer = startPackagedWebServer(error => {
+      dialog.showErrorBox('MultiReader could not start', error.message);
+      app.quit();
+    });
+    FRONTEND_URL = packagedWebServer.url;
+    FRONTEND_ORIGIN = new URL(FRONTEND_URL).origin;
+  }
   registerIpcHandlers();
   createWindow();
 
@@ -411,6 +425,15 @@ app.whenReady().then(() => {
   console.error('Desktop startup failed:', error);
   app.quit();
 });
+
+app.on('second-instance', () => {
+  const mainWindow = BrowserWindow.getAllWindows()[0];
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
+app.on('before-quit', () => packagedWebServer?.stop());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
