@@ -31,10 +31,12 @@ function readLocalEnvironment(filename) {
 }
 
 async function launch(desktopOnly = false) {
+  const electronEnv = readLocalEnvironment(path.join(root, 'apps/electron/.env.local'));
   const serverEnv = readLocalEnvironment(path.join(root, 'apps/server/.env'));
-  const backendPort = process.env.PORT || serverEnv.PORT || '2007';
-  const frontendUrl = process.env.ELECTRON_FRONTEND_URL || 'http://localhost:3000';
-  const backendUrl = process.env.ELECTRON_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || `http://localhost:${backendPort}`;
+  const runtimeEnv = { ...electronEnv, ...process.env };
+  const backendPort = runtimeEnv.PORT || serverEnv.PORT || '2007';
+  const frontendUrl = runtimeEnv.ELECTRON_FRONTEND_URL || 'http://localhost:3000';
+  const backendUrl = runtimeEnv.ELECTRON_BACKEND_URL || runtimeEnv.NEXT_PUBLIC_BACKEND_URL || `http://localhost:${backendPort}`;
   const children = new Set();
   const controller = new AbortController();
   let stopping = false;
@@ -86,7 +88,7 @@ async function launch(desktopOnly = false) {
     }
     if (backend) {
       start(process.execPath, [require.resolve('nodemon/bin/nodemon.js'), 'src/server.js'], path.join(root, 'apps/server'), {
-        ...process.env, PORT: target.port || (target.protocol === 'https:' ? '443' : '80'),
+        ...runtimeEnv, PORT: target.port || (target.protocol === 'https:' ? '443' : '80'),
       }, label);
     } else {
       const lockPath = path.join(root, 'apps/web/.next/dev/lock');
@@ -97,7 +99,7 @@ async function launch(desktopOnly = false) {
       } catch (error) {
         if (!['ENOENT', 'ESRCH'].includes(error.code)) throw error;
       }
-      start(process.execPath, [require.resolve('next/dist/bin/next'), 'dev', '--port', target.port || '3000'], path.join(root, 'apps/web'), process.env, label);
+      start(process.execPath, [require.resolve('next/dist/bin/next'), 'dev', '--port', target.port || '3000'], path.join(root, 'apps/web'), runtimeEnv, label);
     }
     const deadline = Date.now() + 60000;
     while (!controller.signal.aborted && Date.now() < deadline) {
@@ -115,7 +117,7 @@ async function launch(desktopOnly = false) {
       await ensureServer(frontendUrl, false);
     }
     if (!stopping) start(require('electron'), [path.join(root, 'apps/electron')], root, desktopEnvironment({
-      ...process.env, ELECTRON_FRONTEND_URL: frontendUrl, ELECTRON_BACKEND_URL: backendUrl,
+      ...runtimeEnv, ELECTRON_FRONTEND_URL: frontendUrl, ELECTRON_BACKEND_URL: backendUrl,
     }), 'ELECTRON');
   } catch (error) {
     if (!stopping) console.error(error.message);

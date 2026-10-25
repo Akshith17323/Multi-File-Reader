@@ -1,12 +1,21 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const dotenv = require('dotenv');
 
 const root = path.resolve(__dirname, '../../..');
 const config = require(path.join(root, 'package.json')).build;
+const productionEnvPath = path.join(root, 'apps/electron/.env.production');
+const productionEnv = fs.existsSync(productionEnvPath)
+  ? dotenv.parse(fs.readFileSync(productionEnvPath))
+  : {};
 
 function getBackendUrl() {
-  const url = new URL(process.env.ELECTRON_BACKEND_URL || config.extraMetadata.desktop.backendUrl);
+  const url = new URL(
+    process.env.ELECTRON_BACKEND_URL
+      || productionEnv.ELECTRON_BACKEND_URL
+      || config.extraMetadata.desktop.backendUrl,
+  );
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
     throw new Error('ELECTRON_BACKEND_URL must be an HTTP(S) URL without credentials');
   }
@@ -24,6 +33,7 @@ function run(script, args, env = process.env) {
 async function buildReader() {
   const web = path.join(root, 'apps/web');
   const env = {
+    ...productionEnv,
     ...process.env,
     MFR_DESKTOP_BUILD: '1',
     NEXT_PUBLIC_BACKEND_URL: getBackendUrl(),

@@ -20,11 +20,27 @@ const allowedOrigins = [
   "https://multi-file-reader-srue.vercel.app"
 ].filter(Boolean);
 
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+    return true;
+  }
+
+  try {
+    const url = new URL(origin);
+    return url.protocol === "https:"
+      && url.hostname.startsWith("multi-file-reader-")
+      && url.hostname.endsWith(".vercel.app");
+  } catch {
+    return false;
+  }
+}
+
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like Electron desktop, curl, etc.)
-      if (!origin || allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+      if (isAllowedOrigin(origin)) {
         return callback(null, true);
       }
       return callback(new Error("Origin is not allowed"));
