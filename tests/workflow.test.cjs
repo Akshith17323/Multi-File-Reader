@@ -157,15 +157,89 @@ test('auth session rejects missing tokens and clears reader tabs on sign-out', (
 });
 
 test('expired authenticated API requests clear the session and redirect to login', async () => {
-  const browser = browserModules({}, { fetch: async () => ({ ok: false, status: 401, json: async () => ({ message: 'Expired' }) }) });
-  browser.localStorage.setItem('token', 'expired');
-  let destination;
-  browser.window.location.assign = url => { destination = url; };
-  const { ApiAdapter } = browser.load('apps/web/services/apiClient.ts');
-  await assert.rejects(ApiAdapter.fetch('/files', { headers: { Authorization: 'Bearer expired' } }), /Expired/);
-  assert.equal(destination, '/auth/login');
-  assert.equal(browser.localStorage.getItem('token'), null);
+  for (const desktop of [false, true]) {
+    for (const header of ['Authorization', 'authorization']) {
+      const browser = browserModules({}, { fetch: async () => ({ ok: false, status: 401, json: async () => ({ message: 'Expired' }) }) });
+      if (desktop) browser.window.electronAPI = { invoke: async () => ({ ok: false, status: 401, error: 'Expired' }) };
+      browser.localStorage.setItem('token', 'expired');
+      let destination;
+      browser.window.location.assign = url => { destination = url; };
+      const { ApiAdapter } = browser.load('apps/web/services/apiClient.ts');
+      await assert.rejects(ApiAdapter.fetch('/files', { headers: { [header]: 'Bearer expired' } }), /Expired/);
+      assert.equal(destination, '/auth/login');
+      assert.equal(browser.localStorage.getItem('token'), null);
+    }
+  }
 });
+
+test('unauthenticated API failures leave the current session intact', async () => {
+  const browser = browserModules({}, { fetch: async () => ({ ok: false, status: 401, json: async () => ({ message: 'Invalid credentials' }) }) });
+  browser.load('apps/web/utils/authSession.ts').setAuthSession({ token: tokenFor('a'), user: 'Alice' });
+  const { ApiAdapter } = browser.load('apps/web/services/apiClient.ts');
+  browser.window.location.assign = () => assert.fail('Anonymous failures must not redirect');
+  await assert.rejects(ApiAdapter.fetch('/api/auth/login', { method: 'POST' }), /Invalid credentials/);
+  assert.equal(browser.localStorage.getItem('token'), tokenFor('a'));
+  assert.equal(browser.localStorage.getItem('user'), 'Alice');
+});
+
+for (const desktop of [false, true]) {
+  test(`late ${desktop ? 'desktop' : 'web'} API failures preserve a newly signed-in account`, async () => {
+    let finish;
+    const response = new Promise(resolve => { finish = resolve; });
+    const browser = browserModules({}, { fetch: () => response });
+    if (desktop) browser.window.electronAPI = { invoke: () => response };
+    const auth = browser.load('apps/web/utils/authSession.ts');
+    const { ApiAdapter } = browser.load('apps/web/services/apiClient.ts');
+    auth.setAuthSession({ token: tokenFor('a'), user: 'Alice' });
+    const request = ApiAdapter.fetch('/files', { headers: { Authorization: `Bearer ${tokenFor('a')}` } });
+    const rejected = assert.rejects(request, { name: 'ApiError', status: 401, message: 'Old session expired' });
+    auth.setAuthSession({ token: tokenFor('b'), user: 'Bob' });
+    browser.sessionStorage.setItem('readerFiles', 'new-account-tabs');
+    const effects = [];
+    browser.window.dispatchEvent = event => effects.push(event.type);
+    browser.window.location.assign = url => effects.push(url);
+    finish(desktop
+      ? { ok: false, status: 401, error: 'Old session expired' }
+      : { ok: false, status: 401, json: async () => ({ message: 'Old session expired' }) });
+    await rejected;
+    assert.equal(browser.localStorage.getItem('token'), tokenFor('b'));
+    assert.equal(browser.localStorage.getItem('user'), 'Bob');
+    assert.equal(browser.sessionStorage.getItem('readerFiles'), 'new-account-tabs');
+    assert.deepEqual(effects, []);
+  });
+}
+
+for (const operation of ['web upload', 'desktop upload', 'desktop registration']) {
+  test(`late ${operation} failures preserve a newly signed-in account`, async () => {
+    let finish, xhr;
+    class FakeXHR { constructor() { xhr = this; this.upload = {}; } open() {} setRequestHeader() {} send() {} }
+    const browser = browserModules({}, { XMLHttpRequest: FakeXHR });
+    if (operation.startsWith('desktop')) browser.window.electronAPI = {
+      invoke: () => new Promise(resolve => { finish = resolve; }),
+      getFilePath: () => '/books/a.pdf',
+    };
+    const auth = browser.load('apps/web/utils/authSession.ts');
+    const { FileAdapter } = browser.load('apps/web/services/fileAdapter.ts');
+    auth.setAuthSession({ token: tokenFor('a'), user: 'Alice' });
+    const request = operation.endsWith('registration')
+      ? FileAdapter.addLocalBook(tokenFor('a'))
+      : FileAdapter.uploadFile(new File(['sample'], 'a.pdf'), tokenFor('a'), '/upload', () => {});
+    const rejected = assert.rejects(request, { name: 'ApiError', status: 401, message: 'Old session expired' });
+    auth.setAuthSession({ token: tokenFor('b'), user: 'Bob' });
+    browser.sessionStorage.setItem('readerFiles', 'new-account-tabs');
+    const effects = [];
+    browser.window.dispatchEvent = event => effects.push(event.type);
+    browser.window.location.assign = url => effects.push(url);
+    if (xhr) {
+      xhr.status = 401; xhr.responseText = JSON.stringify({ message: 'Old session expired' }); xhr.onload();
+    } else finish({ ok: false, status: 401, error: 'Old session expired' });
+    await rejected;
+    assert.equal(browser.localStorage.getItem('token'), tokenFor('b'));
+    assert.equal(browser.localStorage.getItem('user'), 'Bob');
+    assert.equal(browser.sessionStorage.getItem('readerFiles'), 'new-account-tabs');
+    assert.deepEqual(effects, []);
+  });
+}
 
 test('upload stays below 100 percent until server response and rejects a missing URL', async () => {
   let xhr;

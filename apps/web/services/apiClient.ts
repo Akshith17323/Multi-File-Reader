@@ -8,8 +8,9 @@ export class ApiError extends Error {
   }
 }
 
-export function handleApiFailure(status: number, message: string, authenticated: boolean): never {
-  if (status === 401 && authenticated) {
+export function handleApiFailure(status: number, message: string, requestToken?: string): never {
+  // A delayed failure must not sign out a session established after the request began.
+  if (status === 401 && requestToken && typeof window !== 'undefined' && localStorage.getItem('token') === requestToken) {
     clearAuthSession();
     if (!window.location.pathname.startsWith("/auth/")) {
       // A full navigation clears mounted readers after authentication expires.
@@ -30,6 +31,8 @@ type ApiOptions = {
 export class ApiAdapter {
   static async fetch(endpoint: string, options: ApiOptions = {}) {
     const { method = 'GET', headers = {}, body } = options;
+    const authorization = Object.entries(headers).find(([name]) => name.toLowerCase() === 'authorization')?.[1];
+    const requestToken = authorization?.match(/^Bearer\s+(\S+)$/i)?.[1];
     
     if (isElectron() && typeof window !== 'undefined' && (window as any).electronAPI) {
       // Desktop: proxy through IPC to avoid CORS
@@ -41,7 +44,7 @@ export class ApiAdapter {
       });
       
       if (!result.ok) {
-        handleApiFailure(result.status || 0, result.error || result.data?.message || result.data?.Message || 'API request failed', Boolean(headers.Authorization));
+        handleApiFailure(result.status || 0, result.error || result.data?.message || result.data?.Message || 'API request failed', requestToken);
       }
       
       return result.data;
@@ -61,7 +64,7 @@ export class ApiAdapter {
       const data = await response.json().catch(() => null);
       
       if (!response.ok) {
-        handleApiFailure(response.status, data?.message || data?.Message || data?.error || 'API request failed', Boolean(headers.Authorization));
+        handleApiFailure(response.status, data?.message || data?.Message || data?.error || 'API request failed', requestToken);
       }
       
       return data;
