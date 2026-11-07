@@ -116,8 +116,9 @@ export default function FilesPage() {
       if (!token && !isElectron()) throw new Error("Please sign in again");
       if (deletingFile) {
         if (token && !deletingFile.id.startsWith("local_")) await apiClient.deleteFile(token, deletingFile.id);
-        removeLocalLibraryFile(deletingFile.url);
         await deleteBookmarkUnified(token, deletingFile.url);
+        if (localStorage.getItem("token") !== token) return;
+        removeLocalLibraryFile(deletingFile.url);
         removeFileFromReaderSession(deletingFile.url);
         setFiles(prev => prev.filter(file => file.id !== deletingFile.id));
         await fetchFiles();
