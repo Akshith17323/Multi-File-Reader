@@ -9,11 +9,11 @@ interface LibraryQuery { search?: string; type?: string; page: number; limit: nu
 export async function loadLibraryPage(token: string | null, query: LibraryQuery) {
   const local = isElectron() ? getLocalLibraryFiles() : [];
   const params = new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
-  if (token && !local.length) return apiClient.getAllFiles(token, params.toString());
   let cloud: LibraryFile[] = [];
   let warning = '';
   if (token) {
     try {
+      if (!local.length) return await apiClient.getAllFiles(token, params.toString());
       // Merge before pagination so local entries never disappear between cloud pages.
       params.set('page', '1'); params.set('limit', '100');
       const first = await apiClient.getAllFiles(token, params.toString());
@@ -26,7 +26,7 @@ export async function loadLibraryPage(token: string | null, query: LibraryQuery)
         cloud.push(...pages.flatMap(result => result.files));
       }
     } catch (error) {
-      if (localStorage.getItem('token') !== token) throw error;
+      if (!isElectron() || localStorage.getItem('token') !== token) throw error;
       warning = 'Cloud files are unavailable. Your local files are ready to open.';
     }
   }

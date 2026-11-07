@@ -169,7 +169,8 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPU
         };
         const createEntry = (continuous: boolean, width: number, height: number): Entry => {
             const host = document.createElement('div');
-            Object.assign(host.style, { position: 'absolute', inset: '0', visibility: 'hidden', pointerEvents: 'none' });
+            // EPUB.js makes descendant views visible, so visibility alone cannot hide a cached layout.
+            Object.assign(host.style, { position: 'absolute', inset: '0', visibility: 'hidden', opacity: '0', pointerEvents: 'none' });
             host.inert = true;
             host.setAttribute('aria-hidden', 'true');
             viewer.appendChild(host);
@@ -258,6 +259,7 @@ const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPU
                     entries.forEach(candidate => {
                         const visible = candidate === entry;
                         candidate.host.style.visibility = visible ? 'visible' : 'hidden';
+                        candidate.host.style.opacity = visible ? '1' : '0';
                         candidate.host.style.pointerEvents = visible ? 'auto' : 'none';
                         candidate.host.inert = !visible;
                         candidate.host.setAttribute('aria-hidden', String(!visible));

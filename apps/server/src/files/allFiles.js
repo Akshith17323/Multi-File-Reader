@@ -69,7 +69,7 @@ async function get_all_files(req, res) {
             if (file.source === 'LOCAL' && file.localId) {
                 url = file.fileUrl?.startsWith("mfr-local://") ? file.fileUrl : toLocalUrl(file.localId);
             } else if ((file.source === 'GOOGLE_DRIVE' || file.source === 'ONEDRIVE') && file.driveId) {
-                url = `drive://${file.source}/${file.driveId}`;
+                url = file.fileUrl || `drive://${file.source}/${file.driveId}`;
             }
 
             return {

@@ -32,7 +32,7 @@ export class FileAdapter {
       return { url: result.data.file.fileUrl, fileName: result.data.file.fileName };
     }
     if (result.error === "Canceled") return null;
-    handleApiFailure(result.status || 0, result.error || "Failed to add local book", true);
+    handleApiFailure(result.status || 0, result.error || "Failed to add local book", token);
   }
 
   static async uploadFile(file: File, token: string, uploadEndpoint: string, onProgress: (progress: number) => void): Promise<string> {
@@ -42,7 +42,7 @@ export class FileAdapter {
       if (!filePath) throw new Error("Could not find the file on disk. Select it again.");
       const result = await window.electronAPI!.invoke('upload-dropped-file', { filePath, token });
       if (!result.ok) {
-        handleApiFailure(result.status || 0, result.error || "Upload failed", true);
+        handleApiFailure(result.status || 0, result.error || "Upload failed", token);
       }
       if (typeof result.data?.url !== "string" || !result.data.url) throw new Error("Upload returned no document URL.");
       onProgress(100);
@@ -64,7 +64,7 @@ export class FileAdapter {
         try {
           const body = JSON.parse(xhr.responseText);
           if (xhr.status < 200 || xhr.status >= 300) {
-            handleApiFailure(xhr.status, body.error || body.message || `Upload failed (${xhr.status})`, true);
+            handleApiFailure(xhr.status, body.error || body.message || `Upload failed (${xhr.status})`, token);
           }
           if (typeof body.url !== "string" || !body.url) throw new Error("Upload returned no document URL.");
           onProgress(100);

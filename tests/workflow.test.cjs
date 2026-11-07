@@ -14,8 +14,8 @@ const storage = () => {
 };
 
 function browserModules(api = {}, extra = {}) {
-  const localStorage = storage();
-  const sessionStorage = storage();
+  const localStorage = extra.localStorage || storage();
+  const sessionStorage = extra.sessionStorage || storage();
   const timers = new Map();
   let timerId = 0;
   const window = { location: { pathname: '/files', assign: () => {} }, dispatchEvent: () => {} };
@@ -145,6 +145,121 @@ test('rapid bookmark saves coalesce and deletion cancels pending writes', async 
   assert.equal(bookmarks.getLocalBookmark('x'), null);
 });
 
+test('bookmark deletion completes locally while cloud cleanup is stalled or offline', async () => {
+  let fail;
+  const browser = browserModules({ deleteBookmark: () => new Promise((_, reject) => { fail = reject; }) }, { console: { ...console, warn() {} } });
+  const token = tokenFor('a');
+  const url = 'mfr-local://localhost/books/a.txt';
+  browser.localStorage.setItem('token', token);
+  const bookmarks = browser.load('apps/web/utils/localBookmarks.ts');
+  bookmarks.saveLocalBookmark({ fileUrl: url, progress: 70 });
+  const oldLocal = bookmarks.getLocalBookmarksMap();
+  let settled = false, failure;
+  const deletion = bookmarks.deleteBookmarkUnified(token, url).then(() => { settled = true; }, error => { failure = error; });
+  await new Promise(resolve => setImmediate(resolve));
+  const immediate = { settled, bookmark: bookmarks.getLocalBookmark(url) };
+  fail(new Error('Backend offline'));
+  await deletion;
+  await browser.flush();
+  assert.equal(immediate.settled, true);
+  assert.equal(immediate.bookmark, null);
+  assert.equal(failure, undefined);
+  assert.deepEqual(plain(bookmarks.mergeBookmarks(Object.values(oldLocal), oldLocal)), []);
+});
+
+test('offline bookmark deletions survive reload and retry without reviving deleted progress', async () => {
+  const browser = browserModules({ deleteBookmark: async () => { throw new Error('Backend offline'); } }, { console: { ...console, warn() {} } });
+  const token = tokenFor('a');
+  const url = 'mfr-local://localhost/books/a.txt';
+  browser.localStorage.setItem('token', token);
+  const bookmarks = browser.load('apps/web/utils/localBookmarks.ts');
+  const oldBookmark = { fileUrl: url, progress: 70, lastRead: '2020-01-01' };
+  bookmarks.saveLocalBookmark(oldBookmark);
+  await bookmarks.deleteBookmarkUnified(token, url);
+  await browser.flush();
+  const deletes = [];
+  const restarted = browserModules({ deleteBookmark: async (token, url) => deletes.push({ token, url }) }, { localStorage: browser.localStorage });
+  const restored = restarted.load('apps/web/utils/localBookmarks.ts');
+  assert.deepEqual(plain(restored.mergeBookmarks([oldBookmark], restored.getLocalBookmarksMap())), []);
+  await restored.syncBookmarkDeletions(token);
+  await restored.syncBookmarkDeletions(token);
+  assert.deepEqual(deletes, [{ token, url }]);
+  assert.equal(restored.getLocalBookmark(url), null);
+  assert.deepEqual(plain(restored.mergeBookmarks([oldBookmark], {})), []);
+  restored.saveLocalBookmark({ fileUrl: url, progress: 5 });
+  assert.equal(restored.mergeBookmarks([oldBookmark], restored.getLocalBookmarksMap())[0].progress, 5);
+});
+
+test('bookmark deletion follows in-flight saves and precedes progress from reopening the document', async () => {
+  let finish;
+  const calls = [];
+  const browser = browserModules({
+    upsertBookmark: async (_token, data) => {
+      calls.push({ operation: 'save', ...plain(data) });
+      if (calls.length === 1) await new Promise(resolve => { finish = resolve; });
+    },
+    deleteBookmark: async () => calls.push({ operation: 'delete' }),
+  });
+  browser.localStorage.setItem('token', 'token');
+  const bookmarks = browser.load('apps/web/utils/localBookmarks.ts');
+  await bookmarks.saveBookmarkUnified('token', { fileUrl: 'x', progress: 20, cfi: 'old-position' });
+  await browser.flush();
+  await bookmarks.saveBookmarkUnified('token', { fileUrl: 'x', progress: 30 });
+  const deletion = bookmarks.deleteBookmarkUnified('token', 'x');
+  await bookmarks.saveBookmarkUnified('token', { fileUrl: 'x', progress: 5 });
+  await browser.flush();
+  assert.equal(calls.length, 1);
+  finish();
+  await deletion;
+  await browser.flush();
+  assert.deepEqual(calls.map(call => call.operation === 'save' ? call.progress : call.operation), [20, 'delete', 5]);
+  assert.equal(calls[2].cfi, undefined);
+  assert.equal(bookmarks.getLocalBookmark('x').progress, 5);
+});
+
+test('a late bookmark read cannot restore progress after deletion has synced', async () => {
+  let finish;
+  const writes = [];
+  const browser = browserModules({ getBookmark: () => new Promise(resolve => { finish = resolve; }), deleteBookmark: async () => {}, upsertBookmark: async (_token, data) => writes.push(data) });
+  browser.localStorage.setItem('token', 'token');
+  const bookmarks = browser.load('apps/web/utils/localBookmarks.ts');
+  bookmarks.saveLocalBookmark({ fileUrl: 'x', progress: 70 });
+  const reading = bookmarks.getBookmarkUnified('token', 'x');
+  await bookmarks.deleteBookmarkUnified('token', 'x');
+  await bookmarks.syncBookmarkDeletions('token');
+  finish({ fileUrl: 'x', progress: 70, lastRead: new Date().toISOString() });
+  assert.equal(await reading, null);
+  assert.equal(bookmarks.getLocalBookmark('x'), null);
+  await bookmarks.flushBookmarkSync('token', 'x');
+  assert.equal(bookmarks.getLocalBookmark('x'), null);
+  assert.deepEqual(writes, []);
+});
+
+test('bookmark deletion retries stay scoped to the account that requested them', async () => {
+  const deletes = [];
+  let offline = true;
+  const browser = browserModules({ deleteBookmark: async (token, url) => {
+    if (offline) throw new Error('Backend offline');
+    deletes.push({ token, url });
+  } }, { console: { ...console, warn() {} } });
+  const bookmarks = browser.load('apps/web/utils/localBookmarks.ts');
+  browser.localStorage.setItem('token', tokenFor('a'));
+  bookmarks.saveLocalBookmark({ fileUrl: 'x', progress: 70 });
+  await bookmarks.deleteBookmarkUnified(tokenFor('a'), 'x');
+  await browser.flush();
+  browser.localStorage.setItem('token', tokenFor('b'));
+  bookmarks.saveLocalBookmark({ fileUrl: 'x', progress: 10 });
+  offline = false;
+  await bookmarks.syncBookmarkDeletions(tokenFor('a'));
+  await bookmarks.syncBookmarkDeletions(tokenFor('b'));
+  assert.deepEqual(deletes, []);
+  assert.equal(bookmarks.getLocalBookmark('x').progress, 10);
+  browser.localStorage.setItem('token', tokenFor('a'));
+  await bookmarks.syncBookmarkDeletions(tokenFor('a'));
+  assert.deepEqual(deletes, [{ token: tokenFor('a'), url: 'x' }]);
+  assert.equal(bookmarks.getLocalBookmark('x'), null);
+});
+
 test('auth session rejects missing tokens and clears reader tabs on sign-out', () => {
   const browser = browserModules();
   const auth = browser.load('apps/web/utils/authSession.ts');
@@ -157,15 +272,89 @@ test('auth session rejects missing tokens and clears reader tabs on sign-out', (
 });
 
 test('expired authenticated API requests clear the session and redirect to login', async () => {
-  const browser = browserModules({}, { fetch: async () => ({ ok: false, status: 401, json: async () => ({ message: 'Expired' }) }) });
-  browser.localStorage.setItem('token', 'expired');
-  let destination;
-  browser.window.location.assign = url => { destination = url; };
-  const { ApiAdapter } = browser.load('apps/web/services/apiClient.ts');
-  await assert.rejects(ApiAdapter.fetch('/files', { headers: { Authorization: 'Bearer expired' } }), /Expired/);
-  assert.equal(destination, '/auth/login');
-  assert.equal(browser.localStorage.getItem('token'), null);
+  for (const desktop of [false, true]) {
+    for (const header of ['Authorization', 'authorization']) {
+      const browser = browserModules({}, { fetch: async () => ({ ok: false, status: 401, json: async () => ({ message: 'Expired' }) }) });
+      if (desktop) browser.window.electronAPI = { invoke: async () => ({ ok: false, status: 401, error: 'Expired' }) };
+      browser.localStorage.setItem('token', 'expired');
+      let destination;
+      browser.window.location.assign = url => { destination = url; };
+      const { ApiAdapter } = browser.load('apps/web/services/apiClient.ts');
+      await assert.rejects(ApiAdapter.fetch('/files', { headers: { [header]: 'Bearer expired' } }), /Expired/);
+      assert.equal(destination, '/auth/login');
+      assert.equal(browser.localStorage.getItem('token'), null);
+    }
+  }
 });
+
+test('unauthenticated API failures leave the current session intact', async () => {
+  const browser = browserModules({}, { fetch: async () => ({ ok: false, status: 401, json: async () => ({ message: 'Invalid credentials' }) }) });
+  browser.load('apps/web/utils/authSession.ts').setAuthSession({ token: tokenFor('a'), user: 'Alice' });
+  const { ApiAdapter } = browser.load('apps/web/services/apiClient.ts');
+  browser.window.location.assign = () => assert.fail('Anonymous failures must not redirect');
+  await assert.rejects(ApiAdapter.fetch('/api/auth/login', { method: 'POST' }), /Invalid credentials/);
+  assert.equal(browser.localStorage.getItem('token'), tokenFor('a'));
+  assert.equal(browser.localStorage.getItem('user'), 'Alice');
+});
+
+for (const desktop of [false, true]) {
+  test(`late ${desktop ? 'desktop' : 'web'} API failures preserve a newly signed-in account`, async () => {
+    let finish;
+    const response = new Promise(resolve => { finish = resolve; });
+    const browser = browserModules({}, { fetch: () => response });
+    if (desktop) browser.window.electronAPI = { invoke: () => response };
+    const auth = browser.load('apps/web/utils/authSession.ts');
+    const { ApiAdapter } = browser.load('apps/web/services/apiClient.ts');
+    auth.setAuthSession({ token: tokenFor('a'), user: 'Alice' });
+    const request = ApiAdapter.fetch('/files', { headers: { Authorization: `Bearer ${tokenFor('a')}` } });
+    const rejected = assert.rejects(request, { name: 'ApiError', status: 401, message: 'Old session expired' });
+    auth.setAuthSession({ token: tokenFor('b'), user: 'Bob' });
+    browser.sessionStorage.setItem('readerFiles', 'new-account-tabs');
+    const effects = [];
+    browser.window.dispatchEvent = event => effects.push(event.type);
+    browser.window.location.assign = url => effects.push(url);
+    finish(desktop
+      ? { ok: false, status: 401, error: 'Old session expired' }
+      : { ok: false, status: 401, json: async () => ({ message: 'Old session expired' }) });
+    await rejected;
+    assert.equal(browser.localStorage.getItem('token'), tokenFor('b'));
+    assert.equal(browser.localStorage.getItem('user'), 'Bob');
+    assert.equal(browser.sessionStorage.getItem('readerFiles'), 'new-account-tabs');
+    assert.deepEqual(effects, []);
+  });
+}
+
+for (const operation of ['web upload', 'desktop upload', 'desktop registration']) {
+  test(`late ${operation} failures preserve a newly signed-in account`, async () => {
+    let finish, xhr;
+    class FakeXHR { constructor() { xhr = this; this.upload = {}; } open() {} setRequestHeader() {} send() {} }
+    const browser = browserModules({}, { XMLHttpRequest: FakeXHR });
+    if (operation.startsWith('desktop')) browser.window.electronAPI = {
+      invoke: () => new Promise(resolve => { finish = resolve; }),
+      getFilePath: () => '/books/a.pdf',
+    };
+    const auth = browser.load('apps/web/utils/authSession.ts');
+    const { FileAdapter } = browser.load('apps/web/services/fileAdapter.ts');
+    auth.setAuthSession({ token: tokenFor('a'), user: 'Alice' });
+    const request = operation.endsWith('registration')
+      ? FileAdapter.addLocalBook(tokenFor('a'))
+      : FileAdapter.uploadFile(new File(['sample'], 'a.pdf'), tokenFor('a'), '/upload', () => {});
+    const rejected = assert.rejects(request, { name: 'ApiError', status: 401, message: 'Old session expired' });
+    auth.setAuthSession({ token: tokenFor('b'), user: 'Bob' });
+    browser.sessionStorage.setItem('readerFiles', 'new-account-tabs');
+    const effects = [];
+    browser.window.dispatchEvent = event => effects.push(event.type);
+    browser.window.location.assign = url => effects.push(url);
+    if (xhr) {
+      xhr.status = 401; xhr.responseText = JSON.stringify({ message: 'Old session expired' }); xhr.onload();
+    } else finish({ ok: false, status: 401, error: 'Old session expired' });
+    await rejected;
+    assert.equal(browser.localStorage.getItem('token'), tokenFor('b'));
+    assert.equal(browser.localStorage.getItem('user'), 'Bob');
+    assert.equal(browser.sessionStorage.getItem('readerFiles'), 'new-account-tabs');
+    assert.deepEqual(effects, []);
+  });
+}
 
 test('upload stays below 100 percent until server response and rejects a missing URL', async () => {
   let xhr;
@@ -606,4 +795,18 @@ test('desktop library merges local files before sorting and pagination and remai
   const fallback = await loadLibraryPage(tokenFor('a'), query);
   assert.deepEqual(plain(fallback.files.map(file => file.name)), ['a.txt', 'c.txt']);
   assert.match(fallback.warning, /Cloud files are unavailable/);
+  local.removeLocalLibraryFile('mfr-local:///a.txt');
+  local.removeLocalLibraryFile('mfr-local:///c.txt');
+  const empty = await loadLibraryPage(tokenFor('a'), { ...query, page: 2 });
+  assert.deepEqual(plain(empty.files), []);
+  assert.equal(empty.pagination.currentPage, 1);
+  assert.equal(empty.pagination.totalPages, 1);
+  assert.match(empty.warning, /Cloud files are unavailable/);
+});
+
+test('web library loading still reports backend failures', async () => {
+  const browser = browserModules({ getAllFiles: async () => { throw new Error('Backend offline'); } });
+  browser.localStorage.setItem('token', tokenFor('a'));
+  const { loadLibraryPage } = browser.load('apps/web/services/library.ts');
+  await assert.rejects(loadLibraryPage(tokenFor('a'), { page: 1, limit: 24 }), /Backend offline/);
 });
