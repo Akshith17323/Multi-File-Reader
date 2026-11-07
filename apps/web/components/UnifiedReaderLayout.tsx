@@ -1,439 +1,197 @@
 "use client";
 
-import { useState, ReactNode } from "react";
-import { ChevronLeft, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown, PanelLeftClose, PanelLeftOpen, BookOpen, Plus, Search, Cloud, HardDrive } from "lucide-react";
-import { useRouter } from "next/navigation";
-import FileTab, { FileTabData } from "./FileTab";
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, FileText, ScrollText, Columns, ArrowLeftRight, ArrowUpDown, Plus, Search, BookOpen, PanelLeft, Grid2X2, GripVertical } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import ThemeToggle from './ThemeToggle';
+import FileTab from './FileTab';
+import { readerTabId } from '@/utils/readerTabs';
+import type { FileTabData, ViewMode, FitMode, ReaderStatus } from './readers/types';
 
-export type ViewMode = "single" | "continuous" | "two-page";
-export type FitMode = "width" | "height" | "none";
-
-function isLocalFile(url: string, id?: string): boolean {
-    if (id && id.startsWith("local_")) return true;
-    if (!url) return false;
-    return (
-        url.startsWith("mfr-local://") ||
-        url.startsWith("file://") ||
-        url.startsWith("/") ||
-        /^[a-zA-Z]:[\\/]/.test(url)
-    );
+interface Props {
+  children: ReactNode;
+  openFiles: FileTabData[]; activeFileIndex: number;
+  onTabChange: (index: number) => void; onTabClose: (index: number) => void;
+  onAddFile: () => void;
+  isSearchOpen: boolean; onToggleSearch: () => void;
+  currentPage?: number; totalPages?: number; progress?: number;
+  atStart?: boolean; atEnd?: boolean; status: ReaderStatus;
+  onNextPage: () => void; onPrevPage: () => void; onGoToPage: (page: number) => void;
+  viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void;
+  fitMode: FitMode; onFitModeChange: (mode: FitMode) => void;
+  zoom: number; onZoomIn: () => void; onZoomOut: () => void;
+  fontSize: number; onFontSizeIncrease: () => void; onFontSizeDecrease: () => void;
 }
 
-interface UnifiedReaderLayoutProps {
-    children: ReactNode;
-    openFiles: FileTabData[];
-    activeFileIndex: number;
-    onTabChange: (index: number) => void;
-    onTabClose: (index: number) => void;
-    onOpenLocalFile?: () => void;
+export default function UnifiedReaderLayout(props: Props) {
+  const { children, openFiles, activeFileIndex, onTabChange, onTabClose, onAddFile, status, currentPage, totalPages, progress, viewMode, fitMode, zoom, fontSize } = props;
+  const router = useRouter();
+  const [sidebarTabs, setSidebarTabs] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(240);
+  const [sidebarMaxWidth, setSidebarMaxWidth] = useState(420);
+  const readerBodyRef = useRef<HTMLDivElement>(null);
+  const resizeStart = useRef<{ x: number; width: number } | null>(null);
+  const savedWidth = useRef(240);
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [pageInput, setPageInput] = useState('');
+  const activeFile = openFiles[activeFileIndex];
+  const isPdf = activeFile?.type === 'pdf';
+  const isEpub = activeFile?.type === 'epub';
+  const isText = !!activeFile && !isPdf && !isEpub && activeFile.type !== 'unsupported';
+  const ready = status === 'ready';
+  useEffect(() => {
+    setSidebarTabs(localStorage.getItem('mfr_tabs_position') === 'sidebar');
+    const width = Number(localStorage.getItem('mfr_sidebar_width'));
+    if (Number.isFinite(width) && width >= 160) {
+      savedWidth.current = Math.min(420, width);
+      setSidebarWidth(savedWidth.current);
+    }
+  }, []);
+  useEffect(() => {
+    const body = readerBodyRef.current;
+    if (!body) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const maxWidth = Math.max(160, Math.min(420, entry.contentRect.width - 280));
+      setSidebarMaxWidth(maxWidth);
+      setSidebarWidth(Math.min(savedWidth.current, maxWidth));
+    });
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, []);
+  const resizeSidebar = (width: number) => {
+    const next = Math.round(Math.max(160, Math.min(sidebarMaxWidth, width)));
+    savedWidth.current = next;
+    setSidebarWidth(next);
+    localStorage.setItem('mfr_sidebar_width', String(next));
+  };
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const observer = new ResizeObserver(entries => {
+      contentRef.current?.style.setProperty('--reader-controls-height', `${entries[0].borderBoxSize[0]?.blockSize || controls.offsetHeight}px`);
+    });
+    observer.observe(controls);
+    return () => observer.disconnect();
+  }, [activeFile?.id]);
+  const toggleTabPosition = () => {
+    const next = !sidebarTabs;
+    setSidebarTabs(next);
+    localStorage.setItem('mfr_tabs_position', next ? 'sidebar' : 'top');
+  };
+  useEffect(() => { setPageInput(String(currentPage || 1)); }, [currentPage, activeFile?.id]);
+  useEffect(() => {
+    const tab = activeFile && document.getElementById(readerTabId(activeFile.id));
+    tab?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeFile, sidebarTabs]);
+  const navigateTab = (index: number) => {
+    onTabChange(index);
+    document.getElementById(readerTabId(openFiles[index].id))?.focus();
+  };
+  const iconClass = 'mfr-icon-button h-10 w-10 disabled:cursor-not-allowed disabled:opacity-40';
+  const modeClass = (selected: boolean) => `${iconClass} ${selected ? 'bg-primary/15 text-primary' : ''}`;
 
-    // Reader controls
-    currentPage?: number;
-    totalPages?: number;
-    epubProgress?: number;
-    onNextPage?: () => void;
-    onPrevPage?: () => void;
-
-    // View controls
-    viewMode: ViewMode;
-    onViewModeChange: (mode: ViewMode) => void;
-    fitMode: FitMode;
-    onFitModeChange: (mode: FitMode) => void;
-
-    // Zoom controls (for PDF in 'none' fit mode)
-    zoom?: number;
-    onZoomIn?: () => void;
-    onZoomOut?: () => void;
-
-    // Font size controls (for EPUB)
-    fontSize?: number;
-    onFontSizeIncrease?: () => void;
-    onFontSizeDecrease?: () => void;
-
-    // Feature 6 Extensibility (Search & Annotations)
-    isSearchOpen?: boolean;
-    onToggleSearch?: () => void;
-    activeSidebarTab?: "files" | "annotations" | "bookmarks";
-    onSidebarTabChange?: (tab: "files" | "annotations" | "bookmarks") => void;
-}
-
-export default function UnifiedReaderLayout({
-    children,
-    openFiles,
-    activeFileIndex,
-    onTabChange,
-    onTabClose,
-    onOpenLocalFile,
-    currentPage,
-    totalPages,
-    epubProgress,
-    onNextPage,
-    onPrevPage,
-    viewMode,
-    onViewModeChange,
-    fitMode,
-    onFitModeChange,
-    zoom,
-    onZoomIn,
-    onZoomOut,
-    fontSize,
-    onFontSizeIncrease,
-    onFontSizeDecrease,
-    isSearchOpen,
-    onToggleSearch,
-    activeSidebarTab = "files",
-    onSidebarTabChange,
-}: UnifiedReaderLayoutProps) {
-    const router = useRouter();
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
-    const activeFile = openFiles[activeFileIndex];
-    const isEpub = activeFile?.type === "epub";
-    const isPdf = activeFile?.type === "pdf";
-
-    const handleClose = (index: number, e: React.MouseEvent) => {
-        e.stopPropagation();
-        onTabClose(index);
-    };
-
-    const handleBackToLibrary = () => {
-        router.push("/files");
-    };
-
-    return (
-        <div className="h-screen flex flex-col bg-background overflow-hidden">
-            {/* Background Gradients (Subtle) */}
-            <div className="absolute top-0 left-0 w-full h-full bg-background" />
-            <div className="absolute top-[-10%] left-[-5%] w-[400px] h-[400px] bg-violet-600/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply" />
-            <div className="absolute bottom-[-10%] right-[-5%] w-[400px] h-[400px] bg-primary/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply" />
-
-            {/* Top Control Bar */}
-            <div className="relative z-20 bg-surface/80 backdrop-blur-xl border-b border-border-subtle px-6 py-3">
-                <div className="flex items-center justify-between gap-4">
-                    {/* Left: Back to Library & Tabs Toggle */}
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={handleBackToLibrary}
-                            className="p-2 hover:bg-surface-hover rounded-lg text-foreground-muted hover:text-foreground transition-colors"
-                            title="Back to Library"
-                        >
-                            <ChevronLeft size={20} />
-                        </button>
-
-                        <button
-                            onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-                            className="p-2 hover:bg-surface-hover rounded-lg text-foreground-muted hover:text-foreground transition-colors"
-                            title={isSidebarCollapsed ? "Show Open Files Tabs" : "Hide Open Files Tabs"}
-                        >
-                            {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-                        </button>
-
-                        {activeFile && (
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-surface-hover flex items-center justify-center">
-                                    {isPdf ? (
-                                        <FileText size={16} className="text-blue-400" />
-                                    ) : isEpub ? (
-                                        <ScrollText size={16} className="text-purple-400" />
-                                    ) : (
-                                        <FileText size={16} className="text-emerald-400" />
-                                    )}
-                                </div>
-                                <div>
-                                    <h2 className="text-sm font-semibold text-foreground truncate max-w-[300px]">
-                                        {activeFile.name}
-                                    </h2>
-                                    <div className="flex items-center gap-1.5 text-xs text-foreground-muted">
-                                        <span>{activeFile.type.toUpperCase()}</span>
-                                        <span>•</span>
-                                        <span className={`inline-flex items-center gap-1 font-medium ${
-                                            isLocalFile(activeFile.url, activeFile.id) ? "text-emerald-400" : "text-sky-400"
-                                        }`}>
-                                            {isLocalFile(activeFile.url, activeFile.id) ? (
-                                                <>
-                                                    <HardDrive size={11} />
-                                                    <span>Local Disk</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Cloud size={11} />
-                                                    <span>Cloud</span>
-                                                </>
-                                            )}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Center: Page Navigation (for paginated modes) */}
-                    {(viewMode === "single" || viewMode === "two-page") && (isEpub || (currentPage && totalPages)) && (
-                        <div className="flex items-center gap-3 bg-surface rounded-lg px-4 py-2 border border-border-subtle">
-                            <button
-                                onClick={onPrevPage}
-                                disabled={!isEpub && !!currentPage && currentPage <= 1}
-                                className="p-1 text-foreground-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-foreground-muted transition-colors"
-                            >
-                                <ChevronLeft size={18} />
-                            </button>
-                            <span className="text-sm font-medium text-foreground min-w-20 text-center">
-                                {isEpub && epubProgress !== undefined 
-                                    ? `${Math.round(epubProgress * 100)}%` 
-                                    : `${currentPage} / ${totalPages}`}
-                            </span>
-                            <button
-                                onClick={onNextPage}
-                                disabled={!isEpub && !!currentPage && !!totalPages && currentPage >= totalPages}
-                                className="p-1 text-foreground-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-foreground-muted transition-colors"
-                            >
-                                <ChevronLeft size={18} className="rotate-180" />
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Right: View Mode & Controls */}
-                    <div className="flex items-center gap-2">
-                        {/* View Mode Toggles */}
-                        <div className="flex items-center gap-1 bg-surface rounded-lg p-1 border border-border-subtle">
-                            <button
-                                onClick={() => onViewModeChange("single")}
-                                className={`p-2 rounded transition-colors ${viewMode === "single"
-                                    ? "bg-primary/20 text-primary"
-                                    : "text-foreground-muted hover:text-foreground hover:bg-surface-hover"
-                                    }`}
-                                title="Single Page"
-                            >
-                                <FileText size={16} />
-                            </button>
-                            <button
-                                onClick={() => onViewModeChange("two-page")}
-                                className={`p-2 rounded transition-colors ${viewMode === "two-page"
-                                    ? "bg-primary/20 text-primary"
-                                    : "text-foreground-muted hover:text-foreground hover:bg-surface-hover"
-                                    }`}
-                                title="Two Page"
-                            >
-                                <Columns size={16} />
-                            </button>
-                            <button
-                                onClick={() => onViewModeChange("continuous")}
-                                className={`p-2 rounded transition-colors ${viewMode === "continuous"
-                                    ? "bg-primary/20 text-primary"
-                                    : "text-foreground-muted hover:text-foreground hover:bg-surface-hover"
-                                    }`}
-                                title="Continuous Scroll"
-                            >
-                                <ScrollText size={16} />
-                            </button>
-                        </div>
-
-                        {/* Fit Mode (PDF only) */}
-                        {isPdf && (
-                            <div className="flex items-center gap-1 bg-surface rounded-lg p-1 border border-border-subtle">
-                                <button
-                                    onClick={() => onFitModeChange("width")}
-                                    className={`p-2 rounded transition-colors ${fitMode === "width"
-                                        ? "bg-primary/20 text-primary"
-                                        : "text-foreground-muted hover:text-foreground hover:bg-surface-hover"
-                                        }`}
-                                    title="Fit Width"
-                                >
-                                    <ArrowLeftRight size={16} />
-                                </button>
-                                <button
-                                    onClick={() => onFitModeChange("height")}
-                                    className={`p-2 rounded transition-colors ${fitMode === "height"
-                                        ? "bg-primary/20 text-primary"
-                                        : "text-foreground-muted hover:text-foreground hover:bg-surface-hover"
-                                        }`}
-                                    title="Fit Height"
-                                >
-                                    <ArrowUpDown size={16} />
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Zoom Controls (PDF with 'none' fit mode) */}
-                        {isPdf && fitMode === "none" && zoom && (
-                            <div className="flex items-center gap-2 bg-surface rounded-lg px-3 py-2 border border-border-subtle">
-                                <button
-                                    onClick={onZoomOut}
-                                    className="text-foreground-muted hover:text-foreground transition-colors"
-                                >
-                                    <ZoomOut size={16} />
-                                </button>
-                                <span className="text-sm text-foreground font-medium min-w-[3ch] text-center">
-                                    {Math.round(zoom * 100)}%
-                                </span>
-                                <button
-                                    onClick={onZoomIn}
-                                    className="text-foreground-muted hover:text-foreground transition-colors"
-                                >
-                                    <ZoomIn size={16} />
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Font Size Controls (EPUB & Text/Code) */}
-                        {!isPdf && fontSize && (
-                            <div className="flex items-center gap-2 bg-surface rounded-lg px-3 py-2 border border-border-subtle">
-                                <button
-                                    onClick={onFontSizeDecrease}
-                                    className="text-foreground-muted hover:text-foreground transition-colors"
-                                >
-                                    <ZoomOut size={16} />
-                                </button>
-                                <span className="text-sm text-foreground font-medium min-w-[3ch] text-center">
-                                    {fontSize}%
-                                </span>
-                                <button
-                                    onClick={onFontSizeIncrease}
-                                    className="text-foreground-muted hover:text-foreground transition-colors"
-                                >
-                                    <ZoomIn size={16} />
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Search Toggle (Feature 6 Extensibility) */}
-                        {onToggleSearch && (
-                            <button
-                                onClick={onToggleSearch}
-                                className={`p-2 rounded-lg border transition-colors ${
-                                    isSearchOpen
-                                        ? "bg-primary/20 text-primary border-primary/40"
-                                        : "bg-surface hover:bg-surface-hover text-foreground-muted hover:text-foreground border-border-subtle"
-                                }`}
-                                title="Search in document (Ctrl+F / Cmd+F)"
-                            >
-                                <Search size={16} />
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Content Area */}
-            <div className="flex-1 flex overflow-hidden relative z-10">
-                {/* Left Sidebar - File Tabs */}
-                <div
-                    className={`
-            bg-surface/95 backdrop-blur-xl border-r border-border-subtle flex flex-col
-            transition-all duration-300
-            ${isSidebarCollapsed ? "w-0 border-r-0 overflow-hidden" : "w-72"}
-          `}
-                >
-                    {!isSidebarCollapsed && (
-                        <>
-                            <div className="p-4 border-b border-border-subtle flex items-center justify-between">
-                                {onSidebarTabChange ? (
-                                    <div className="flex items-center gap-1 bg-background/50 p-1 rounded-xl border border-border-subtle">
-                                        <button
-                                            onClick={() => onSidebarTabChange("files")}
-                                            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                                                activeSidebarTab === "files"
-                                                    ? "bg-primary text-white shadow-sm"
-                                                    : "text-foreground-muted hover:text-foreground"
-                                            }`}
-                                        >
-                                            Files ({openFiles.length})
-                                        </button>
-                                        <button
-                                            onClick={() => onSidebarTabChange("bookmarks")}
-                                            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                                                activeSidebarTab === "bookmarks"
-                                                    ? "bg-primary text-white shadow-sm"
-                                                    : "text-foreground-muted hover:text-foreground"
-                                            }`}
-                                        >
-                                            Bookmarks
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div>
-                                        <h3 className="text-xs font-semibold text-foreground-muted uppercase tracking-wider mb-0.5">
-                                            Open Files
-                                        </h3>
-                                        <p className="text-xs text-foreground-muted">
-                                            {openFiles.length} {openFiles.length === 1 ? "file" : "files"} open
-                                        </p>
-                                    </div>
-                                )}
-                                {onOpenLocalFile && (
-                                    <button
-                                        onClick={onOpenLocalFile}
-                                        className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors cursor-pointer"
-                                        title="Open local file from disk into a new tab"
-                                    >
-                                        <Plus size={16} />
-                                    </button>
-                                )}
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                                {openFiles.map((file, index) => (
-                                    <FileTab
-                                        key={file.id}
-                                        file={file}
-                                        isActive={index === activeFileIndex}
-                                        onClick={() => onTabChange(index)}
-                                        onClose={(e) => handleClose(index, e)}
-                                    />
-                                ))}
-                            </div>
-
-                            {/* Add File Actions */}
-                            <div className="p-3 border-t border-border-subtle flex flex-col gap-2">
-                                {onOpenLocalFile && (
-                                    <button
-                                        onClick={onOpenLocalFile}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg cursor-pointer"
-                                        title="Open a local book or document from disk into a new tab"
-                                    >
-                                        <BookOpen size={16} />
-                                        <span>Open Local File</span>
-                                    </button>
-                                )}
-                                <button
-                                    onClick={handleBackToLibrary}
-                                    className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all cursor-pointer ${
-                                        onOpenLocalFile
-                                            ? "bg-surface hover:bg-surface-hover text-foreground border border-border-subtle"
-                                            : "bg-primary hover:bg-primary-hover text-white shadow-md hover:shadow-lg"
-                                    }`}
-                                >
-                                    <span>+</span>
-                                    <span>Browse Library</span>
-                                </button>
-                            </div>
-
-                            {/* Quick Stats at Bottom */}
-                            {activeFile && (
-                                <div className="p-4 border-t border-border-subtle bg-surface-hover/50">
-                                    <div className="text-xs text-foreground-muted min-w-20">
-                                        {((currentPage && totalPages) || (isEpub && epubProgress !== undefined)) ? (
-                                            <div className="flex justify-between">
-                                                <span>Progress</span>
-                                                <span className="text-foreground font-medium">
-                                                    {isEpub && epubProgress !== undefined
-                                                        ? `${Math.round(epubProgress * 100)}%`
-                                                        : Math.round(((currentPage || 0) / (totalPages || 1)) * 100) + "%"}
-                                                </span>
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
-
-                {/* Main Reading Area */}
-                <div className="flex-1 overflow-hidden">
-                    {children}
-                </div>
-            </div>
+  return (
+    <main aria-label="Document reader" className="flex h-[calc(100svh-var(--titlebar-height))] min-h-0 flex-col overflow-hidden bg-background">
+      <header className="mfr-window-header flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle bg-surface px-3 py-2 sm:px-5">
+        <div className="flex min-w-0 items-center gap-2">
+          <button type="button" onClick={() => router.push('/files')} aria-label="Back to library" title="Back to library" className={iconClass}><ArrowLeft size={18} /></button>
+          <BookOpen aria-hidden="true" size={18} className="hidden shrink-0 text-primary sm:block" />
+          <h1 className="truncate text-sm font-semibold">{activeFile?.name || 'Reader'}</h1>
         </div>
-    );
+        <div className="flex shrink-0 items-center gap-2">
+          <button type="button" onClick={toggleTabPosition} aria-label="Tabs in sidebar" title={sidebarTabs ? 'Move tabs to the top' : 'Move tabs to the sidebar'} aria-pressed={sidebarTabs} className={`mfr-button-secondary min-h-10 px-3 text-xs ${sidebarTabs ? 'bg-primary/10' : ''}`}><PanelLeft size={18} /><span className="hidden sm:inline">Sidebar tabs</span></button>
+          <ThemeToggle />
+          <button type="button" onClick={onAddFile} className="mfr-button-secondary min-h-10 px-3 text-xs" aria-label="Open file"><Plus size={16} /><span className="hidden sm:inline">Open file</span></button>
+        </div>
+      </header>
+
+      <div ref={readerBodyRef} className={`flex min-h-0 flex-1 ${sidebarTabs ? 'flex-row' : 'flex-col'}`}>
+      <div id="document-tabs" aria-label={sidebarTabs ? 'Document sidebar' : undefined} style={sidebarTabs ? { width: sidebarWidth } : undefined} className={sidebarTabs ? "flex shrink-0 flex-col bg-surface/60 p-2" : "flex shrink-0 items-end border-b border-border-subtle bg-surface/60 px-2 pt-2"}>
+        {sidebarTabs && <p className="px-2 py-3 text-xs font-semibold text-foreground-muted">Open files · {openFiles.length}</p>}
+        <div role="tablist" aria-label="Open documents" aria-orientation={sidebarTabs ? "vertical" : "horizontal"} className={sidebarTabs ? "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto" : "flex min-w-0 flex-1 overflow-x-auto"}
+          onKeyDown={event => {
+            if (!(event.target as HTMLElement).matches('[role="tab"]')) return;
+            let next = activeFileIndex;
+            if (event.key === (sidebarTabs ? 'ArrowDown' : 'ArrowRight')) next = (activeFileIndex + 1) % openFiles.length;
+            else if (event.key === (sidebarTabs ? 'ArrowUp' : 'ArrowLeft')) next = (activeFileIndex - 1 + openFiles.length) % openFiles.length;
+            else if (event.key === 'Home') next = 0;
+            else if (event.key === 'End') next = openFiles.length - 1;
+            else if (event.key === 'Delete') { event.preventDefault(); onTabClose(activeFileIndex); return; }
+            else return;
+            event.preventDefault(); event.stopPropagation(); navigateTab(next);
+          }}>
+          {openFiles.map((file, index) => <FileTab key={file.id} vertical={sidebarTabs} file={file} isActive={index === activeFileIndex} onClick={() => onTabChange(index)} onClose={() => onTabClose(index)} />)}
+          {!openFiles.length && <span className="px-3 py-3 text-xs text-foreground-muted">No open documents</span>}
+        </div>
+        <button type="button" onClick={onAddFile} className={`${iconClass} mb-1 shrink-0`} aria-label="Open another document" title="Open another document"><Plus size={16} /></button>
+      </div>
+      {sidebarTabs && <div role="separator" tabIndex={0} aria-label="Resize sidebar" aria-controls="document-tabs" aria-orientation="vertical"
+        aria-valuemin={160} aria-valuemax={sidebarMaxWidth} aria-valuenow={sidebarWidth} aria-valuetext={`${sidebarWidth} pixels`}
+        title="Drag to resize · Arrow keys to adjust · Double-click to reset"
+        className="group flex w-3 shrink-0 touch-none cursor-col-resize items-center justify-center border-x border-border-subtle bg-surface/50 hover:bg-foreground/10 focus-visible:bg-foreground/10"
+        onPointerDown={event => {
+          if (event.button !== 0) return;
+          event.preventDefault(); event.currentTarget.focus();
+          resizeStart.current = { x: event.clientX, width: sidebarWidth };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={event => {
+          if (resizeStart.current) resizeSidebar(resizeStart.current.width + event.clientX - resizeStart.current.x);
+        }}
+        onPointerUp={event => { resizeStart.current = null; event.currentTarget.releasePointerCapture(event.pointerId); }}
+        onPointerCancel={() => { resizeStart.current = null; }}
+        onLostPointerCapture={() => { resizeStart.current = null; }}
+        onDoubleClick={() => resizeSidebar(240)}
+        onKeyDown={event => {
+          if (event.key === 'ArrowLeft') resizeSidebar(sidebarWidth - (event.shiftKey ? 40 : 10));
+          else if (event.key === 'ArrowRight') resizeSidebar(sidebarWidth + (event.shiftKey ? 40 : 10));
+          else if (event.key === 'Home') resizeSidebar(160);
+          else if (event.key === 'End') resizeSidebar(sidebarMaxWidth);
+          else return;
+          event.preventDefault(); event.stopPropagation();
+        }}><GripVertical aria-hidden="true" size={12} className="text-foreground-muted" /></div>}
+
+      <div ref={contentRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col [--reader-controls-height:76px]">
+      {activeFile && <div ref={controlsRef} aria-label="Reader controls" className="absolute inset-x-3 bottom-3 z-30 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-border-subtle bg-surface/85 px-3 py-2 shadow-lg backdrop-blur-2xl sm:inset-x-5 sm:px-5">
+        {(isPdf || isEpub || isText) && <div className="flex items-center gap-1">
+          <button type="button" onClick={props.onPrevPage} aria-label="Previous page" title="Previous page" disabled={!ready || props.atStart || (isPdf && (currentPage || 1) <= 1)} className={iconClass}><ChevronLeft size={18} /></button>
+          {isPdf ? <form className="flex items-center gap-2 text-xs" onSubmit={event => {
+            event.preventDefault(); const page = Number(pageInput);
+            if (Number.isInteger(page) && page >= 1 && page <= (totalPages || 0)) props.onGoToPage(page);
+            else setPageInput(String(currentPage || 1));
+          }}><input type="number" min={1} max={totalPages || 1} value={pageInput} onChange={event => setPageInput(event.target.value)}
+            disabled={!ready} aria-label="Page number" className="h-9 w-14 rounded-lg border border-border-subtle bg-background px-2 text-center text-foreground" /><span className="whitespace-nowrap text-foreground-muted">/ {totalPages || '…'}</span><button type="submit" disabled={!ready} className="rounded-lg px-2 py-2 font-medium text-primary disabled:opacity-40">Go</button></form>
+            : <span className="min-w-12 text-center text-xs font-medium">{progress === undefined ? '…' : `${Math.round(progress)}%`}</span>}
+          <button type="button" onClick={props.onNextPage} aria-label="Next page" title="Next page" disabled={!ready || props.atEnd || (isPdf && !!totalPages && (currentPage || 1) + (viewMode.startsWith('two-page') ? 1 : 0) >= totalPages)} className={iconClass}><ChevronRight size={18} /></button>
+        </div>}
+
+        {(isPdf || isEpub) && <div role="group" aria-label="Page layout" className="flex items-center gap-1 rounded-xl border border-border-subtle p-1">
+          {([{ mode: 'single', label: 'Single Page', Icon: FileText }, { mode: 'two-page', label: 'Two Page', Icon: Columns }, { mode: 'continuous', label: 'Continuous Scroll', Icon: ScrollText }, ...(isPdf ? [{ mode: 'two-page-continuous' as const, label: 'Two Page Continuous', Icon: Grid2X2 }] : [])] as const).map(({mode, label, Icon}) =>
+            <button key={mode} type="button" disabled={!ready} aria-label={label} title={label} aria-pressed={viewMode === mode} onClick={() => props.onViewModeChange(mode)} className={modeClass(viewMode === mode)}><Icon size={16} /></button>)}
+        </div>}
+
+        {isPdf && <>
+          <div role="group" aria-label="Fit document" className="flex items-center gap-1">
+            <button type="button" disabled={!ready} title="Fit Width" aria-label="Fit Width" aria-pressed={fitMode === 'width'} onClick={() => props.onFitModeChange('width')} className={modeClass(fitMode === 'width')}><ArrowLeftRight size={16} /></button>
+            <button type="button" disabled={!ready} title="Fit Height" aria-label="Fit Height" aria-pressed={fitMode === 'height'} onClick={() => props.onFitModeChange('height')} className={modeClass(fitMode === 'height')}><ArrowUpDown size={16} /></button>
+          </div>
+          <div role="group" aria-label="Zoom" className="flex items-center">
+            <button type="button" disabled={!ready || (fitMode === 'none' && zoom <= .5)} aria-label="Zoom out" onClick={() => { props.onFitModeChange('none'); props.onZoomOut(); }} className={iconClass}><ZoomOut size={16} /></button>
+            <span className="min-w-14 text-center text-xs text-foreground-muted">{fitMode === 'none' ? `${Math.round(zoom * 100)}%` : fitMode === 'width' ? 'Width' : 'Height'}</span>
+            <button type="button" disabled={!ready || (fitMode === 'none' && zoom >= 2)} aria-label="Zoom in" onClick={() => { props.onFitModeChange('none'); props.onZoomIn(); }} className={iconClass}><ZoomIn size={16} /></button>
+          </div>
+        </>}
+        {(isEpub || isText) && <div role="group" aria-label="Text size" className="flex items-center">
+          <button type="button" disabled={!ready || fontSize <= 50} aria-label="Decrease text size" onClick={props.onFontSizeDecrease} className={iconClass}><ZoomOut size={16} /></button>
+          <span className="min-w-12 text-center text-xs text-foreground-muted">{fontSize}%</span>
+          <button type="button" disabled={!ready || fontSize >= 200} aria-label="Increase text size" onClick={props.onFontSizeIncrease} className={iconClass}><ZoomIn size={16} /></button>
+        </div>}
+        <button type="button" disabled={!ready || activeFile.type === 'unsupported'} onClick={props.onToggleSearch} aria-label="Search document" title="Search document (⌘/Ctrl+F)" aria-pressed={props.isSearchOpen} className={`${modeClass(props.isSearchOpen)} ml-auto`}><Search size={18} /></button>
+      </div>}
+      <div className="min-h-0 min-w-0 flex-1">{children}</div>
+      </div>
+      </div>
+    </main>
+  );
 }

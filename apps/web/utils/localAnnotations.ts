@@ -1,3 +1,4 @@
+import { scopedStorageKey } from "./storageScope";
 export interface AnnotationRecord {
   id: string;
   fileUrl: string;
@@ -14,7 +15,7 @@ export interface AnnotationRecord {
 const LOCAL_ANNOTATIONS_KEY_PREFIX = "mfr_local_annotations_";
 
 function getStorageKey(fileUrl: string): string {
-  return `${LOCAL_ANNOTATIONS_KEY_PREFIX}${encodeURIComponent(fileUrl)}`;
+  return scopedStorageKey(`${LOCAL_ANNOTATIONS_KEY_PREFIX}${encodeURIComponent(fileUrl)}`);
 }
 
 export function getLocalAnnotations(fileUrl: string): AnnotationRecord[] {

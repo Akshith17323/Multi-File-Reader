@@ -10,10 +10,10 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 async function login(req, res) {
   try {
     const { email, password } = req.body;
-    if (!email) {
+    if (typeof email !== "string" || !email.trim()) {
       return res.status(400).json({ message: "Email required" });
     }
-    if (!password) {
+    if (typeof password !== "string" || !password) {
       return res.status(400).json({ message: "Password required" });
     }
 
@@ -22,6 +22,10 @@ async function login(req, res) {
 
     if (!user_details) {
       return res.status(404).json({ message: "User does not exist" });
+    }
+
+    if (!user_details.password) {
+      return res.status(401).json({ message: "This account uses Google sign-in. Continue with Google to log in." });
     }
 
     const password_check = await bcrypt.compare(password, user_details.password);
@@ -49,18 +53,20 @@ async function login(req, res) {
 async function signup(req, res) {
   try {
     const { name, email, password } = req.body;
-    if (!name) {
+    if (typeof name !== "string" || !name.trim()) {
       return res.status(400).json({ message: "Name required" });
     }
-    if (!email) {
+    if (typeof email !== "string" || !email.trim()) {
       return res.status(400).json({ message: "Email required" });
     }
-    if (!password) {
+    if (typeof password !== "string" || !password) {
       return res.status(400).json({ message: "Password required" });
     }
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = name.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return res.status(400).json({ message: "Enter a valid email address" });
+    if (password.length < 6 || Buffer.byteLength(password, "utf8") > 72) return res.status(400).json({ message: "Password must be at least 6 characters and at most 72 bytes" });
 
     let existingemail = await prisma.user.findUnique({ where: { email: cleanEmail } });
 
@@ -84,6 +90,7 @@ async function signup(req, res) {
       .json({ message: "User created successfully", user: data.name, token });
   } catch (err) {
     console.error("Signup error:", err);
+    if (err.code === "P2002") return res.status(409).json({ message: "Email already exists" });
     return res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -103,8 +110,9 @@ async function logout(req, res) {
 async function googleLogin(req, res) {
   try {
     const { token } = req.body;
-    if (!token) return res.status(403).json({ Message: "Token required" });
+    if (typeof token !== "string" || !token) return res.status(400).json({ Message: "Token required" });
 
+    if (!process.env.GOOGLE_CLIENT_ID) return res.status(503).json({ message: "Google sign-in is currently unavailable" });
     let payload;
     
     try {
@@ -116,7 +124,10 @@ async function googleLogin(req, res) {
       payload = ticket.getPayload();
     } catch {
       // If it fails, try using it as an access token (from custom useGoogleLogin button)
+      const info = await googleClient.getTokenInfo(token);
+      if (info.aud !== process.env.GOOGLE_CLIENT_ID) return res.status(401).json({ message: 'Invalid Google Token' });
       const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        signal: AbortSignal.timeout(15000),
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.ok) {
@@ -124,9 +135,11 @@ async function googleLogin(req, res) {
       }
     }
 
-    if (!payload) return res.status(401).json({ Message: "Invalid Google Token" });
+    if (!payload || !payload.email_verified || !payload.email || !payload.sub) return res.status(401).json({ Message: "Invalid Google Token" });
 
-    const { sub: googleId, email, name, picture: avatar } = payload;
+    const { sub: googleId, picture: avatar } = payload;
+    const email = payload.email.trim().toLowerCase();
+    const name = payload.name || email.split("@")[0];
 
     // Upsert user
     let user = await prisma.user.findUnique({ where: { email } });
@@ -162,8 +175,8 @@ async function googleLogin(req, res) {
       .status(200).json({ message: "User Logged in", user: user.name, token: jwtToken });
 
   } catch (err) {
-    console.log("Google Login Error:", err);
-    return res.status(500).json({ error: "Internal Server Error" });
+    console.error("Google Login Error:", err);
+    return res.status(401).json({ message: "Google sign-in failed. Please try again." });
   }
 }
 

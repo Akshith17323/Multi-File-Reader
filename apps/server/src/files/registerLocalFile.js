@@ -6,7 +6,7 @@ async function registerLocalFile(req, res) {
         const userId = req.user.userId;
         const { fileName, fileUrl, fileSize, fileType } = req.body;
 
-        if (!fileUrl) {
+        if (typeof fileUrl !== "string" || !fileUrl.startsWith("mfr-local://")) {
             return res.status(400).json({ message: "fileUrl is required" });
         }
 
@@ -44,6 +44,7 @@ async function registerLocalFile(req, res) {
                 userId,
                 fileName: name,
                 fileUrl,
+                source: "LOCAL",
                 fileSize: size,
                 fileType: type
             }

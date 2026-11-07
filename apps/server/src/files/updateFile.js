@@ -1,4 +1,5 @@
 const prisma = require('../prisma');
+const path = require('path');
 
 async function updateFile(req, res) {
     try {
@@ -11,7 +12,7 @@ async function updateFile(req, res) {
         }
 
         const updateData = {};
-        if (fileName && fileName.trim() !== '') {
+        if (typeof fileName === 'string' && fileName.trim() !== '') {
             updateData.fileName = fileName.trim();
         }
         if (req.body.fileUrl) {
@@ -23,6 +24,8 @@ async function updateFile(req, res) {
         if (req.body.fileType) {
             updateData.fileType = req.body.fileType;
         }
+
+        if (Object.values(updateData).some(value => typeof value !== "string")) return res.status(400).json({ message: "File metadata must be text" });
 
         if (Object.keys(updateData).length === 0) {
             return res.status(400).json({ message: 'No valid fields provided for update' });
@@ -40,10 +43,20 @@ async function updateFile(req, res) {
             return res.status(404).json({ message: 'File not found or access denied' });
         }
 
-        // Update file
-        const updatedFile = await prisma.file.update({
-            where: { id },
-            data: updateData
+        if (updateData.fileUrl && (existingFile.source !== "LOCAL" || typeof updateData.fileUrl !== "string" || !updateData.fileUrl.startsWith("mfr-local://"))) {
+            return res.status(400).json({ message: "Only local file locations can be changed" });
+        }
+        if (updateData.fileName) {
+            const extension = path.extname(existingFile.fileName);
+            if (extension && !updateData.fileName.toLowerCase().endsWith(extension.toLowerCase())) updateData.fileName += extension;
+        }
+        const updatedFile = await prisma.$transaction(async (tx) => {
+            const updated = await tx.file.update({ where: { id }, data: updateData });
+            if (existingFile.fileUrl && (updateData.fileName || updateData.fileUrl)) await tx.bookmark.updateMany({
+                where: { userId, fileUrl: existingFile.fileUrl },
+                data: { ...(updateData.fileName ? { fileName: updated.fileName } : {}), ...(updateData.fileUrl ? { fileUrl: updated.fileUrl } : {}) },
+            });
+            return updated;
         });
 
         return res.status(200).json({

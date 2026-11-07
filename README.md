@@ -95,21 +95,38 @@ You may add these if you plan to expand:
 
 ---
 
-## Installation & Setup (Optional)
-If you'd like, I can generate full setup instructions.  
-For now, here’s a basic template:
+## Installation & Setup
+
+Install dependencies from the repository root with `npm install`, configure the web and backend environment variables, and run `npm run dev` for the web app.
+
+Run `npm run electron` to start the backend, frontend, and desktop app together. The launcher reuses healthy servers already running on the configured ports and starts missing servers. It reports an unhealthy server or an existing project server on a different port instead of starting a duplicate. Quitting Electron stops only servers started by that launcher. Use `npm run start:electron` to open only the desktop window. Electron waits for the frontend during startup and displays a Retry button if it cannot connect.
+
+The desktop entry points remain `apps/electron/main.js` and `apps/electron/preload.js`. By default they connect to the frontend on port 3000 and the backend on port 2007. To use different ports or hosted servers:
 
 ```bash
-# Clone the repo
-git clone https://github.com/yourusername/multi-file-reader.git
+ELECTRON_FRONTEND_URL=https://your-frontend.example \
+ELECTRON_BACKEND_URL=https://your-backend.example \
+npm run start:electron
+```
 
-# Install frontend dependencies
-cd frontend
-npm install
+Set `NEXT_PUBLIC_BACKEND_URL` for browser builds. Electron also uses it as a fallback when `ELECTRON_BACKEND_URL` is unset. These variables must be exported to the desktop process; Next.js's `.env.local` does not configure Electron automatically. The desktop window loads the configured web app, so that server must remain available.
 
-# Install backend dependencies
-cd backend
-npm install
+For local Electron development, copy `apps/electron/.env.local.example` to
+`apps/electron/.env.local`. For a packaged build, copy
+`apps/electron/.env.production.example` to `apps/electron/.env.production`.
+The production Electron file only contains the public backend URL; database,
+JWT, and storage credentials must remain in the server deployment.
 
-# Start development servers
-npm run dev
+## Build the desktop application
+
+Run `npm run build` from the repository root. The `scripts` and `build` sections in `package.json` build the Next.js reader and run Electron Builder. Installers and an application archive for the build machine's platform and architecture go into `release/`. On macOS this includes a `.dmg`, `.zip`, and unpacked `.app`. Use `npm run package:electron` to produce only the unpacked application, or `npm run build:web` for the web application alone. `npm start` opens Electron with the configured development servers already running.
+
+The packaged application includes the production Next.js reader and starts it on `127.0.0.1:17767`. You do not need to start development servers to read local documents. The stable address preserves local library entries and bookmarks between launches.
+
+Cloud features use `https://multi-file-reader-server.vercel.app` by default. To package the app for another backend, set its public address during the build:
+
+```bash
+ELECTRON_BACKEND_URL=https://your-backend.example npm run build
+```
+
+The backend service and its database/storage credentials are not bundled. The macOS build is unsigned for local use; public distribution requires signing and notarization.

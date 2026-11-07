@@ -1,269 +1,316 @@
 "use client";
 
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
-import ePub, { Book, Rendition } from "epubjs";
+import { type Book, type Contents, Rendition, EpubCFI } from "epubjs";
 import { Loader2, AlertCircle } from "lucide-react";
+import { getDocumentUrl } from "@/utils/fileUrls";
+import { createReaderBook, displayEpub, epubProgress } from "@/utils/epubReader";
+import type { ReaderStatus, ViewMode } from './readers/types';
 
 export interface EPUBRendererRef {
-    next: () => void;
-    prev: () => void;
+    next: () => Promise<unknown> | undefined;
+    prev: () => Promise<unknown> | undefined;
+    display: (cfi: string) => Promise<unknown> | undefined;
 }
 
 interface EPUBRendererProps {
     url: string;
-    initialLocation?: string;
-    onLocationChange: (cfi: string) => void;
-    onProgressChange?: (percentage: number) => void;
-    viewMode: "single" | "continuous" | "two-page";
+    onLocationChange: (cfi: string, progress?: number, atStart?: boolean, atEnd?: boolean) => void;
+    onStatusChange?: (status: ReaderStatus) => void;
+    viewMode: ViewMode;
     fontSize: number;
     initialCfi?: string;
+    isActive?: boolean;
 }
 
-const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(({
-    url,
-    initialLocation,
-    onLocationChange,
-    onProgressChange,
-    viewMode,
-    fontSize,
-    initialCfi,
-}, ref) => {
-    const viewerRef = useRef<HTMLDivElement | null>(null);
-    const renditionRef = useRef<Rendition | null>(null);
-    const bookRef = useRef<Book | null>(null);
+function updateContentTheme(contents: Contents) {
+    const dark = document.documentElement.classList.contains('dark');
+    const root = contents.document.documentElement;
+    root.style.setProperty('--epub-background', dark ? '#000000' : '#ffffff');
+    root.style.setProperty('--epub-foreground', dark ? '#ffffff' : '#000000');
+    root.style.colorScheme = dark ? 'dark' : 'light';
+}
 
+function applyReaderTheme(rendition: Rendition) {
+    // Published typings describe one Contents, but EPUB.js returns an array.
+    (rendition.getContents() as unknown as Contents[]).forEach(updateContentTheme);
+}
+
+function initializeReaderTheme(rendition: Rendition) {
+    rendition.themes.register('app', {
+        body: { background: 'var(--epub-background) !important', color: 'var(--epub-foreground) !important' },
+        'p, h1, h2, h3, h4, h5, h6, a': { color: 'var(--epub-foreground) !important' },
+    });
+    rendition.themes.select('app');
+    rendition.hooks.content.register(updateContentTheme);
+}
+
+// EPUB.js supports a restore CFI on resize; its published declaration omits it.
+function resizeRendition(rendition: Rendition, width: number, height: number, cfi: string) {
+    (rendition as Rendition & { resize: (width: number, height: number, cfi?: string) => void }).resize(width, height, cfi || undefined);
+}
+
+const EPUBRenderer = forwardRef<EPUBRendererRef, EPUBRendererProps>(function EPUBRenderer(
+    { url, onLocationChange, onStatusChange, viewMode, fontSize, initialCfi, isActive = true }, ref
+) {
+    const viewerRef = useRef<HTMLDivElement>(null);
+    const renditionRef = useRef<Rendition | null>(null);
+    const locationRef = useRef(initialCfi || "");
+    const openedUrlRef = useRef<string | null>(null);
+    const callbackRef = useRef(onLocationChange);
+    const optionsRef = useRef({ fontSize, viewMode });
+    const statusRef = useRef(onStatusChange);
+    const activeRef = useRef(isActive);
+    const refreshRef = useRef<() => void>(() => {});
+    const reportErrorRef = useRef<(error: unknown) => void>(() => {});
+    const [loadedBook, setLoadedBook] = useState<{ url: string; book: Book } | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [currentLocation, setCurrentLocation] = useState<string>(initialCfi || "");
-    const [isBookReady, setIsBookReady] = useState(false);
-
+    const [retry, setRetry] = useState(0);
+    useEffect(() => { callbackRef.current = onLocationChange; }, [onLocationChange]);
+    useEffect(() => { statusRef.current = onStatusChange; }, [onStatusChange]);
     useEffect(() => {
-        if (initialCfi && initialCfi !== currentLocation) {
-            setCurrentLocation(initialCfi);
-            if (renditionRef.current) {
-                renditionRef.current.display(initialCfi);
-            }
-        }
-    }, [initialCfi, currentLocation]);
-
-    const touchStartRef = useRef<number | null>(null);
+        optionsRef.current = { fontSize, viewMode };
+        refreshRef.current();
+    }, [fontSize, viewMode]);
+    useEffect(() => { activeRef.current = isActive; if (isActive) refreshRef.current(); }, [isActive]);
 
     useImperativeHandle(ref, () => ({
-        next: () => {
-            if (renditionRef.current) renditionRef.current.next();
+        next: () => renditionRef.current?.next().catch(error => { reportErrorRef.current(error); throw error; }),
+        prev: () => renditionRef.current?.prev().catch(error => { reportErrorRef.current(error); throw error; }),
+        display: async (cfi) => {
+            const rendition = renditionRef.current;
+            if (!rendition) return;
+            const target = new EpubCFI(cfi);
+            target.collapse(true);
+            try { await displayEpub(rendition, target.toString()); }
+            catch (error) { reportErrorRef.current(error); throw error; }
         },
-        prev: () => {
-            if (renditionRef.current) renditionRef.current.prev();
-        }
     }));
 
-    // Initialize Book
+    // Fetch/unzip once per document. Page layouts reuse the loaded views.
     useEffect(() => {
-        if (!url || !viewerRef.current) return;
-
-        let cancelled = false;
-
-        const initBook = async () => {
+        let canceled = false;
+        let settled = false;
+        const controller = new AbortController();
+        const book = createReaderBook();
+        if (openedUrlRef.current !== url) locationRef.current = initialCfi || "";
+        openedUrlRef.current = url;
+        setLoadedBook(null);
+        setLoading(true);
+        setError(null);
+        statusRef.current?.('loading');
+        const initialize = async () => {
             try {
-                setLoading(true);
-                setError(null);
-
-                const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:2007";
-                const bookUrl = url.startsWith("mfr-local://") || url.startsWith("blob:") || url.startsWith("data:")
-                    ? url
-                    : `${backendUrl}/proxy?url=${encodeURIComponent(url)}`;
-                const book = ePub(bookUrl);
-                bookRef.current = book;
-                setIsBookReady(true);
-
-                await book.ready;
-                if (!cancelled && book.locations.length() === 0) {
-                    book.locations.generate(1000).catch((err: unknown) => {
-                        console.error("Error generating locations:", err);
-                    });
-                }
-            } catch (err: unknown) {
-                console.error("Error initializing EPUB:", err);
-                if (!cancelled) {
-                    setError((err as Error).message || "Failed to load EPUB.");
+                const response = await fetch(getDocumentUrl(url), { signal: controller.signal });
+                if (!response.ok) throw new Error(`Could not load book (${response.status})`);
+                const data = await response.arrayBuffer();
+                if (canceled) return;
+                await book.open(data, "binary");
+                // open() reads the package; opened completes reader setup.
+                await book.opened;
+                if (!canceled) setLoadedBook({ url, book });
+            } catch (err) {
+                if (!canceled) {
+                    setError(err instanceof Error ? err.message : "Could not load book");
                     setLoading(false);
+                    statusRef.current?.('error');
                 }
-            }
-        };
-
-        initBook();
-
-        return () => {
-            cancelled = true;
-            setIsBookReady(false);
-            try {
-                renditionRef.current?.destroy();
-                bookRef.current?.destroy();
-            } catch { }
-        };
-    }, [url]);
-
-    // Re-render when viewMode changes or book is ready
-    useEffect(() => {
-        if (!isBookReady || !bookRef.current || !viewerRef.current) return;
-
-        const reRender = async () => {
-            setLoading(true);
-            try {
-                const currentLoc = renditionRef.current?.location?.start?.cfi || currentLocation;
-
-                if (renditionRef.current) {
-                    renditionRef.current.destroy();
-                }
-
-                const width = "100%";
-                const height = "100%";
-
-                let flow = "paginated";
-                let manager = "default";
-                let spread = "auto";
-
-                if (viewMode === "single") {
-                    spread = "none";
-                } else if (viewMode === "two-page") {
-                    spread = "always";
-                } else if (viewMode === "continuous") {
-                    flow = "scrolled-doc";
-                    manager = "continuous";
-                    spread = "none";
-                }
-
-                const rendition = bookRef.current!.renderTo(viewerRef.current!, {
-                    width,
-                    height,
-                    flow,
-                    manager,
-                    spread,
-                });
-
-                rendition.themes.register("dark", {
-                    "body": {
-                        "background": "transparent",
-                        "color": "#e5e5e5"
-                    },
-                    "a": {
-                        "color": "#a78bfa"
-                    },
-                    "p": {
-                        "color": "#e5e5e5"
-                    },
-                    "h1": {
-                        "color": "#ffffff"
-                    },
-                    "h2": {
-                        "color": "#ffffff"
-                    },
-                    "h3": {
-                        "color": "#ffffff"
-                    }
-                });
-
-                rendition.themes.select("dark");
-
-                renditionRef.current = rendition;
-
-                await rendition.display(currentLoc || initialLocation || undefined);
-                rendition.themes.fontSize(`${fontSize}%`);
-
-                // Touch handling
-                rendition.on("touchstart", (e: TouchEvent) => {
-                    touchStartRef.current = e.changedTouches[0].clientX;
-                });
-
-                rendition.on("touchend", (e: TouchEvent) => {
-                    if (touchStartRef.current === null) return;
-                    const touchEnd = e.changedTouches[0].clientX;
-                    const distance = touchStartRef.current - touchEnd;
-
-                    if (distance > 50) {
-                        rendition.next();
-                    } else if (distance < -50) {
-                        rendition.prev();
-                    }
-                    touchStartRef.current = null;
-                });
-
-                rendition.on("relocated", (location: { start: { cfi: string } }) => {
-                    if (location?.start?.cfi) {
-                        setCurrentLocation(location.start.cfi);
-                        onLocationChange(location.start.cfi);
-
-                        if (onProgressChange && bookRef.current) {
-                            const percentage = bookRef.current.locations.percentageFromCfi(location.start.cfi);
-                            onProgressChange(percentage);
-                        }
-                    }
-                });
-
-
-            } catch (error) {
-                console.error("Error changing view mode:", error);
             } finally {
-                setLoading(false);
+                settled = true;
+                if (canceled) book.destroy();
             }
         };
-
-        reRender();
+        void initialize();
+        return () => {
+            canceled = true;
+            controller.abort();
+            // Let any pending unzip/resource work finish before releasing it.
+            // The rendering effect owns its rendition and destroys it once.
+            if (settled) book.destroy();
+        };
+        // Saved progress is only consumed when opening a document.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [viewMode, isBookReady, onLocationChange]);
+    }, [url, retry]);
 
-    // Handle font size dynamically without full re-render
     useEffect(() => {
-        if (renditionRef.current && isBookReady) {
-            renditionRef.current.themes.fontSize(`${fontSize}%`);
-        }
-    }, [fontSize, isBookReady]);
+        const viewer = viewerRef.current;
+        if (!viewer || !loadedBook || loadedBook.url !== url) return;
+        const { book } = loadedBook;
+        const contentHooks = book.spine.hooks.content;
+        type Entry = {
+            rendition: Rendition; host: HTMLDivElement;
+            hooks: ReturnType<typeof contentHooks.list>;
+            ready: boolean; spread: string; fontSize: number; width: number; height: number;
+        };
+        const entries = new Map<string, Entry>();
+        let current: Entry | undefined;
+        let canceled = false;
+        let updating = false;
+        let requested = 0;
+        let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+        let dark = document.documentElement.classList.contains('dark');
+        setLoading(true);
+        setError(null);
+        statusRef.current?.('loading');
 
-    // Handle Resize
-    useEffect(() => {
-        if (!renditionRef.current || !viewerRef.current) return;
-
-        const resizeObserver = new ResizeObserver((entries) => {
-            const { width, height } = entries[0].contentRect;
-            requestAnimationFrame(() => {
-                if (renditionRef.current && typeof renditionRef.current.resize === "function") {
-                    renditionRef.current.resize(width, height);
+        const fail = (err: unknown) => {
+            if (canceled) return;
+            setError(err instanceof Error ? err.message : 'Could not display this chapter');
+            setLoading(false);
+            statusRef.current?.('error');
+        };
+        reportErrorRef.current = fail;
+        const reportLocation = () => {
+            const location = current?.rendition.location;
+            if (canceled || updating || !activeRef.current || !location?.start?.cfi) return;
+            locationRef.current = location.start.cfi;
+            callbackRef.current(location.start.cfi, epubProgress(book, location), location.atStart, location.atEnd);
+        };
+        const createEntry = (continuous: boolean, width: number, height: number): Entry => {
+            const host = document.createElement('div');
+            Object.assign(host.style, { position: 'absolute', inset: '0', visibility: 'hidden', pointerEvents: 'none' });
+            host.inert = true;
+            host.setAttribute('aria-hidden', 'true');
+            viewer.appendChild(host);
+            const previousHooks = new Set(contentHooks.list());
+            const rendition = new Rendition(book, {
+                width, height,
+                flow: continuous ? 'scrolled-continuous' : 'paginated',
+                manager: continuous ? 'continuous' : 'default',
+                spread: 'none', minSpreadWidth: 0, allowScriptedContent: false,
+            });
+            const entry: Entry = {
+                rendition, host, hooks: contentHooks.list().filter(hook => !previousHooks.has(hook)),
+                ready: false, spread: '', fontSize: 0, width, height,
+            };
+            void rendition.attachTo(host).catch(fail);
+            initializeReaderTheme(rendition);
+            rendition.on('displayError', (err: unknown) => { if (current === entry || !current) fail(err); });
+            rendition.on('relocated', () => { if (current === entry) reportLocation(); });
+            rendition.on('keydown', (event: KeyboardEvent) => {
+                const target = event.target as HTMLElement;
+                if (current !== entry || event.defaultPrevented || target?.closest('input, textarea, select, [contenteditable=true]')) return;
+                if (event.key === 'ArrowRight') { event.preventDefault(); void rendition.next().catch(fail); }
+                else if (event.key === 'ArrowLeft') { event.preventDefault(); void rendition.prev().catch(fail); }
+                else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+                    event.preventDefault(); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: event.ctrlKey, metaKey: event.metaKey }));
                 }
             });
+            let touch: { x: number; y: number } | null = null;
+            rendition.on('touchstart', (event: TouchEvent) => {
+                const point = event.changedTouches[0];
+                touch = point ? { x: point.clientX, y: point.clientY } : null;
+            });
+            rendition.on('touchend', (event: TouchEvent) => {
+                const start = touch;
+                touch = null;
+                const point = event.changedTouches[0];
+                if (!start || !point || continuous || current !== entry) return;
+                const distance = start.x - point.clientX;
+                if (Math.abs(distance) <= 50 || Math.abs(distance) <= Math.abs(start.y - point.clientY)) return;
+                if (distance > 0) void rendition.next().catch(fail);
+                else void rendition.prev().catch(fail);
+            });
+            return entry;
+        };
+
+        const update = async () => {
+            if (canceled || updating || !activeRef.current) return;
+            updating = true;
+            let applied = -1;
+            try {
+                while (!canceled && applied !== requested) {
+                    applied = requested;
+                    const { width, height } = viewer.getBoundingClientRect();
+                    if (!width || !height) break;
+                    const { viewMode: mode, fontSize: size } = optionsRef.current;
+                    const continuous = mode === 'continuous' || mode === 'two-page-continuous';
+                    const key = continuous ? 'continuous' : 'paginated';
+                    let entry = entries.get(key);
+                    if (!entry) { entry = createEntry(continuous, width, height); entries.set(key, entry); }
+                    await entry.rendition.started;
+                    if (canceled) return;
+                    const spread = mode.startsWith('two-page') ? 'always' : 'none';
+                    const changed = !entry.ready || current !== entry || entry.spread !== spread || entry.fontSize !== size || entry.width !== width || entry.height !== height;
+                    if (changed) {
+                        // Single/two-page layouts reflow the existing iframe.
+                        // Scroll mode has its own cached view, prepared while
+                        // the previous view remains visible.
+                        if (entry.spread !== spread) entry.rendition.spread(spread, 0);
+                        if (entry.fontSize !== size) entry.rendition.themes.fontSize(`${size}%`);
+                        if (entry.width !== width || entry.height !== height) resizeRendition(entry.rendition, width, height, locationRef.current);
+                        let target: string | undefined;
+                        try {
+                            if (locationRef.current && book.spine.get(locationRef.current)) {
+                                const cfi = new EpubCFI(locationRef.current);
+                                cfi.collapse(true);
+                                target = cfi.toString();
+                            }
+                        } catch { /* An obsolete bookmark should open at the beginning. */ }
+                        await displayEpub(entry.rendition, target);
+                        if (canceled) return;
+                        entry.ready = true;
+                        entry.spread = spread; entry.fontSize = size; entry.width = width; entry.height = height;
+                        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+                    }
+                    if (canceled || applied !== requested) continue;
+                    entries.forEach(candidate => {
+                        const visible = candidate === entry;
+                        candidate.host.style.visibility = visible ? 'visible' : 'hidden';
+                        candidate.host.style.pointerEvents = visible ? 'auto' : 'none';
+                        candidate.host.inert = !visible;
+                        candidate.host.setAttribute('aria-hidden', String(!visible));
+                    });
+                    current = entry;
+                    renditionRef.current = entry.rendition;
+                    setLoading(false);
+                    setError(null);
+                    statusRef.current?.('ready');
+                }
+            } catch (err) { fail(err); }
+            finally { updating = false; reportLocation(); }
+        };
+        const refresh = () => { requested++; void update(); };
+        refreshRef.current = refresh;
+        const resizeObserver = new ResizeObserver(() => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(refresh, 100);
         });
-
-        resizeObserver.observe(viewerRef.current);
-
-        return () => resizeObserver.disconnect();
-    }, [isBookReady]);
-
-    if (error) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <div className="bg-red-500/10 border border-red-500/50 p-6 rounded-xl text-center max-w-md mx-4">
-                    <AlertCircle className="mx-auto mb-3 text-red-500" size={32} />
-                    <p className="text-red-400">{error}</p>
-                </div>
-            </div>
-        );
-    }
+        resizeObserver.observe(viewer);
+        const themeObserver = new MutationObserver(() => {
+            const nextDark = document.documentElement.classList.contains('dark');
+            if (nextDark === dark) return;
+            dark = nextDark;
+            entries.forEach(entry => applyReaderTheme(entry.rendition));
+        });
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        refresh();
+        return () => {
+            canceled = true;
+            clearTimeout(resizeTimer);
+            refreshRef.current = () => {};
+            reportErrorRef.current = () => {};
+            resizeObserver.disconnect();
+            themeObserver.disconnect();
+            renditionRef.current = null;
+            entries.forEach(entry => {
+                entry.hooks.forEach(hook => contentHooks.deregister(hook));
+                entry.rendition.q.stop();
+                entry.rendition.destroy();
+                entry.host.remove();
+            });
+        };
+    }, [loadedBook, url]);
 
     return (
-        <div className="relative w-full h-full">
-            {loading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-20">
-                    <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="animate-spin text-primary" size={40} />
-                        <p className="text-foreground">Loading Book...</p>
-                    </div>
-                </div>
-            )}
-
-            <div className="w-full h-full text-white" ref={viewerRef} />
+        <div className="relative h-full w-full min-h-0 overflow-hidden pb-[calc(var(--reader-controls-height,76px)+24px)]">
+            <div ref={viewerRef} aria-label="EPUB pages" className="relative h-full w-full overflow-hidden bg-background/60 text-foreground" />
+            {(loading || error) && <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/90 p-6">
+                {error ? <div role="alert" className="text-center text-foreground"><AlertCircle className="mx-auto mb-3" /><p>{error}</p><button type="button" className="mfr-button-secondary mt-4" onClick={() => setRetry(value => value + 1)}>Try again</button></div> : <div role="status" className="flex items-center gap-3 text-foreground-muted"><Loader2 className="animate-spin text-primary" />Loading book...</div>}
+            </div>}
         </div>
     );
 });
-
-EPUBRenderer.displayName = "EPUBRenderer";
 
 export default EPUBRenderer;
