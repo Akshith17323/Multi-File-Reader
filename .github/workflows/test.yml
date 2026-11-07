@@ -20,9 +20,6 @@ jobs:
         
     - name: Install Dependencies
       run: npm ci
-      env:
-        # Prisma validates this URL while generating the client; CI tests use an in-memory database.
-        DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/multi_file_reader_ci
 
     - name: Test Workflows and Database Migrations
       run: npm test
