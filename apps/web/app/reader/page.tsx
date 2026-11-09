@@ -50,6 +50,10 @@ function ReaderContent() {
     >({});
     const [isRelinking, setIsRelinking] = useState(false);
     const [loadedBookmarks, setLoadedBookmarks] = useState<Record<string, boolean>>({});
+    const bookmarkRequests = useRef(new Map<string, {
+        token: string | null;
+        promise: ReturnType<typeof getBookmarkUnified>;
+    }>());
     const [initialLocations, setInitialLocations] = useState<Record<string, ReaderLocationState>>({});
     const [tabOptions, setTabOptions] = useState<Record<string, ReaderViewOptions>>({});
     const [readerStatuses, setReaderStatuses] = useState<Record<string, ReaderStatus>>({});
@@ -143,16 +147,26 @@ function ReaderContent() {
         if (`${window.location.pathname}${window.location.search}` !== newUrl) window.history.replaceState(null, "", newUrl);
     }, [openFiles, activeFileIndex, isInitialized]);
 
-    // Load bookmark for active file (unified local-first with cloud sync)
+    // Share each open tab's bookmark request across effect reruns.
     useEffect(() => {
+        const requests = bookmarkRequests.current;
+        const openIds = new Set(openFiles.map(file => file.id));
+        for (const id of requests.keys()) {
+            if (!openIds.has(id)) requests.delete(id);
+        }
         if (!isInitialized || openFiles.length === 0) return;
 
         let canceled = false;
         const token = localStorage.getItem("token");
         const load = async () => {
             await Promise.all(openFiles.filter(file => !loadedBookmarks[file.id]).map(async file => {
-                const data = await getBookmarkUnified(token, file.url);
-                if (canceled) return;
+                let request = requests.get(file.id);
+                if (!request || request.token !== token) {
+                    request = { token, promise: getBookmarkUnified(token, file.url) };
+                    requests.set(file.id, request);
+                }
+                const data = await request.promise;
+                if (canceled || localStorage.getItem("token") !== token) return;
                 const location = { pageNumber: data?.pageNumber, totalPages: data?.totalPages, cfi: data?.cfi, progress: data?.progress };
                 setInitialLocations(prev => ({ ...prev, [file.id]: location }));
                 setTabStates(prev => ({ ...prev, [file.id]: location }));
