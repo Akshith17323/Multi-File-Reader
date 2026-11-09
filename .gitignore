@@ -83,6 +83,9 @@ Thumbs.db
 # Additional personal reference notes
 /UI_Imporvemetns.md
 
+# Local issue tracker
+/BUGS.md
+
 # Next.js generates local agent instructions during development.
 /apps/web/AGENTS.md
 Multi_File_Reader_Prompt_History.docx
