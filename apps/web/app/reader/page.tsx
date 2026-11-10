@@ -23,7 +23,9 @@ import { apiClient } from "@/services/apiClient";
 import { DocumentSearch } from "@/components/DocumentSearch";
 import { migrateLocalAnnotations } from "@/utils/localAnnotations";
 import { AlertTriangle, Link2 } from "lucide-react";
-import { toast } from "react-toastify";
+import InlineNotice, { type NoticeMessage } from "@/components/ui/InlineNotice";
+import CloudStorageNotice from "@/components/CloudStorageNotice";
+import { CLOUD_STORAGE_ENABLED } from "@/config/serviceStatus";
 import ReaderFilePicker from '@/components/ReaderFilePicker';
 import { DEFAULT_READER_OPTIONS, addReaderTab, getIndexAfterTabClose, readerTabId, readerPanelId } from '@/utils/readerTabs';
 
@@ -49,6 +51,7 @@ function ReaderContent() {
         Record<string, { exists: boolean; path: string; error?: string; readable?: boolean; isLocal?: boolean }>
     >({});
     const [isRelinking, setIsRelinking] = useState(false);
+    const [notice, setNotice] = useState<NoticeMessage | null>(null);
     const [loadedBookmarks, setLoadedBookmarks] = useState<Record<string, boolean>>({});
     const bookmarkRequests = useRef(new Map<string, {
         token: string | null;
@@ -221,6 +224,7 @@ function ReaderContent() {
     }, [activeFileIndex, openFiles, isInitialized]);
 
     const activeFile = openFiles[activeFileIndex];
+    const cloudUnavailable = !!activeFile && !CLOUD_STORAGE_ENABLED && !isLocalFileUrl(activeFile.url);
     const activeLocation = activeFile ? tabStates[activeFile.id] : undefined;
     const activeStatus = activeFile ? readerStatuses[activeFile.id] || 'loading' : 'loading';
     useEffect(() => {
@@ -235,9 +239,10 @@ function ReaderContent() {
 
     const handleRelinkActiveFile = async () => {
         if (!activeFile) return;
+        setNotice(null);
         try {
             if (!(window as any).electronAPI?.invoke) {
-                toast.info("Find local files in the desktop app");
+                setNotice({ tone: "info", message: "Find local files in the desktop app." });
                 return;
             }
 
@@ -253,7 +258,7 @@ function ReaderContent() {
             }
 
             if (result.error) {
-                toast.error(`Could not open file: ${result.error}`);
+                setNotice({ tone: "error", message: `Could not open file: ${result.error}` });
                 setIsRelinking(false);
                 return;
             }
@@ -262,7 +267,7 @@ function ReaderContent() {
             const newUrl = normalizeFileUrl(result.newUrl);
             if (newUrl === oldUrl) {
                 setOfflineFiles(prev => ({ ...prev, [newUrl]: { exists: true, readable: true, path: result.newPath } }));
-                toast.success('File is available again');
+                setNotice({ tone: "success", message: "File is available again." });
                 return;
             }
             let libraryFile = getLocalLibraryFiles().find(file => file.url === oldUrl);
@@ -327,9 +332,9 @@ function ReaderContent() {
                 return next;
             });
 
-            toast.success(`File found: "${newName}"`);
+            setNotice({ tone: "success", message: `File found: "${newName}"` });
         } catch (err: any) {
-            toast.error(err.message || "Could not find file");
+            setNotice({ tone: "error", message: err.message || "Could not find file" });
         } finally {
             setIsRelinking(false);
         }
@@ -338,9 +343,10 @@ function ReaderContent() {
     const handleOpenLocalFile = async () => {
         if (openingLocal.current) return;
         openingLocal.current = true;
+        setNotice(null);
         try {
             if (!(window as any).electronAPI?.invoke) {
-                toast.info("Local file access is available in desktop app");
+                setNotice({ tone: "info", message: "Local file access is available in the desktop app." });
                 return;
             }
 
@@ -348,7 +354,7 @@ function ReaderContent() {
             if (!result || result.canceled) return;
 
             if (result.error) {
-                toast.error(`Permission/access error: ${result.error}`);
+                setNotice({ tone: "error", message: `Could not access file: ${result.error}` });
                 return;
             }
             if (!result.url) return;
@@ -364,7 +370,7 @@ function ReaderContent() {
             if (existingIndex >= 0) {
                 setActiveFileIndex(existingIndex);
                 setIsPickerOpen(false);
-                toast.info(`Switched to "${result.fileName}"`);
+                setNotice({ tone: "info", message: `Switched to "${result.fileName}"` });
                 return;
             }
 
@@ -378,9 +384,9 @@ function ReaderContent() {
             };
 
             addFile(newTabData);
-            toast.success(`Opened "${result.fileName}" in new tab`);
+            setNotice({ tone: "success", message: `Opened "${result.fileName}" in a new tab.` });
         } catch (err: any) {
-            toast.error(err.message || "Failed to open local file");
+            setNotice({ tone: "error", message: err.message || "Failed to open local file" });
         } finally {
             openingLocal.current = false;
         }
@@ -450,14 +456,14 @@ function ReaderContent() {
 
     // Polymorphic Next/Prev Page Actions
     const handleNextPage = useCallback(() => {
-        if (!activeFile || activeStatus !== 'ready' || isOffline) return;
+        if (!activeFile || activeStatus !== 'ready' || isOffline || cloudUnavailable) return;
         readerRefs.current[activeFile.id]?.next();
-    }, [activeFile, activeStatus, isOffline]);
+    }, [activeFile, activeStatus, isOffline, cloudUnavailable]);
 
     const handlePrevPage = useCallback(() => {
-        if (!activeFile || activeStatus !== 'ready' || isOffline) return;
+        if (!activeFile || activeStatus !== 'ready' || isOffline || cloudUnavailable) return;
         readerRefs.current[activeFile.id]?.prev();
-    }, [activeFile, activeStatus, isOffline]);
+    }, [activeFile, activeStatus, isOffline, cloudUnavailable]);
 
     // Keyboard navigation & search shortcut
     useEffect(() => {
@@ -468,7 +474,7 @@ function ReaderContent() {
             if (target?.closest("input, textarea, select, [contenteditable=true]")) return;
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
                 e.preventDefault();
-                if (activeStatus === 'ready' && !isOffline) setIsSearchOpen(true);
+                if (activeStatus === 'ready' && !isOffline && !cloudUnavailable) setIsSearchOpen(true);
                 return;
             }
             if (e.key === "ArrowRight") {
@@ -482,7 +488,7 @@ function ReaderContent() {
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [handleNextPage, handlePrevPage, isPickerOpen, activeStatus, isOffline]);
+    }, [handleNextPage, handlePrevPage, isPickerOpen, activeStatus, isOffline, cloudUnavailable]);
 
     if (!isInitialized) {
         return (
@@ -498,13 +504,13 @@ function ReaderContent() {
             activeFileIndex={activeFileIndex}
             onTabChange={handleTabChange}
             onTabClose={handleTabClose}
-            onAddFile={() => setIsPickerOpen(true)}
+            onAddFile={() => { setNotice(null); setIsPickerOpen(true); }}
             currentPage={activeLocation?.pageNumber}
             totalPages={activeLocation?.totalPages}
             progress={activeLocation?.progress}
             atStart={activeLocation?.atStart}
             atEnd={activeLocation?.atEnd}
-            status={isOffline ? 'error' : activeStatus}
+            status={isOffline || cloudUnavailable ? 'error' : activeStatus}
             onGoToPage={page => activeFile && readerRefs.current[activeFile.id]?.goToPage?.(page)}
             onNextPage={handleNextPage}
             onPrevPage={handlePrevPage}
@@ -522,10 +528,12 @@ function ReaderContent() {
             onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
         >
             <div className="flex h-full min-h-0 flex-col">
-            {isSearchOpen && !isOffline && activeFile && <DocumentSearch key={activeFile.id} file={activeFile} onClose={() => setIsSearchOpen(false)} onGoToPage={(page) => readerRefs.current[activeFile.id]?.goToPage?.(page)} onGoToCfi={(cfi) => readerRefs.current[activeFile.id]?.goToCfi?.(cfi)} onGoToLine={line => readerRefs.current[activeFile.id]?.goToLine?.(line)} />}
+            {notice && !isPickerOpen && <InlineNotice tone={notice.tone} className="m-3 shrink-0" onDismiss={() => setNotice(null)}>{notice.message}</InlineNotice>}
+            {isSearchOpen && !isOffline && !cloudUnavailable && activeFile && <DocumentSearch key={activeFile.id} file={activeFile} onClose={() => setIsSearchOpen(false)} onGoToPage={(page) => readerRefs.current[activeFile.id]?.goToPage?.(page)} onGoToCfi={(cfi) => readerRefs.current[activeFile.id]?.goToCfi?.(cfi)} onGoToLine={line => readerRefs.current[activeFile.id]?.goToLine?.(line)} />}
             <div className="min-h-0 flex-1">
             {openFiles.length === 0 ? <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-lg font-semibold">Your reading space is ready</p><p className="text-sm text-foreground-muted">Open a document to start a new tab.</p><button type="button" className="mfr-button-primary" onClick={() => setIsPickerOpen(true)}>Open a document</button></div> : (
                 <div className="relative h-full w-full">
+                {cloudUnavailable && <div className="absolute inset-0 z-30 flex items-center justify-center overflow-y-auto bg-background p-4 sm:p-6"><CloudStorageNotice className="max-w-2xl" /></div>}
                 {isOffline && <div className="absolute inset-0 z-30 flex h-full w-full items-center justify-center overflow-y-auto bg-background p-4 text-foreground sm:p-6">
                     <div className="mfr-panel relative z-10 max-w-xl w-full mx-auto rounded-3xl p-5 sm:p-8 shadow-sm flex flex-col items-center text-center">
                         <div className="w-16 h-16 rounded-2xl bg-foreground/15 border border-foreground/30 flex items-center justify-center text-foreground mb-5 shadow-[0_0_30px_var(--primary-glow)]">
@@ -571,8 +579,8 @@ function ReaderContent() {
                 }
                 {/* Multi-Tab Polymorphic Reader Container */}
                 <div className="relative w-full h-full overflow-hidden">
-                    {activeFile && !loadedBookmarks[activeFile.id] && <div role="status" className="flex h-full items-center justify-center text-sm text-foreground-muted">Restoring reading position…</div>}
-                    {openFiles.filter(file => loadedBookmarks[file.id] && startedTabs[file.id]).map((file) => {
+                    {activeFile && !cloudUnavailable && !loadedBookmarks[activeFile.id] && <div role="status" className="flex h-full items-center justify-center text-sm text-foreground-muted">Restoring reading position…</div>}
+                    {openFiles.filter(file => loadedBookmarks[file.id] && startedTabs[file.id] && (CLOUD_STORAGE_ENABLED || isLocalFileUrl(file.url))).map((file) => {
                         const index = openFiles.findIndex(item => item.id === file.id);
                         const isActive = index === activeFileIndex;
                         return (
@@ -601,8 +609,8 @@ function ReaderContent() {
             )}
             </div>
             </div>
-            {activeFile && !isOffline && activeStatus === 'error' && <button type="button" className="mfr-button-secondary fixed bottom-6 left-1/2 z-20 -translate-x-1/2" onClick={() => { setReaderStatuses(prev => ({...prev, [activeFile.id]: 'loading'})); setRetryCounts(prev => ({...prev, [activeFile.id]: (prev[activeFile.id] || 0) + 1})); }}>Retry loading document</button>}
-            {isPickerOpen && <ReaderFilePicker onClose={() => setIsPickerOpen(false)} onOpen={addFile} onOpenLocal={isElectron() ? handleOpenLocalFile : undefined} openUrls={openFiles.map(file => file.url)} />}
+            {activeFile && !isOffline && !cloudUnavailable && activeStatus === 'error' && <button type="button" className="mfr-button-secondary fixed bottom-6 left-1/2 z-20 -translate-x-1/2" onClick={() => { setReaderStatuses(prev => ({...prev, [activeFile.id]: 'loading'})); setRetryCounts(prev => ({...prev, [activeFile.id]: (prev[activeFile.id] || 0) + 1})); }}>Retry loading document</button>}
+            {isPickerOpen && <ReaderFilePicker onClose={() => setIsPickerOpen(false)} onOpen={addFile} onOpenLocal={isElectron() ? handleOpenLocalFile : undefined} openUrls={openFiles.map(file => file.url)} feedback={notice && <InlineNotice tone={notice.tone} onDismiss={() => setNotice(null)}>{notice.message}</InlineNotice>} />}
         </UnifiedReaderLayout>
     );
 }

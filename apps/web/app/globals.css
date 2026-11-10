@@ -194,6 +194,27 @@ body {
 
   .mfr-icon-button:hover { background: var(--surface-hover); color: var(--foreground); }
 
+  .mfr-notice {
+    --notice-accent: var(--foreground-muted);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1px solid color-mix(in srgb, var(--notice-accent) 30%, var(--border-subtle));
+    border-inline-start: 3px solid var(--notice-accent);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--notice-accent) 8%, var(--surface));
+    color: var(--foreground);
+  }
+
+  .mfr-notice-icon { color: var(--notice-accent); }
+  .mfr-notice[data-tone="warning"] { --notice-accent: #b45309; }
+  .mfr-notice[data-tone="error"] { --notice-accent: #b91c1c; }
+  .mfr-notice[data-tone="success"] { --notice-accent: #15803d; }
+  .dark .mfr-notice[data-tone="warning"] { --notice-accent: #fbbf24; }
+  .dark .mfr-notice[data-tone="error"] { --notice-accent: #f87171; }
+  .dark .mfr-notice[data-tone="success"] { --notice-accent: #4ade80; }
+
   @media (min-width: 640px) { .mfr-page { padding: 2.5rem 1.5rem; } }
   @media (min-width: 1024px) { .mfr-page { padding: 3rem; } }
   .mfr-auth-page { padding-block: 1.5rem; }
@@ -203,24 +224,6 @@ body {
 button, a, input, select, [role="button"], [role="separator"] {
   &:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 }
-
-.Toastify__toast {
-  --toastify-color-info: var(--foreground);
-  --toastify-color-success: var(--foreground);
-  --toastify-color-warning: var(--foreground);
-  --toastify-color-error: var(--foreground);
-  --toastify-color-progress-light: var(--foreground);
-  --toastify-color-progress-dark: var(--foreground);
-  --toastify-color-light: var(--surface-hover);
-  --toastify-color-dark: var(--surface-hover);
-  --toastify-text-color-light: var(--foreground);
-  --toastify-text-color-dark: var(--foreground);
-  border: 1px solid var(--border-subtle);
-  border-radius: 1rem;
-  backdrop-filter: blur(24px);
-}
-
-.Toastify__close-button { color: var(--foreground-muted); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

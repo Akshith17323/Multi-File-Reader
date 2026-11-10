@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, BookOpen, AlertCircle, Edit2, ChevronDown, Search, FileText, Layers, Upload, Monitor, Cloud, FolderOpen } from "lucide-react";
-import { toast } from "react-toastify";
+import { Trash2, BookOpen, Edit2, ChevronDown, Search, FileText, Layers, Upload, Monitor, Cloud, FolderOpen } from "lucide-react";
 import AppShell, { PageHeader } from "@/components/ui/AppShell";
+import InlineNotice, { type NoticeMessage } from "@/components/ui/InlineNotice";
+import { CLOUD_STORAGE_ENABLED, CLOUD_STORAGE_UNAVAILABLE_MESSAGE } from "@/config/serviceStatus";
 import { apiClient } from "@/services/apiClient";
 import dynamic from "next/dynamic";
 import { createReaderUrl, getLastReaderSession, removeFileFromReaderSession } from "@/utils/readerSession";
@@ -35,6 +36,7 @@ export default function FilesPage() {
   const [openingLocal, setOpeningLocal] = useState(false);
   const localPickerBusy = useRef(false);
   const [warning, setWarning] = useState("");
+  const [notice, setNotice] = useState<NoticeMessage | null>(null);
   const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,13 +93,19 @@ export default function FilesPage() {
   const openLocal = async (folder = false) => {
     if (localPickerBusy.current) return;
     localPickerBusy.current = true; setOpeningLocal(true);
+    setNotice(null);
     try {
       const result = await FileAdapter.openLocalFiles(folder);
       if (!result) return;
-      if (!result.files.length) toast.info("No readable PDF, EPUB, or TXT files found.");
-      else { await fetchFiles(); toast.success(`${result.files.length} local ${result.files.length === 1 ? 'file' : 'files'} added`); }
-      if (result.skipped) toast.info(`${result.skipped} files or folders could not be read.`);
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not open local files"); }
+      if (result.files.length) await fetchFiles();
+      const message = result.files.length
+        ? `${result.files.length} local ${result.files.length === 1 ? 'file' : 'files'} added.`
+        : "No readable PDF, EPUB, or TXT files found.";
+      setNotice({
+        tone: result.skipped ? "warning" : result.files.length ? "success" : "info",
+        message: message + (result.skipped ? ` ${result.skipped} ${result.skipped === 1 ? 'file or folder' : 'files or folders'} could not be read.` : ""),
+      });
+    } catch (error) { setNotice({ tone: "error", message: error instanceof Error ? error.message : "Could not open local files" }); }
     finally { localPickerBusy.current = false; setOpeningLocal(false); }
   };
 
@@ -109,6 +117,7 @@ export default function FilesPage() {
     if (!fileToDelete || mutationInFlight.current) return;
     mutationInFlight.current = true;
     setMutating(true);
+    setNotice(null);
     const deletingFile = files.find(file => file.id === fileToDelete.id);
     setFileToDelete(null);
     try {
@@ -122,17 +131,18 @@ export default function FilesPage() {
         removeFileFromReaderSession(deletingFile.url);
         setFiles(prev => prev.filter(file => file.id !== deletingFile.id));
         await fetchFiles();
-        toast.success("File deleted successfully");
+        setNotice({ tone: "success", message: "File deleted successfully." });
       }
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not delete file"); }
+    } catch (error) { setNotice({ tone: "error", message: error instanceof Error ? error.message : "Could not delete file" }); }
     finally { mutationInFlight.current = false; setMutating(false); }
   };
 
   const handleRename = async (fileId: string) => {
     if (mutationInFlight.current) return;
-    if (!newFileName.trim()) { toast.error("File name cannot be empty"); return; }
+    if (!newFileName.trim()) { setNotice({ tone: "error", message: "File name cannot be empty." }); return; }
     mutationInFlight.current = true;
     setMutating(true);
+    setNotice(null);
     try {
       const token = localStorage.getItem("token");
       if (!token && !isElectron()) throw new Error("Please sign in again");
@@ -147,18 +157,20 @@ export default function FilesPage() {
       setFiles(prev => prev.map(file => file.id === fileId ? { ...file, name } : file));
       setEditingFileId(null);
       setNewFileName("");
-      toast.success("File renamed successfully");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not rename file"); }
+      setNotice({ tone: "success", message: "File renamed successfully." });
+    } catch (error) { setNotice({ tone: "error", message: error instanceof Error ? error.message : "Could not rename file" }); }
     finally { mutationInFlight.current = false; setMutating(false); }
   };
 
   const handleRead = (file: FileData) => {
-    if (isLocalFileUrl(file.url) && !isElectron()) { toast.info("Open this local file in the desktop app."); return; }
+    if (!CLOUD_STORAGE_ENABLED && !isLocalFileUrl(file.url)) { setNotice({ tone: "warning", message: CLOUD_STORAGE_UNAVAILABLE_MESSAGE }); return; }
+    if (isLocalFileUrl(file.url) && !isElectron()) { setNotice({ tone: "info", message: "Open this local file in the desktop app." }); return; }
     router.push(createReaderUrl([file.url]));
   };
 
   const handleOpenInNewTab = (file: FileData) => {
-    if (isLocalFileUrl(file.url) && !isElectron()) { toast.info("Open this local file in the desktop app."); return; }
+    if (!CLOUD_STORAGE_ENABLED && !isLocalFileUrl(file.url)) { setNotice({ tone: "warning", message: CLOUD_STORAGE_UNAVAILABLE_MESSAGE }); return; }
+    if (isLocalFileUrl(file.url) && !isElectron()) { setNotice({ tone: "info", message: "Open this local file in the desktop app." }); return; }
     const urls = getLastReaderSession()?.fileUrls || [];
     const existing = urls.indexOf(file.url);
     if (existing >= 0) router.push(createReaderUrl(urls, existing));
@@ -193,9 +205,11 @@ export default function FilesPage() {
               <button disabled={openingLocal} onClick={() => openLocal()} className="mfr-button-primary"><Monitor size={16} />{openingLocal ? 'Opening…' : 'Open local files'}</button>
               <button disabled={openingLocal} onClick={() => openLocal(true)} className="mfr-button-secondary"><FolderOpen size={16} />Open folder</button>
             </>}
-            <button onClick={() => router.push("/fileupload")} className={isDesktop ? "mfr-button-secondary" : "mfr-button-primary"}><Upload size={16} />{isDesktop ? 'Add files' : 'Upload files'}</button>
+            <button onClick={() => router.push("/fileupload")} className={isDesktop ? "mfr-button-secondary" : "mfr-button-primary"}>{!CLOUD_STORAGE_ENABLED && !isDesktop ? <Monitor size={16} /> : <Upload size={16} />}{isDesktop ? 'Add files' : CLOUD_STORAGE_ENABLED ? 'Upload files' : 'Read on desktop'}</button>
           </div>}
         />
+
+        {notice && <InlineNotice tone={notice.tone} onDismiss={() => setNotice(null)}>{notice.message}</InlineNotice>}
 
         {/* Controls Bar (Glassmorphic Card) */}
         <div className="mfr-panel p-3 sm:p-4 rounded-2xl shadow-sm flex flex-col md:flex-row gap-3">
@@ -243,23 +257,11 @@ export default function FilesPage() {
           </div>
         </div>
 
-        {warning && <p role="status" className="text-sm text-foreground-muted">{warning}</p>}
+        {warning && <InlineNotice tone="warning">{warning}</InlineNotice>}
 
         {/* Error State */}
         {error && !loading && (
-          <div className="bg-foreground/10 border border-foreground/30 rounded-2xl p-4 sm:p-5 flex items-start gap-3 text-xs sm:text-sm">
-            <AlertCircle className="text-foreground shrink-0 mt-0.5" size={20} />
-            <div className="flex-1">
-              <h3 className="text-foreground font-bold mb-0.5">Error Loading Collection</h3>
-              <p className="text-foreground font-medium">{error}</p>
-              <button
-                onClick={fetchFiles}
-                className="mt-2 text-xs text-foreground hover:text-foreground underline font-semibold cursor-pointer"
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
+          <InlineNotice tone="error" title="Could not load your collection" action={<button type="button" onClick={fetchFiles} className="mfr-button-secondary">Try again</button>}>{error}</InlineNotice>
         )}
 
         {/* Loading State */}
@@ -283,7 +285,7 @@ export default function FilesPage() {
               <p className="text-foreground-muted text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
                 {search || typeFilter
                   ? "Try clearing your search query or format filter to discover your documents."
-                  : isDesktop ? "Open local files or a folder to start your library." : "Upload your first PDF, EPUB, or TXT file and keep all your reading in one place."}
+                  : isDesktop ? "Open local files or a folder to start your library." : CLOUD_STORAGE_ENABLED ? "Upload your first PDF, EPUB, or TXT file and keep all your reading in one place." : "Cloud storage is temporarily unavailable. Use the desktop app to start reading local PDF, EPUB, and TXT files."}
               </p>
             </div>
 
@@ -311,7 +313,7 @@ export default function FilesPage() {
                 onClick={() => router.push("/fileupload")}
                 className="mfr-button-primary overflow-hidden group"
               >
-                <span className="relative z-10">{isDesktop ? "Add your first files" : "Upload your first file"}</span>
+                <span className="relative z-10">{isDesktop ? "Add your first files" : CLOUD_STORAGE_ENABLED ? "Upload your first file" : "Read on desktop"}</span>
                 <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
               </button>
             </div>

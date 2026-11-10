@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import "react-toastify/dist/ReactToastify.css";
-import { ToastContainer } from "react-toastify";
 import Navbar from "../components/Navbar";
 import DesktopTitlebar from "../components/DesktopTitlebar";
 import BookmarkSync from "../components/BookmarkSync";
+import { CloudStorageBanner } from "../components/CloudStorageNotice";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
 const geistSans = Geist({
@@ -37,19 +36,8 @@ export default function RootLayout({
       <BookmarkSync />
       <DesktopTitlebar />
       <Navbar />
+      <CloudStorageBanner />
       {children}
-      <ToastContainer
-        position="bottom-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
     </>
   );
 

@@ -1,10 +1,10 @@
 "use client";
 import React, { useState } from "react";
 import { Eye, EyeClosed, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
-import { toast } from 'react-toastify';
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AuthLayout from "@/components/ui/AuthLayout";
+import InlineNotice from "@/components/ui/InlineNotice";
 import { setAuthSession } from "@/utils/authSession";
 import { apiClient } from "@/services/apiClient";
 import { useGoogleLogin } from '@react-oauth/google';
@@ -76,18 +76,19 @@ function GoogleSignupButton({
 
     if (!hasClientId) {
         return (
-            <div className="flex justify-center">
+            <div className="space-y-3">
                 <button
                     type="button"
-                    onClick={() => toast.warn("Google sign-up is currently unavailable. Please create an account with your email.")}
-                    disabled={isLoading}
+                    disabled
+                    aria-describedby="google-signup-unavailable"
                     className="mfr-button-secondary w-full group"
                     title="Sign up with Google"
                     aria-label="Sign up with Google"
                 >
                     <GoogleIcon className="w-5 h-5" />
-                <span>Continue with Google</span>
+                    <span>Continue with Google</span>
                 </button>
+                <InlineNotice id="google-signup-unavailable" tone="warning">Google sign-up is currently unavailable. Please create an account with your email.</InlineNotice>
             </div>
         );
     }
@@ -129,8 +130,6 @@ function Signuppage() {
         try {
             const data = await apiClient.signup({ name: name.trim(), email: email.trim().toLowerCase(), password });
 
-            toast.success(`Welcome, ${name}! Account created successfully.`);
-
             setAuthSession(data);
 
             router.push('/files');
@@ -144,7 +143,6 @@ function Signuppage() {
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : "Something went wrong. Please try again.";
             setError(errorMessage);
-            toast.error(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -156,15 +154,12 @@ function Signuppage() {
         try {
             const data = await apiClient.googleLogin(credentialResponse.access_token || credentialResponse.credential);
 
-            toast.success(`Welcome, ${data.user}! Account linked successfully.`);
-
             setAuthSession(data);
 
             router.push("/files");
         } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : "Google Signup failed. Please try again.";
             setError(errorMessage);
-            toast.error(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -177,10 +172,7 @@ function Signuppage() {
         <AuthLayout title="Create account" description="Your books and documents, together in one library.">
             {/* Error Alert */}
             {error && (
-                <div className="mb-3 p-2.5 bg-foreground/10 border border-foreground/40 rounded-xl flex items-start gap-2 text-xs">
-                    <AlertCircle className="text-foreground shrink-0 mt-0.5" size={15} />
-                    <p className="text-foreground font-medium">{error}</p>
-                </div>
+                <InlineNotice tone="error" className="mb-4" onDismiss={() => setError("")}>{error}</InlineNotice>
             )}
 
             <form onSubmit={handleSignup} className="space-y-4">
@@ -322,10 +314,7 @@ function Signuppage() {
                 <GoogleSignupButton
                     isLoading={isLoading}
                     onSuccess={handleGoogleSuccess}
-                    onError={() => {
-                        setError("Google Signup Failed");
-                        toast.error("Google Signup Failed");
-                    }}
+                    onError={() => setError("Google sign-up failed. Please try again.")}
                 />
             </div>
 
