@@ -1,12 +1,16 @@
 "use client";
 import React, { useRef, useState } from "react";
-import { Upload, FileText, CheckCircle2, AlertCircle, Loader2, Monitor, FolderOpen, Cloud, X, BookOpen, ArrowLeft } from "lucide-react";
+import { Upload, FileText, CheckCircle2, Loader2, Monitor, FolderOpen, Cloud, X, BookOpen, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEnvironment } from "@/hooks/useEnvironment";
 import { FileAdapter } from "@/services/fileAdapter";
 import AppShell, { PageHeader } from "@/components/ui/AppShell";
 import { FormatCard } from "@/components/ui/FormatShowcase";
 import { createReaderUrl } from "@/utils/readerSession";
+import CloudStorageNotice from "@/components/CloudStorageNotice";
+import DesktopAppLink from "@/components/DesktopAppLink";
+import InlineNotice from "@/components/ui/InlineNotice";
+import { CLOUD_STORAGE_ENABLED, CLOUD_STORAGE_UNAVAILABLE_MESSAGE } from "@/config/serviceStatus";
 
 function FileUpload() {
   const { isElectron: isDesktop } = useEnvironment();
@@ -35,6 +39,7 @@ function FileUpload() {
   };
 
   const handleFileSelection = (file: File) => {
+    if (!CLOUD_STORAGE_ENABLED) { setError(CLOUD_STORAGE_UNAVAILABLE_MESSAGE); return; }
     if (uploadInFlight.current) return;
     setSelectedFile(null);
     setError(null);
@@ -64,6 +69,7 @@ function FileUpload() {
 
   const uploadFile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!CLOUD_STORAGE_ENABLED) { setError(CLOUD_STORAGE_UNAVAILABLE_MESSAGE); return; }
     if (uploadInFlight.current) return;
     if (!selectedFile) {
       setError("No file selected");
@@ -132,14 +138,18 @@ function FileUpload() {
           eyebrow="Your digital library"
           title="Add"
           accent="files"
-          description={isDesktop ? "Open files from your computer or upload them to the cloud." : "Upload your books and documents, then start reading."}
+          description={CLOUD_STORAGE_ENABLED
+            ? isDesktop ? "Open files from your computer or upload them to the cloud." : "Upload your books and documents, then start reading."
+            : isDesktop ? "Open books and documents stored on your computer." : "Keep reading your local documents with the desktop app."}
           className="mb-6"
         />
+
+        <CloudStorageNotice id="cloud-storage-notice" className="mb-6" showAction={false} />
 
         <div className="mfr-panel rounded-3xl p-5 shadow-xl sm:p-8">
           {isDesktop && !resultUrl && <div className="mb-6 flex gap-2" role="group" aria-label="File source">
             <button type="button" disabled={isUploading} aria-pressed={!showCloud} onClick={() => { setShowCloud(false); setError(null); }} className={!showCloud ? "mfr-button-primary flex-1" : "mfr-button-secondary flex-1"}><Monitor size={16} />Local files</button>
-            <button type="button" disabled={isUploading} aria-pressed={showCloud} onClick={() => { setShowCloud(true); setError(null); }} className={showCloud ? "mfr-button-primary flex-1" : "mfr-button-secondary flex-1"}><Cloud size={16} />Cloud upload</button>
+            <button type="button" disabled={isUploading || !CLOUD_STORAGE_ENABLED} aria-describedby={!CLOUD_STORAGE_ENABLED ? "cloud-storage-notice" : undefined} aria-pressed={showCloud} onClick={() => { setShowCloud(true); setError(null); }} className={showCloud ? "mfr-button-primary flex-1" : "mfr-button-secondary flex-1"}><Cloud size={16} />{CLOUD_STORAGE_ENABLED ? "Cloud upload" : "Cloud unavailable"}</button>
           </div>}
           {isDesktop && !showCloud ? <div className="space-y-5 py-4 text-center">
             <Monitor size={40} className="mx-auto text-primary" />
@@ -151,8 +161,21 @@ function FileUpload() {
             </div>
             <p className="text-xs text-foreground-muted">PDF, EPUB, and TXT · Folders include files in subfolders.</p>
             {isUploading && <p role="status" className="text-sm text-foreground-muted">Adding your files…</p>}
-            {error && <p role="alert" className="text-sm text-foreground">{error}</p>}
-          </div> : !resultUrl ? (
+            {error && <InlineNotice tone="error" className="text-left">{error}</InlineNotice>}
+          </div> : !CLOUD_STORAGE_ENABLED ? (
+            <div className="space-y-5 py-4 text-center">
+              <Monitor size={40} className="mx-auto text-primary" aria-hidden="true" />
+              <h2 className="text-xl font-semibold">Keep reading on desktop</h2>
+              <p className="text-sm leading-relaxed text-foreground-muted">Open local files or an entire folder in the desktop app. Your documents stay on your computer, with no upload or sign-in needed.</p>
+              <DesktopAppLink className="mfr-button-primary" />
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                <FormatCard icon={<FileText size={20} />} label="PDF" detail="Documents" color="text-foreground" />
+                <FormatCard icon={<BookOpen size={20} />} label="EPUB" detail="Books" color="text-foreground" />
+                <FormatCard icon={<FileText size={20} />} label="TXT" detail="Plain text" color="text-foreground" />
+              </div>
+              <p className="text-xs leading-relaxed text-foreground-muted">Already have the desktop app? Open it and choose <strong className="font-semibold text-foreground">Open local files</strong> or <strong className="font-semibold text-foreground">Open folder</strong>.</p>
+            </div>
+          ) : !resultUrl ? (
             <form onSubmit={uploadFile} className="space-y-5">
               <div
                 onDragOver={handleDragOver}
@@ -248,10 +271,7 @@ function FileUpload() {
               )}
 
               {error && (
-                <div className="p-3 bg-foreground/10 border border-foreground/30 rounded-xl flex items-center gap-2.5 text-foreground text-xs">
-                  <AlertCircle size={18} className="shrink-0" />
-                  <p className="font-medium">{error}</p>
-                </div>
+                <InlineNotice tone="error">{error}</InlineNotice>
               )}
 
               <div className="flex flex-col sm:flex-row gap-3 pt-1">

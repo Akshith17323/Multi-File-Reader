@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FileText, Book, Loader2 } from 'lucide-react';
 import { detectFileType, getDocumentUrl, isLocalFileUrl } from '@/utils/fileUrls';
 import { isElectron } from '@/hooks/useEnvironment';
+import { CLOUD_STORAGE_ENABLED } from '@/config/serviceStatus';
 
 type Preview = { image?: string; text?: string };
 const previews = new Map<string, Preview>();
@@ -18,6 +19,7 @@ function DocumentPreview({ url, type, thumbnailUrl }: FilePreviewProps) {
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
+  const cloudUnavailable = !!url && !CLOUD_STORAGE_ENABLED && !isLocalFileUrl(url);
 
   useEffect(() => {
     const observer = new IntersectionObserver(entries => {
@@ -28,7 +30,7 @@ function DocumentPreview({ url, type, thumbnailUrl }: FilePreviewProps) {
   }, []);
 
   useEffect(() => {
-    if (unavailable || !visible || preview || !url || (thumbnailUrl && !imageFailed)) return;
+    if (cloudUnavailable || unavailable || !visible || preview || !url || (thumbnailUrl && !imageFailed)) return;
     if (isLocalFileUrl(url) && !isElectron()) return;
     let canceled = false;
     let cleanup: (() => void) | undefined;
@@ -101,18 +103,18 @@ function DocumentPreview({ url, type, thumbnailUrl }: FilePreviewProps) {
       if (!canceled) setLoading(false);
     });
     return () => { canceled = true; controller.abort(); cleanup?.(); cleanup = undefined; };
-  }, [visible, url, type, thumbnailUrl, imageFailed, preview, cacheKey, unavailable]);
+  }, [visible, url, type, thumbnailUrl, imageFailed, preview, cacheKey, unavailable, cloudUnavailable]);
 
-  const image = !imageFailed && thumbnailUrl ? thumbnailUrl : preview?.image;
+  const image = cloudUnavailable ? undefined : !imageFailed && thumbnailUrl ? thumbnailUrl : preview?.image;
   return <div ref={container} className="relative flex h-full w-full items-center justify-center overflow-hidden bg-surface-hover/50">
     {image ? (
       // Runtime document previews may use data URLs and the desktop's local protocol.
       // eslint-disable-next-line @next/next/no-img-element
       <img src={image} alt="Document preview" className="h-full w-full object-contain object-top" onError={() => { setImageFailed(true); if (preview?.image) { setPreview(undefined); previews.delete(cacheKey); setUnavailable(true); } }} />
-    ) : preview?.text ? <div className="h-full w-full overflow-hidden bg-background px-5 pb-5 pt-12 text-left"><p className="whitespace-pre-wrap break-words font-serif text-xs leading-relaxed text-foreground/80">{preview.text}</p></div>
+    ) : !cloudUnavailable && preview?.text ? <div className="h-full w-full overflow-hidden bg-background px-5 pb-5 pt-12 text-left"><p className="whitespace-pre-wrap break-words font-serif text-xs leading-relaxed text-foreground/80">{preview.text}</p></div>
       : <div className="flex flex-col items-center gap-3 p-6 text-center text-foreground-muted">
         {loading ? <Loader2 size={28} className="animate-spin text-primary" /> : type === 'application/epub+zip' ? <Book size={36} /> : <FileText size={36} />}
-        <span className="text-xs">{loading ? 'Loading preview…' : isLocalFileUrl(url || '') && !isElectron() ? 'Preview in desktop app' : unavailable ? 'Preview unavailable' : 'Document preview'}</span>
+        <span className="text-xs">{cloudUnavailable ? 'Cloud storage unavailable' : loading ? 'Loading preview…' : isLocalFileUrl(url || '') && !isElectron() ? 'Preview in desktop app' : unavailable ? 'Preview unavailable' : 'Document preview'}</span>
       </div>}
   </div>;
 }

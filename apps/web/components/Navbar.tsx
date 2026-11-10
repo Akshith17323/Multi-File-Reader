@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { LogOut, Menu, X } from "lucide-react";
-import { toast } from "react-toastify";
 import { apiClient } from "@/services/apiClient";
 import { clearAuthSession } from "@/utils/authSession";
 import ThemeToggle from "./ThemeToggle";
@@ -51,7 +50,6 @@ export default function Navbar() {
             console.error("Logout failed", error);
         } finally {
             clearAuthSession();
-            toast.info("Logged out successfully");
             router.push("/auth/login");
         }
     };

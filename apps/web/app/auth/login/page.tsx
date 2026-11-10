@@ -1,10 +1,10 @@
 "use client";
 import React, { useState } from "react";
-import { Eye, EyeClosed, Loader2, AlertCircle } from "lucide-react";
-import { toast } from 'react-toastify';
+import { Eye, EyeClosed, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AuthLayout from "@/components/ui/AuthLayout";
+import InlineNotice from "@/components/ui/InlineNotice";
 import { setAuthSession } from "@/utils/authSession";
 import { apiClient } from "@/services/apiClient";
 import { useGoogleLogin } from '@react-oauth/google';
@@ -76,18 +76,19 @@ function GoogleLoginButton({
 
   if (!hasClientId) {
     return (
-      <div className="flex justify-center">
+      <div className="space-y-3">
         <button
           type="button"
-          onClick={() => toast.warn("Google sign-in is currently unavailable. Please sign in with your email.")}
-          disabled={isLoading}
+          disabled
+          aria-describedby="google-login-unavailable"
           className="mfr-button-secondary w-full group"
           title="Sign in with Google"
           aria-label="Sign in with Google"
         >
           <GoogleIcon className="w-5 h-5" />
-        <span>Continue with Google</span>
+          <span>Continue with Google</span>
         </button>
+        <InlineNotice id="google-login-unavailable" tone="warning">Google sign-in is currently unavailable. Please sign in with your email.</InlineNotice>
       </div>
     );
   }
@@ -116,8 +117,6 @@ function Loginpage() {
     try {
       const data = await apiClient.login({ email: email.trim().toLowerCase(), password });
 
-      toast.success(`Welcome back, ${data.user}!`);
-
       setAuthSession(data);
 
       router.push("/files");
@@ -129,7 +128,6 @@ function Loginpage() {
     } catch (err: unknown) {
       const error = err as Error;
       setError(error.message || "Something went wrong. Please try again.");
-      toast.error(error.message || "Login failed");
     } finally {
       setIsLoading(false);
     }
@@ -141,15 +139,12 @@ function Loginpage() {
     try {
       const data = await apiClient.googleLogin(credentialResponse.access_token || credentialResponse.credential);
 
-      toast.success(`Welcome, ${data.user}!`);
-
       setAuthSession(data);
 
       router.push("/files");
     } catch (err: unknown) {
       const error = err as Error;
       setError(error.message || "Google Login failed. Please try again.");
-      toast.error(error.message || "Google Login failed");
     } finally {
       setIsLoading(false);
     }
@@ -159,10 +154,7 @@ function Loginpage() {
     <AuthLayout title="Welcome back" description="Sign in to continue to your books and documents.">
       {/* Error Alert */}
       {error && (
-        <div className="mb-4 p-3 bg-foreground/10 border border-foreground/40 rounded-xl flex items-start gap-2.5 text-xs">
-          <AlertCircle className="text-foreground shrink-0 mt-0.5" size={16} />
-          <p className="text-foreground font-medium">{error}</p>
-        </div>
+        <InlineNotice tone="error" className="mb-4" onDismiss={() => setError("")}>{error}</InlineNotice>
       )}
 
       <form onSubmit={handleLogin} className="space-y-4">
@@ -241,10 +233,7 @@ function Loginpage() {
         <GoogleLoginButton
           isLoading={isLoading}
           onSuccess={handleGoogleSuccess}
-          onError={() => {
-            setError("Google Login Failed");
-            toast.error("Google Login Failed");
-          }}
+          onError={() => setError("Google sign-in failed. Please try again.")}
         />
       </div>
 

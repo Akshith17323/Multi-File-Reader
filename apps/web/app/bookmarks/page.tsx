@@ -7,9 +7,10 @@ import { getLocalBookmarksMap, mergeBookmarks, deleteBookmarkUnified } from "@/u
 import { createReaderUrl } from "@/utils/readerSession";
 import { isElectron } from "@/hooks/useEnvironment";
 import { isLocalFileUrl } from "@/utils/fileUrls";
-import { BookOpen, Trash2, Clock, AlertCircle, FileText, Layers, ArrowRight, BookmarkCheck } from "lucide-react";
-import { toast } from "react-toastify";
+import { BookOpen, Trash2, Clock, FileText, Layers, ArrowRight, BookmarkCheck } from "lucide-react";
 import AppShell, { PageHeader } from "@/components/ui/AppShell";
+import InlineNotice, { type NoticeMessage } from "@/components/ui/InlineNotice";
+import { CLOUD_STORAGE_ENABLED, CLOUD_STORAGE_UNAVAILABLE_MESSAGE } from "@/config/serviceStatus";
 
 interface Bookmark {
     id: string;
@@ -26,6 +27,7 @@ export default function BookmarksPage() {
     const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [notice, setNotice] = useState<NoticeMessage | null>(null);
     const [bookmarkToDelete, setBookmarkToDelete] = useState<Bookmark | null>(null);
     const router = useRouter();
 
@@ -36,7 +38,6 @@ export default function BookmarksPage() {
         try {
             const token = localStorage.getItem("token");
             if (!token && !isElectron()) {
-                toast.error("Please login to view bookmarks");
                 router.push("/auth/login");
                 setLoading(false);
                 return;
@@ -55,7 +56,6 @@ export default function BookmarksPage() {
             const err = error as Error;
             console.error("❌ Error fetching bookmarks:", err);
             setError(err.message || "Failed to load bookmarks");
-            toast.error(err.message || "Failed to load bookmarks");
         } finally {
             setLoading(false);
         }
@@ -74,23 +74,25 @@ export default function BookmarksPage() {
         if (!bookmarkToDelete) return;
         const bookmark = bookmarkToDelete;
         setBookmarkToDelete(null);
+        setNotice(null);
 
         try {
             const token = localStorage.getItem("token");
             await deleteBookmarkUnified(token, bookmark.fileUrl);
 
-            toast.success("Progress cleared successfully");
+            setNotice({ tone: "success", message: "Progress cleared successfully." });
             setBookmarks(prev => prev.filter(b => b.id !== bookmark.id));
 
         } catch (error: unknown) {
             const err = error as Error;
             console.error("❌ Error deleting bookmark:", err);
-            toast.error(err.message || "Failed to delete bookmark");
+            setNotice({ tone: "error", message: err.message || "Failed to delete bookmark" });
         }
     };
 
     const handleContinueReading = (bookmark: Bookmark) => {
-        if (isLocalFileUrl(bookmark.fileUrl) && !isElectron()) { toast.info("Open this local document in the desktop app."); return; }
+        if (!CLOUD_STORAGE_ENABLED && !isLocalFileUrl(bookmark.fileUrl)) { setNotice({ tone: "warning", message: CLOUD_STORAGE_UNAVAILABLE_MESSAGE }); return; }
+        if (isLocalFileUrl(bookmark.fileUrl) && !isElectron()) { setNotice({ tone: "info", message: "Open this local document in the desktop app." }); return; }
         router.push(createReaderUrl([bookmark.fileUrl]));
     };
 
@@ -137,21 +139,11 @@ export default function BookmarksPage() {
                     action={bookmarks.length > 0 ? <div className="mfr-panel flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold text-foreground-muted"><BookmarkCheck size={16} className="text-primary" /><span className="font-bold text-foreground">{bookmarks.length}</span>{bookmarks.length === 1 ? "bookmark saved" : "bookmarks saved"}</div> : undefined}
                 />
 
+                {notice && <InlineNotice tone={notice.tone} onDismiss={() => setNotice(null)}>{notice.message}</InlineNotice>}
+
                 {/* Error State */}
                 {error && !loading && (
-                    <div className="bg-foreground/10 border border-foreground/30 rounded-2xl p-4 mb-6 flex items-center gap-3 backdrop-blur-md">
-                        <AlertCircle className="text-foreground shrink-0" size={20} />
-                        <div className="flex-1">
-                            <h3 className="text-foreground font-bold text-sm mb-0.5">Error Loading Bookmarks</h3>
-                            <p className="text-foreground text-xs">{error}</p>
-                        </div>
-                        <button
-                            onClick={fetchBookmarks}
-                            className="px-3 py-1.5 bg-primary text-on-primary rounded-lg text-xs font-bold hover:bg-primary transition-colors shrink-0"
-                        >
-                            Retry
-                        </button>
-                    </div>
+                    <InlineNotice tone="error" title="Could not load your bookmarks" action={<button type="button" onClick={fetchBookmarks} className="mfr-button-secondary">Try again</button>}>{error}</InlineNotice>
                 )}
 
                 {/* Loading State */}
