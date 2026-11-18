@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
+const { createElement } = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
 const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
@@ -25,12 +27,14 @@ function browserModules(api = {}, extra = {}) {
     if (cache.has(filename)) return cache.get(filename).exports;
     const module = { exports: {} };
     cache.set(filename, module);
-    const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+    const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX } }).outputText;
     const requireMock = specifier => {
       if (specifier === '@/services/apiClient') return { apiClient: api };
-      if (specifier === '../hooks/useEnvironment' || specifier === '@/hooks/useEnvironment') return { isElectron: () => Boolean(window.electronAPI) };
+      if (specifier === '../hooks/useEnvironment' || specifier === '@/hooks/useEnvironment') return { isElectron: () => Boolean(window.electronAPI), useEnvironment: () => ({ isElectron: Boolean(window.electronAPI) }) };
+      if (specifier === 'next/navigation') return { usePathname: () => window.location.pathname };
+      if (!specifier.startsWith('@/') && !specifier.startsWith('.')) return require(specifier);
       let destination = specifier.startsWith('@/') ? path.join(root, 'apps/web', specifier.slice(2)) : path.resolve(path.dirname(filename), specifier);
-      if (!destination.endsWith('.ts')) destination += '.ts';
+      if (!path.extname(destination)) destination += fs.existsSync(`${destination}.ts`) ? '.ts' : '.tsx';
       return load(destination);
     };
     vm.runInNewContext(source, { module, exports: module.exports, require: requireMock, localStorage, sessionStorage, window, console, URLSearchParams, URL, atob, Event, AbortSignal, FormData, Blob, process: { env: {} },
@@ -55,6 +59,28 @@ function response() {
 }
 const authenticated = (extra = {}) => ({ user: { userId: 'user-a' }, body: {}, query: {}, params: {}, ...extra });
 const tokenFor = id => `header.${Buffer.from(JSON.stringify({ userId: id })).toString('base64url')}.signature`;
+
+test('upload deprecation notice remains visible with storage enabled or disabled', () => {
+  for (const enabled of [false, true]) {
+    const browser = browserModules({}, { process: { env: { NEXT_PUBLIC_CLOUD_STORAGE_ENABLED: String(enabled) } } });
+    const { CloudStorageBanner, default: CloudStorageNotice } = browser.load('apps/web/components/CloudStorageNotice.tsx');
+    const render = component => renderToStaticMarkup(createElement(component));
+    const banner = render(CloudStorageBanner);
+    assert.match(banner, /Cloud uploads will be deprecated on November 30, 2026\./);
+    assert.match(banner, /role="status"/);
+    assert.equal(banner.includes('Cloud uploads and cloud file reading are currently paused.'), !enabled);
+
+    for (const pathname of ['/fileupload', '/reader', '/reader/document']) {
+      browser.window.location.pathname = pathname;
+      assert.equal(render(CloudStorageBanner), '');
+      assert.match(render(CloudStorageNotice), /November 30, 2026/);
+    }
+    browser.window.electronAPI = {};
+    const desktopNotice = render(CloudStorageNotice);
+    assert.match(desktopNotice, /November 30, 2026/);
+    assert.equal(desktopNotice.includes('Open local files'), !enabled);
+  }
+});
 
 test('reader URL round-trips commas, percent signs, Unicode, query strings, and fragments', () => {
   const browser = browserModules();
