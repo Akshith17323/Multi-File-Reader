@@ -85,8 +85,15 @@ Each format requires a different application to read, manage, or edit, which inc
 
 ---
 
-## Future Enhancements (Optional Section)
-You may add these if you plan to expand:
+## Planned features
+
+The branch workflow and step-by-step local-first/Google Drive refactor plan are kept locally in `DEVELOPMENT_PLAN.md`, which is excluded from Git. Drive imports have not yet been implemented.
+
+The following are deferred beyond the first refactor release:
+- **Web local-file reading:** Open selected files in the browser without uploading them to a server.
+- **Hosted cloud uploads:** An optional future feature, subject to a separate storage, security, cost, and verification decision. Cloud imports from a user's Drive are not hosted uploads.
+
+### Other unscheduled ideas
 - AI-powered text summarization for files  
 - Notes & bookmarking inside readers  
 - Drag-and-drop upload  
@@ -127,7 +134,9 @@ The packaged application includes the production Next.js reader and starts it on
 
 Cloud uploads and cloud file reading are temporarily paused while cloud service verification is completed. Use the desktop app's **Open local files** or **Open folder** actions to read PDF, EPUB, and TXT documents without uploading or signing in.
 
-The web app displays a persistent service notice and disables cloud upload and reading controls by default. Once storage is available, set `NEXT_PUBLIC_CLOUD_STORAGE_ENABLED=true` and rebuild/redeploy the web app (and rebuild desktop packages) to restore cloud access and remove the notice.
+Cloud uploads are scheduled for deprecation on **November 30, 2026**. The client notice announces the deadline; it does not schedule an automatic shutdown or delete existing documents.
+
+The web app displays a persistent service notice and disables cloud upload and reading controls by default. Once storage is available, set `NEXT_PUBLIC_CLOUD_STORAGE_ENABLED=true` and rebuild/redeploy the web app (and rebuild desktop packages) to restore cloud access and remove the availability notice. The upload-deprecation notice remains visible.
 
 The **Desktop app setup** link points to the build instructions above. Set `NEXT_PUBLIC_DESKTOP_APP_URL` to your published desktop download or setup page before building to use a different destination.
 

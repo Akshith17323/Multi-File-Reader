@@ -73,6 +73,7 @@ Thumbs.db
 /PROJECT_DOCS.md
 /ELECTRON_REFERENCE.local.md
 /EXPECTED_FEATURES.md
+/DEVELOPMENT_PLAN.md
 *.local.md
 *.local.txt
 *.local.json
