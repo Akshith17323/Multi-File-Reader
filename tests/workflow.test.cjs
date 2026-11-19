@@ -474,29 +474,16 @@ test('deleting a local file never deletes objects from cloud storage or other us
   assert.equal(bookmarkWhere.userId, 'user-a');
 });
 
-test('desktop uploads validate generic MIME types by supported extension', () => {
-  let options;
-  const multer = Object.assign(value => { options = value; return { fields: () => () => {} }; }, { memoryStorage: () => ({}) });
-  serverModule('apps/server/src/router/fileUpload.js', { multer, '../upload/upload': { uploadFile() {}, addLocalFile() {}, addDriveFile() {} }, '../middleware/authMiddleware': () => {} });
-  const pdf = { fieldname: 'UploadingFile', originalname: 'BOOK.PDF', mimetype: 'application/octet-stream' };
-  let accepted;
-  options.fileFilter({}, pdf, (error, ok) => { assert.equal(error, null); accepted = ok; });
-  assert.equal(accepted, true); assert.equal(pdf.mimetype, 'application/pdf');
-  options.fileFilter({}, { fieldname: 'UploadingFile', originalname: 'bad.exe', mimetype: 'application/pdf' }, error => assert.ok(error));
-  assert.equal(options.limits.fileSize, 50 * 1024 * 1024);
-});
-
-test('uploads encode special filenames and clean cloud objects after database failure', async () => {
-  const deleted = [];
-  const bucket = { file: name => ({ makePublic: async () => {}, delete: async () => deleted.push(name), createWriteStream: () => {
-    const stream = new EventEmitter(); stream.end = () => { stream.emit('finish'); }; return stream;
-  } }) };
-  const handlers = serverModule('apps/server/src/upload/upload.js', { '../gcs': { bucket, bucketName: 'bucket' }, '../prisma': { file: { create: async () => { throw new Error('DB unavailable'); } } } });
-  const res = response();
-  await handlers.uploadFile(authenticated({ files: { UploadingFile: [{ originalname: 'a #?%.pdf', mimetype: 'application/pdf', size: 1, buffer: Buffer.from('x') }] } }), res);
-  assert.equal(res.statusCode, 500);
-  assert.equal(deleted.length, 1);
-  assert.match(deleted[0], /a #\?%\.pdf$/);
+test('cloud upload route and handler are removed while metadata registration remains authenticated', () => {
+  const middleware = () => {};
+  const router = serverModule('apps/server/src/router/fileUpload.js', {
+    '../upload/upload': { addLocalFile() {}, addDriveFile() {} },
+    '../middleware/authMiddleware': middleware,
+  });
+  const handlers = serverModule('apps/server/src/upload/upload.js', { '../prisma': {} });
+  assert.deepEqual(router.stack.map(layer => layer.route.path), ['/localUpload', '/driveUpload']);
+  assert.ok(router.stack.every(layer => layer.route.stack[0].handle === middleware));
+  assert.equal(Object.hasOwn(handlers, 'uploadFile'), false);
 });
 
 test('storage paths reject foreign buckets and preserve literal percent signs', () => {
@@ -561,7 +548,7 @@ test('an account switch while fetching progress cannot contaminate the new accou
 
 test('local registration preserves human-readable file sizes', async () => {
   let created;
-  const handlers = serverModule('apps/server/src/upload/upload.js', { '../gcs': {}, '../prisma': { file: { findFirst: async () => null, create: async args => { created = args.data; return args.data; } } } });
+  const handlers = serverModule('apps/server/src/upload/upload.js', { '../prisma': { file: { findFirst: async () => null, create: async args => { created = args.data; return args.data; } } } });
   const res = response();
   await handlers.addLocalFile(authenticated({body:{ fileName:'a.pdf',localId:'/a.pdf',fileUrl:'mfr-local:///a.pdf',fileSize:'12.5 KB' }}),res);
   assert.equal(res.statusCode,200);
