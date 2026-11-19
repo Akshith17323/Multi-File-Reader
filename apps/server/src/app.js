@@ -72,10 +72,6 @@ app.delete('/files/:filename', middleware, deleteFile)
 const { registerLocalFile } = require('./files/registerLocalFile')
 app.post('/files/local', middleware, registerLocalFile)
 
-// mount upload router (it defines POST /fileUpload)
-
-
-
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
   const status = err.type === "entity.parse.failed" ? 400 : err.message === "Origin is not allowed" ? 403 : 500;

@@ -42,7 +42,7 @@ Each format requires a different application to read, manage, or edit, which inc
 - JWT-secured session handling  
 
 ### File Management (CRUD)
-- Upload files  
+- Open local files in the desktop app without uploading
 - Read files within integrated readers  
 - Update or modify file metadata  
 - Delete files  
@@ -78,7 +78,6 @@ Each format requires a different application to read, manage, or edit, which inc
 | `/api/auth/signup` | POST | Register new user | Public |
 | `/api/auth/login` | POST | Authenticate user | Public |
 | `/api/files/user_id` | GET | Get user’s uploaded files | Authenticated |
-| `/api/upload/user_id` | POST | Upload file to cloud | Authenticated |
 | `/api/files/user_id` | PUT | Update a file | Authenticated |
 | `/api/files/user_id` | DELETE | Delete a file | Authenticated |
 | `/api/file_type_reader` | GET | Render a file in correct reader | Authenticated |
@@ -132,11 +131,11 @@ The packaged application includes the production Next.js reader and starts it on
 
 ### Cloud storage availability
 
-Cloud uploads and cloud file reading are temporarily paused while cloud service verification is completed. Use the desktop app's **Open local files** or **Open folder** actions to read PDF, EPUB, and TXT documents without uploading or signing in.
+New hosted cloud uploads are retired. Cloud file reading remains temporarily paused while cloud service verification is completed. Use the desktop app's **Open local files** or **Open folder** actions to read PDF, EPUB, and TXT documents without uploading or signing in.
 
-Cloud uploads are scheduled for deprecation on **November 30, 2026**. The client notice announces the deadline; it does not schedule an automatic shutdown or delete existing documents.
+The server exposes no hosted file-upload endpoint. Existing uploaded documents are not deleted.
 
-The web app displays a persistent service notice and disables cloud upload and reading controls by default. Once storage is available, set `NEXT_PUBLIC_CLOUD_STORAGE_ENABLED=true` and rebuild/redeploy the web app (and rebuild desktop packages) to restore cloud access and remove the availability notice. The upload-deprecation notice remains visible.
+The web app displays a persistent service notice and disables cloud upload and reading controls by default. Do not enable `NEXT_PUBLIC_CLOUD_STORAGE_ENABLED`; the server no longer accepts hosted uploads. Legacy cloud reading requires a separate compatibility decision.
 
 The **Desktop app setup** link points to the build instructions above. Set `NEXT_PUBLIC_DESKTOP_APP_URL` to your published desktop download or setup page before building to use a different destination.
 
