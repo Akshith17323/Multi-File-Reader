@@ -1,13 +1,11 @@
 // Preload runs before React and exposes a limited desktop API to the page.
-const { contextBridge, ipcRenderer, webUtils } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 // Request/reply: ipcRenderer.invoke() -> ipcMain.handle().
 const invokeChannels = new Set([
   'get-version',
   'get-window-state',
   'api-request',
-  'select-and-upload-file',
-  'upload-dropped-file',
   'open-local-file-dialog',
   'open-local-file',
   'open-local-files',
@@ -71,10 +69,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => {
       ipcRenderer.removeListener(channel, listener);
     };
-  },
-
-  getFilePath(file) {
-    // Convert a file selected or dropped in React into its native disk path.
-    return webUtils.getPathForFile(file);
   },
 });

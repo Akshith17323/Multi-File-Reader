@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2, BookOpen, Edit2, ChevronDown, Search, FileText, Layers, Upload, Monitor, Cloud, FolderOpen } from "lucide-react";
+import { Trash2, BookOpen, Edit2, ChevronDown, Search, FileText, Layers, Monitor, Cloud, FolderOpen } from "lucide-react";
 import AppShell, { PageHeader } from "@/components/ui/AppShell";
 import InlineNotice, { type NoticeMessage } from "@/components/ui/InlineNotice";
 import { CLOUD_STORAGE_ENABLED, CLOUD_STORAGE_UNAVAILABLE_MESSAGE } from "@/config/serviceStatus";
@@ -205,7 +205,7 @@ export default function FilesPage() {
               <button disabled={openingLocal} onClick={() => openLocal()} className="mfr-button-primary"><Monitor size={16} />{openingLocal ? 'Opening…' : 'Open local files'}</button>
               <button disabled={openingLocal} onClick={() => openLocal(true)} className="mfr-button-secondary"><FolderOpen size={16} />Open folder</button>
             </>}
-            <button onClick={() => router.push("/fileupload")} className={isDesktop ? "mfr-button-secondary" : "mfr-button-primary"}>{!CLOUD_STORAGE_ENABLED && !isDesktop ? <Monitor size={16} /> : <Upload size={16} />}{isDesktop ? 'Add files' : CLOUD_STORAGE_ENABLED ? 'Upload files' : 'Read on desktop'}</button>
+            <button onClick={() => router.push("/fileupload")} className={isDesktop ? "mfr-button-secondary" : "mfr-button-primary"}><FolderOpen size={16} />Add files</button>
           </div>}
         />
 
@@ -285,7 +285,7 @@ export default function FilesPage() {
               <p className="text-foreground-muted text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
                 {search || typeFilter
                   ? "Try clearing your search query or format filter to discover your documents."
-                  : isDesktop ? "Open local files or a folder to start your library." : CLOUD_STORAGE_ENABLED ? "Upload your first PDF, EPUB, or TXT file and keep all your reading in one place." : "Cloud storage is temporarily unavailable. Use the desktop app to start reading local PDF, EPUB, and TXT files."}
+                  : isDesktop ? "Open local files or a folder to start your library." : "Google Drive import is coming soon. For now, read local PDF, EPUB, and TXT files in the desktop app."}
               </p>
             </div>
 
@@ -313,7 +313,7 @@ export default function FilesPage() {
                 onClick={() => router.push("/fileupload")}
                 className="mfr-button-primary overflow-hidden group"
               >
-                <span className="relative z-10">{isDesktop ? "Add your first files" : CLOUD_STORAGE_ENABLED ? "Upload your first file" : "Read on desktop"}</span>
+                <span className="relative z-10">{isDesktop ? "Add your first files" : "Explore file sources"}</span>
                 <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
               </button>
             </div>
@@ -336,10 +336,10 @@ export default function FilesPage() {
                         <FilePreview url={file.url} type={file.metadata.contentType} thumbnailUrl={file.thumbnailUrl} />
                       </div>
 
-                      <span title={isLocalFileUrl(file.url) ? "Local file · on your computer" : "Cloud file"}
+                      <span title={isLocalFileUrl(file.url) ? "Local file · on your computer" : "Legacy hosted file"}
                         className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-border-subtle bg-surface-hover/90 text-foreground shadow-sm backdrop-blur-md">
                         {isLocalFileUrl(file.url) ? <Monitor size={16} aria-hidden="true" /> : <Cloud size={16} aria-hidden="true" />}
-                        <span className="sr-only">{isLocalFileUrl(file.url) ? 'Local file' : 'Cloud file'}</span>
+                        <span className="sr-only">{isLocalFileUrl(file.url) ? 'Local file' : 'Legacy hosted file'}</span>
                       </span>
                       {/* Format Badge */}
                       <div className="absolute top-2 left-2 z-10">

@@ -114,7 +114,7 @@ function DocumentPreview({ url, type, thumbnailUrl }: FilePreviewProps) {
     ) : !cloudUnavailable && preview?.text ? <div className="h-full w-full overflow-hidden bg-background px-5 pb-5 pt-12 text-left"><p className="whitespace-pre-wrap break-words font-serif text-xs leading-relaxed text-foreground/80">{preview.text}</p></div>
       : <div className="flex flex-col items-center gap-3 p-6 text-center text-foreground-muted">
         {loading ? <Loader2 size={28} className="animate-spin text-primary" /> : type === 'application/epub+zip' ? <Book size={36} /> : <FileText size={36} />}
-        <span className="text-xs">{cloudUnavailable ? 'Cloud storage unavailable' : loading ? 'Loading preview…' : isLocalFileUrl(url || '') && !isElectron() ? 'Preview in desktop app' : unavailable ? 'Preview unavailable' : 'Document preview'}</span>
+        <span className="text-xs">{cloudUnavailable ? 'Legacy hosted document unavailable' : loading ? 'Loading preview…' : isLocalFileUrl(url || '') && !isElectron() ? 'Preview in desktop app' : unavailable ? 'Preview unavailable' : 'Document preview'}</span>
       </div>}
   </div>;
 }
