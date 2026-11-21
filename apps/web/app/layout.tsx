@@ -4,7 +4,7 @@ import "./globals.css";
 import Navbar from "../components/Navbar";
 import DesktopTitlebar from "../components/DesktopTitlebar";
 import BookmarkSync from "../components/BookmarkSync";
-import { CloudStorageBanner } from "../components/CloudStorageNotice";
+import { DriveImportBanner } from "../components/DriveImportNotice";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
 const geistSans = Geist({
@@ -36,7 +36,7 @@ export default function RootLayout({
       <BookmarkSync />
       <DesktopTitlebar />
       <Navbar />
-      <CloudStorageBanner />
+      <DriveImportBanner />
       {children}
     </>
   );

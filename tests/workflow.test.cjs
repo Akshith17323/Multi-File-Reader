@@ -31,7 +31,7 @@ function browserModules(api = {}, extra = {}) {
     const requireMock = specifier => {
       if (specifier === '@/services/apiClient') return { apiClient: api };
       if (specifier === '../hooks/useEnvironment' || specifier === '@/hooks/useEnvironment') return { isElectron: () => Boolean(window.electronAPI), useEnvironment: () => ({ isElectron: Boolean(window.electronAPI) }) };
-      if (specifier === 'next/navigation') return { usePathname: () => window.location.pathname };
+      if (specifier === 'next/navigation') return { usePathname: () => window.location.pathname, useRouter: () => ({ push() {}, replace() {} }) };
       if (!specifier.startsWith('@/') && !specifier.startsWith('.')) return require(specifier);
       let destination = specifier.startsWith('@/') ? path.join(root, 'apps/web', specifier.slice(2)) : path.resolve(path.dirname(filename), specifier);
       if (!path.extname(destination)) destination += fs.existsSync(`${destination}.ts`) ? '.ts' : '.tsx';
@@ -60,25 +60,45 @@ function response() {
 const authenticated = (extra = {}) => ({ user: { userId: 'user-a' }, body: {}, query: {}, params: {}, ...extra });
 const tokenFor = id => `header.${Buffer.from(JSON.stringify({ userId: id })).toString('base64url')}.signature`;
 
-test('upload deprecation notice remains visible with storage enabled or disabled', () => {
+test('Drive import announcement replaces the upload pause regardless of legacy storage availability', () => {
   for (const enabled of [false, true]) {
     const browser = browserModules({}, { process: { env: { NEXT_PUBLIC_CLOUD_STORAGE_ENABLED: String(enabled) } } });
-    const { CloudStorageBanner, default: CloudStorageNotice } = browser.load('apps/web/components/CloudStorageNotice.tsx');
+    const { DriveImportBanner, default: DriveImportNotice } = browser.load('apps/web/components/DriveImportNotice.tsx');
     const render = component => renderToStaticMarkup(createElement(component));
-    const banner = render(CloudStorageBanner);
-    assert.match(banner, /Cloud uploads will be deprecated on November 30, 2026\./);
+    const banner = render(DriveImportBanner);
+    assert.match(banner, /Google Drive import — coming soon/);
+    assert.match(banner, /Hosted cloud uploads have been retired/);
     assert.match(banner, /role="status"/);
-    assert.equal(banner.includes('Cloud uploads and cloud file reading are currently paused.'), !enabled);
+    assert.doesNotMatch(banner, /November 30|temporarily unavailable|currently paused/);
 
     for (const pathname of ['/fileupload', '/reader', '/reader/document']) {
       browser.window.location.pathname = pathname;
-      assert.equal(render(CloudStorageBanner), '');
-      assert.match(render(CloudStorageNotice), /November 30, 2026/);
+      assert.equal(render(DriveImportBanner), '');
+      assert.match(render(DriveImportNotice), /Google Drive import — coming soon/);
     }
     browser.window.electronAPI = {};
-    const desktopNotice = render(CloudStorageNotice);
-    assert.match(desktopNotice, /November 30, 2026/);
-    assert.equal(desktopNotice.includes('Open local files'), !enabled);
+    const desktopNotice = render(DriveImportNotice);
+    assert.match(desktopNotice, /Open local files/);
+  }
+});
+
+test('add-files UI has only local opening and a disabled upcoming Drive import', () => {
+  for (const desktop of [false, true]) {
+    for (const enabled of [false, true]) {
+      const browser = browserModules({}, { process: { env: { NEXT_PUBLIC_CLOUD_STORAGE_ENABLED: String(enabled) } } });
+      if (desktop) browser.window.electronAPI = {};
+      const AddFiles = browser.load('apps/web/app/fileupload/page.tsx').default;
+      const markup = renderToStaticMarkup(createElement(AddFiles));
+      const buttons = markup.match(/<button\b[\s\S]*?<\/button>/g) || [];
+      const driveButton = buttons.find(button => button.includes('Import from Google Drive'));
+      assert.ok(driveButton);
+      assert.match(driveButton, /disabled=""/);
+      assert.match(driveButton, /aria-describedby="drive-import-notice"/);
+      assert.match(driveButton, /coming soon/);
+      assert.equal(buttons.some(button => button.includes('Open local files')), desktop);
+      assert.equal(buttons.some(button => button.includes('Open folder')), desktop);
+      assert.doesNotMatch(markup, /<form\b|type="file"|Upload to cloud|Cloud unavailable|November 30/);
+    }
   }
 });
 
@@ -350,49 +370,42 @@ for (const desktop of [false, true]) {
   });
 }
 
-for (const operation of ['web upload', 'desktop upload', 'desktop registration']) {
-  test(`late ${operation} failures preserve a newly signed-in account`, async () => {
-    let finish, xhr;
-    class FakeXHR { constructor() { xhr = this; this.upload = {}; } open() {} setRequestHeader() {} send() {} }
-    const browser = browserModules({}, { XMLHttpRequest: FakeXHR });
-    if (operation.startsWith('desktop')) browser.window.electronAPI = {
-      invoke: () => new Promise(resolve => { finish = resolve; }),
-      getFilePath: () => '/books/a.pdf',
-    };
-    const auth = browser.load('apps/web/utils/authSession.ts');
-    const { FileAdapter } = browser.load('apps/web/services/fileAdapter.ts');
-    auth.setAuthSession({ token: tokenFor('a'), user: 'Alice' });
-    const request = operation.endsWith('registration')
-      ? FileAdapter.addLocalBook(tokenFor('a'))
-      : FileAdapter.uploadFile(new File(['sample'], 'a.pdf'), tokenFor('a'), '/upload', () => {});
-    const rejected = assert.rejects(request, { name: 'ApiError', status: 401, message: 'Old session expired' });
-    auth.setAuthSession({ token: tokenFor('b'), user: 'Bob' });
-    browser.sessionStorage.setItem('readerFiles', 'new-account-tabs');
-    const effects = [];
-    browser.window.dispatchEvent = event => effects.push(event.type);
-    browser.window.location.assign = url => effects.push(url);
-    if (xhr) {
-      xhr.status = 401; xhr.responseText = JSON.stringify({ message: 'Old session expired' }); xhr.onload();
-    } else finish({ ok: false, status: 401, error: 'Old session expired' });
-    await rejected;
-    assert.equal(browser.localStorage.getItem('token'), tokenFor('b'));
-    assert.equal(browser.localStorage.getItem('user'), 'Bob');
-    assert.equal(browser.sessionStorage.getItem('readerFiles'), 'new-account-tabs');
-    assert.deepEqual(effects, []);
-  });
-}
-
-test('upload stays below 100 percent until server response and rejects a missing URL', async () => {
-  let xhr;
-  class FakeXHR { constructor() { xhr = this; this.upload = {}; } open() {} setRequestHeader() {} send() {} }
-  const browser = browserModules({}, { XMLHttpRequest: FakeXHR });
+test('late desktop registration failures preserve a newly signed-in account', async () => {
+  let finish;
+  const browser = browserModules();
+  browser.window.electronAPI = {
+    invoke: () => new Promise(resolve => { finish = resolve; }),
+  };
+  const auth = browser.load('apps/web/utils/authSession.ts');
   const { FileAdapter } = browser.load('apps/web/services/fileAdapter.ts');
-  const progress = [];
-  const promise = FileAdapter.uploadFile(new File(['sample'], 'a.txt', { type: 'text/plain' }), 'token', '/upload', p => progress.push(p));
-  xhr.upload.onprogress({ lengthComputable: true, loaded: 10, total: 10 });
-  assert.deepEqual(progress, [95]);
-  xhr.status = 200; xhr.responseText = '{}'; xhr.onload();
-  await assert.rejects(promise, /no document URL/);
+  auth.setAuthSession({ token: tokenFor('a'), user: 'Alice' });
+  const request = FileAdapter.addLocalBook(tokenFor('a'));
+  const rejected = assert.rejects(request, { name: 'ApiError', status: 401, message: 'Old session expired' });
+  auth.setAuthSession({ token: tokenFor('b'), user: 'Bob' });
+  browser.sessionStorage.setItem('readerFiles', 'new-account-tabs');
+  const effects = [];
+  browser.window.dispatchEvent = event => effects.push(event.type);
+  browser.window.location.assign = url => effects.push(url);
+  finish({ ok: false, status: 401, error: 'Old session expired' });
+  await rejected;
+  assert.equal(browser.localStorage.getItem('token'), tokenFor('b'));
+  assert.equal(browser.localStorage.getItem('user'), 'Bob');
+  assert.equal(browser.sessionStorage.getItem('readerFiles'), 'new-account-tabs');
+  assert.deepEqual(effects, []);
+});
+
+test('file adapter has no upload method and opens local files without a backend or sign-in', async () => {
+  const browser = browserModules({}, { fetch: () => assert.fail('Local opening must not contact a server') });
+  const channels = [];
+  let result = { canceled: false, files: [{ fileName: 'a.pdf', fileSize: 1, fileType: 'application/pdf', url: 'mfr-local:///a.pdf' }], skipped: 0 };
+  browser.window.electronAPI = { invoke: async channel => { channels.push(channel); return result; } };
+  const { FileAdapter } = browser.load('apps/web/services/fileAdapter.ts');
+  assert.equal(FileAdapter.uploadFile, undefined);
+  assert.equal((await FileAdapter.openLocalFiles()).files[0].url, 'mfr-local:///a.pdf');
+  assert.equal(browser.load('apps/web/utils/localLibrary.ts').getLocalLibraryFiles().length, 1);
+  result = { canceled: true, files: [], skipped: 0 };
+  assert.equal(await FileAdapter.openLocalFiles(true), null);
+  assert.deepEqual(channels, ['open-local-files', 'open-local-folder']);
 });
 
 test('desktop local library returns the server-provided readable URL', async () => {
@@ -506,17 +519,17 @@ test('PDF renderer and worker use the same PDF.js version', () => {
   assert.equal(pdfjs.version, reactPdf.dependencies['pdfjs-dist']);
 });
 
-test('desktop bridge exposes all local reading channels and native file paths', async () => {
+test('desktop bridge exposes local reading channels and rejects retired upload actions', async () => {
   let bridge;
   const calls = [];
   serverModule('apps/electron/preload.js', {
-    electron: { contextBridge: { exposeInMainWorld: (name, api) => { bridge = api; } }, ipcRenderer: { invoke: async (...args) => calls.push(args), send() {} }, webUtils: { getPathForFile: () => '/a.pdf' } },
+    electron: { contextBridge: { exposeInMainWorld: (name, api) => { bridge = api; } }, ipcRenderer: { invoke: async (...args) => calls.push(args), send() {} } },
     globals: { window: { addEventListener() {} } },
   });
-  for (const channel of ['open-local-file', 'check-file-permission', 'check-local-files-status', 'relink-local-file']) await bridge.invoke(channel);
-  assert.equal(calls.length, 4);
-  assert.equal(bridge.getFilePath({}), '/a.pdf');
-  await assert.rejects(bridge.invoke('invalid'), /Unsupported/);
+  for (const channel of ['open-local-file', 'open-local-files', 'open-local-folder', 'check-file-permission', 'check-local-files-status', 'relink-local-file']) await bridge.invoke(channel);
+  assert.equal(calls.length, 6);
+  assert.equal(bridge.getFilePath, undefined);
+  for (const channel of ['select-and-upload-file', 'upload-dropped-file', 'invalid']) await assert.rejects(bridge.invoke(channel), /Unsupported/);
 });
 
 test('relink drains queued bookmark sync without resurrecting the old URL', async () => {
@@ -613,11 +626,10 @@ test('desktop document downloads use the configured backend URL', () => {
   assert.equal(urls.getDocumentUrl('https://storage.example/a.pdf'), 'https://backend.example/app/proxy?url=https%3A%2F%2Fstorage.example%2Fa.pdf');
 });
 
-test('desktop local registration and cloud uploads clear expired sessions', async () => {
+test('desktop local registration clears expired sessions', async () => {
   const browser = browserModules();
   browser.window.electronAPI = {
     invoke: async () => ({ ok: false, status: 401, error: 'Session expired' }),
-    getFilePath: () => '/books/a.pdf',
   };
   let destination;
   browser.window.location.assign = url => { destination = url; };
@@ -626,16 +638,13 @@ test('desktop local registration and cloud uploads clear expired sessions', asyn
   await assert.rejects(FileAdapter.addLocalBook('expired'), /Session expired/);
   assert.equal(destination, '/auth/login');
   assert.equal(browser.localStorage.getItem('token'), null);
-  browser.localStorage.setItem('token', 'expired');
-  await assert.rejects(FileAdapter.uploadFile(new File(['sample'], 'a.pdf'), 'expired', '/upload', () => {}), /Session expired/);
-  assert.equal(browser.localStorage.getItem('token'), null);
 });
 
 test('desktop event subscriptions strip IPC events and return working cleanup functions', () => {
   let bridge;
   const ipc = new EventEmitter();
   serverModule('apps/electron/preload.js', {
-    electron: { contextBridge: { exposeInMainWorld: (_name, api) => { bridge = api; } }, ipcRenderer: ipc, webUtils: {} },
+    electron: { contextBridge: { exposeInMainWorld: (_name, api) => { bridge = api; } }, ipcRenderer: ipc },
   });
   const values = [];
   const listener = value => values.push(value);
@@ -663,37 +672,24 @@ function desktopFileHandlers({ picker, fetchResponse } = {}) {
 
 test('native dialogs report failures and malformed requests without rejecting IPC', async () => {
   const { handlers } = desktopFileHandlers({ picker: async () => { throw new Error('Dialog unavailable'); } });
-  for (const channel of ['open-local-file', 'open-local-file-dialog', 'select-and-upload-file']) {
+  for (const channel of ['open-local-file', 'open-local-file-dialog']) {
     assert.match((await handlers.get(channel)({})).error, /Dialog unavailable/);
   }
   const malformed = await handlers.get('relink-local-file')({}, { oldUrl: 'mfr-local:///%bad' });
   assert.match(malformed.error, /invalid/);
-  for (const channel of ['relink-local-file', 'upload-dropped-file']) {
-    const result = await handlers.get(channel)({}, null);
-    assert.equal(result.ok, false);
-    assert.equal(result.canceled, false);
-  }
+  const result = await handlers.get('relink-local-file')({}, null);
+  assert.equal(result.ok, false);
+  assert.equal(result.canceled, false);
 });
 
-test('native uploads reject unsupported files, directories, and files over 50 MB before contacting the server', async () => {
-  const os = require('node:os');
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mfr-electron-test-'));
-  const unsupported = path.join(directory, 'a.exe');
-  const oversized = path.join(directory, 'large.pdf');
-  fs.writeFileSync(unsupported, 'sample');
-  fs.writeFileSync(oversized, '');
-  fs.truncateSync(oversized, 50 * 1024 * 1024 + 1);
-  try {
-    const desktop = desktopFileHandlers();
-    const upload = desktop.handlers.get('upload-dropped-file');
-    assert.match((await upload({}, { filePath: unsupported })).error, /PDF, EPUB, or TXT/);
-    assert.match((await upload({}, { filePath: directory })).error, /not a file/);
-    assert.match((await upload({}, { filePath: oversized })).error, /50 MB/);
-    assert.equal(desktop.fetchCount(), 0);
-  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+test('native cloud upload handlers are not registered', () => {
+  const desktop = desktopFileHandlers();
+  assert.equal(desktop.handlers.has('select-and-upload-file'), false);
+  assert.equal(desktop.handlers.has('upload-dropped-file'), false);
+  assert.equal(desktop.fetchCount(), 0);
 });
 
-test('native upload and registration preserve HTTP failures and reject successful responses without URLs', async () => {
+test('native registration preserves HTTP failures and rejects successful responses without a file location', async () => {
   const os = require('node:os');
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mfr-electron-test-'));
   const filePath = path.join(directory, 'a.pdf');
@@ -702,12 +698,9 @@ test('native upload and registration preserve HTTP failures and reject successfu
     const picker = async () => ({ canceled: false, filePaths: [filePath] });
     for (const status of [401, 502, 200]) {
       const desktop = desktopFileHandlers({ picker, fetchResponse: { ok: status === 200, status, json: async () => { throw new Error('Non-JSON response'); } } });
-      for (const channel of ['open-local-file-dialog', 'select-and-upload-file', 'upload-dropped-file']) {
-        const argument = channel === 'upload-dropped-file' ? { token: 'token', filePath } : 'token';
-        const result = await desktop.handlers.get(channel)({}, argument);
-        if (status === 200) assert.match(result.error, /no .* (location|URL)/);
-        else assert.equal(result.status, status);
-      }
+      const result = await desktop.handlers.get('open-local-file-dialog')({}, 'token');
+      if (status === 200) assert.match(result.error, /no local file location/);
+      else assert.equal(result.status, status);
     }
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });

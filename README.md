@@ -77,7 +77,7 @@ Each format requires a different application to read, manage, or edit, which inc
 |---------|--------|-------------|--------|
 | `/api/auth/signup` | POST | Register new user | Public |
 | `/api/auth/login` | POST | Authenticate user | Public |
-| `/api/files/user_id` | GET | Get user’s uploaded files | Authenticated |
+| `/files` | GET | List the user’s file metadata | Authenticated |
 | `/api/files/user_id` | PUT | Update a file | Authenticated |
 | `/api/files/user_id` | DELETE | Delete a file | Authenticated |
 | `/api/file_type_reader` | GET | Render a file in correct reader | Authenticated |
@@ -86,16 +86,14 @@ Each format requires a different application to read, manage, or edit, which inc
 
 ## Planned features
 
-The branch workflow and step-by-step local-first/Google Drive refactor plan are kept locally in `DEVELOPMENT_PLAN.md`, which is excluded from Git. Drive imports have not yet been implemented.
+**Google Drive import — coming soon.** The UI shows a disabled preview of this feature; it does not authorize or read Drive files yet. The branch workflow and step-by-step local-first/Google Drive refactor plan are kept locally in `DEVELOPMENT_PLAN.md`, which is excluded from Git.
 
 The following are deferred beyond the first refactor release:
 - **Web local-file reading:** Open selected files in the browser without uploading them to a server.
-- **Hosted cloud uploads:** An optional future feature, subject to a separate storage, security, cost, and verification decision. Cloud imports from a user's Drive are not hosted uploads.
 
 ### Other unscheduled ideas
 - AI-powered text summarization for files  
 - Notes & bookmarking inside readers  
-- Drag-and-drop upload  
 - Sharing & collaboration features  
 - Support for audio/HTML/Markdown formats  
 
@@ -129,13 +127,15 @@ Run `npm run build` from the repository root. The `scripts` and `build` sections
 
 The packaged application includes the production Next.js reader and starts it on `127.0.0.1:17767`. You do not need to start development servers to read local documents. The stable address preserves local library entries and bookmarks between launches.
 
-### Cloud storage availability
+### File sources and cloud upload retirement
 
-New hosted cloud uploads are retired. Cloud file reading remains temporarily paused while cloud service verification is completed. Use the desktop app's **Open local files** or **Open folder** actions to read PDF, EPUB, and TXT documents without uploading or signing in.
+Hosted cloud uploads have been retired to remove the extra upload step and avoid duplicate copies of documents. MultiReader is a reader, not a file-hosting service. Use the desktop app's **Open local files** or **Open folder** actions to read PDF, EPUB, and TXT documents without uploading or signing in.
 
-The server exposes no hosted file-upload endpoint. Existing uploaded documents are not deleted.
+Google Drive import is planned so users can read documents where they already keep them, without copying them to application-owned storage. It is not implemented yet.
 
-The web app displays a persistent service notice and disables cloud upload and reading controls by default. Do not enable `NEXT_PUBLIC_CLOUD_STORAGE_ENABLED`; the server no longer accepts hosted uploads. Legacy cloud reading requires a separate compatibility decision.
+The hosted upload endpoint, browser upload form, and native upload actions have been removed. `/fileupload` remains the **Add files** page to preserve existing navigation. Legacy GCS read/delete support remains; removing the upload feature does not delete storage objects or saved bookmarks.
+
+`NEXT_PUBLIC_CLOUD_STORAGE_ENABLED` only controls legacy hosted-document reads. It cannot re-enable uploads or activate the upcoming Drive import.
 
 The **Desktop app setup** link points to the build instructions above. Set `NEXT_PUBLIC_DESKTOP_APP_URL` to your published desktop download or setup page before building to use a different destination.
 

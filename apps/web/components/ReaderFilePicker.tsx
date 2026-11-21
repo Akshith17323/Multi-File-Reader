@@ -8,7 +8,7 @@ import { detectFileType, isLocalFileUrl, normalizeFileUrl } from '@/utils/fileUr
 import { isElectron } from '@/hooks/useEnvironment';
 import Link from 'next/link';
 import type { FileTabData } from './readers/types';
-import CloudStorageNotice from './CloudStorageNotice';
+import DriveImportNotice from './DriveImportNotice';
 import { CLOUD_STORAGE_ENABLED } from '@/config/serviceStatus';
 
 export default function ReaderFilePicker({ onClose, onOpen, onOpenLocal, openUrls, feedback }: {
@@ -58,7 +58,7 @@ export default function ReaderFilePicker({ onClose, onOpen, onOpenLocal, openUrl
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border-subtle p-4"><div><h2 id="reader-picker-title" className="font-semibold">Open a document</h2><p className="mt-1 text-xs text-foreground-muted">Choose from your library to add a tab.</p></div><button type="button" onClick={onClose} aria-label="Close document picker" className="mfr-icon-button h-10 w-10"><X size={18}/></button></header>
       <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="space-y-3 p-4">
-        <CloudStorageNotice showAction={!onOpenLocal} />
+        <DriveImportNotice showAction={!onOpenLocal} />
         <input autoFocus type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="Search your library…" aria-label="Search library" className="mfr-input" />
         {onOpenLocal && <button type="button" className="mfr-button-secondary w-full" onClick={onOpenLocal}><FolderOpen size={16}/>Open local file</button>}
         {feedback}
@@ -69,7 +69,7 @@ export default function ReaderFilePicker({ onClose, onOpen, onOpenLocal, openUrl
           const localOnly = isLocalFileUrl(file.url) && !isElectron();
           const cloudUnavailable = !CLOUD_STORAGE_ENABLED && !isLocalFileUrl(file.url);
           const unavailable = localOnly || cloudUnavailable;
-          const unavailableReason = cloudUnavailable ? 'Cloud storage temporarily unavailable' : 'Available in the desktop app';
+          const unavailableReason = cloudUnavailable ? 'Legacy hosted document unavailable' : 'Available in the desktop app';
           const Icon = file.type === 'epub' ? BookOpen : FileText;
           return <button key={file.id} type="button" disabled={unavailable} onClick={() => onOpen(file)} title={unavailable ? unavailableReason : file.name}
             className="flex w-full items-center gap-3 rounded-xl p-3 text-left hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import UnifiedReaderLayout from "@/components/UnifiedReaderLayout";
 import { FileTabData } from "@/components/FileTab";
 import { ReaderFactory, ReaderRenderer } from "@/components/readers/ReaderFactory";
@@ -24,8 +25,7 @@ import { DocumentSearch } from "@/components/DocumentSearch";
 import { migrateLocalAnnotations } from "@/utils/localAnnotations";
 import { AlertTriangle, Link2 } from "lucide-react";
 import InlineNotice, { type NoticeMessage } from "@/components/ui/InlineNotice";
-import CloudStorageNotice from "@/components/CloudStorageNotice";
-import { CLOUD_STORAGE_ENABLED } from "@/config/serviceStatus";
+import { CLOUD_STORAGE_ENABLED, CLOUD_STORAGE_UNAVAILABLE_MESSAGE } from "@/config/serviceStatus";
 import ReaderFilePicker from '@/components/ReaderFilePicker';
 import { DEFAULT_READER_OPTIONS, addReaderTab, getIndexAfterTabClose, readerTabId, readerPanelId } from '@/utils/readerTabs';
 
@@ -533,7 +533,7 @@ function ReaderContent() {
             <div className="min-h-0 flex-1">
             {openFiles.length === 0 ? <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center"><p className="text-lg font-semibold">Your reading space is ready</p><p className="text-sm text-foreground-muted">Open a document to start a new tab.</p><button type="button" className="mfr-button-primary" onClick={() => setIsPickerOpen(true)}>Open a document</button></div> : (
                 <div className="relative h-full w-full">
-                {cloudUnavailable && <div className="absolute inset-0 z-30 flex items-center justify-center overflow-y-auto bg-background p-4 sm:p-6"><CloudStorageNotice className="max-w-2xl" /></div>}
+                {cloudUnavailable && <div className="absolute inset-0 z-30 flex items-center justify-center overflow-y-auto bg-background p-4 sm:p-6"><InlineNotice tone="warning" title="Hosted cloud document unavailable" className="max-w-2xl" action={<Link href="/fileupload" className="mfr-button-secondary">Add files</Link>}>{CLOUD_STORAGE_UNAVAILABLE_MESSAGE}</InlineNotice></div>}
                 {isOffline && <div className="absolute inset-0 z-30 flex h-full w-full items-center justify-center overflow-y-auto bg-background p-4 text-foreground sm:p-6">
                     <div className="mfr-panel relative z-10 max-w-xl w-full mx-auto rounded-3xl p-5 sm:p-8 shadow-sm flex flex-col items-center text-center">
                         <div className="w-16 h-16 rounded-2xl bg-foreground/15 border border-foreground/30 flex items-center justify-center text-foreground mb-5 shadow-[0_0_30px_var(--primary-glow)]">

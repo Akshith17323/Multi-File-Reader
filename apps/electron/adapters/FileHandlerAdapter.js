@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL, fileURLToPath } = require('url');
-const { getDocumentType, MAX_FILE_SIZE, toLocalUrl } = require('../../server/src/utils/fileTypes');
+const { getDocumentType, toLocalUrl } = require('../../server/src/utils/fileTypes');
 const { net, BrowserWindow } = require('electron');
 
 let isRegistered = false;
@@ -307,88 +307,6 @@ function registerFileHandlers(ipcMain, protocol, dialog, maybeWindowOrBackend, m
         );
       }
       return { canceled: false, error: err.message };
-    }
-  });
-
-  // Native file picker and upload to backend (Cloud)
-  handle('select-and-upload-file', async (event, token) => {
-    const win = getWindow(event);
-    const dialogOptions = {
-      title: 'Select a File to Upload',
-      properties: ['openFile'],
-      filters: [
-        { name: 'Supported Files', extensions: ['txt', 'pdf', 'epub'] },
-        { name: 'All Files', extensions: ['*'] }
-      ]
-    };
-    const { canceled, filePaths } = win
-      ? await dialog.showOpenDialog(win, dialogOptions)
-      : await dialog.showOpenDialog(dialogOptions);
-
-    if (canceled || filePaths.length === 0) return { canceled: true };
-
-    try {
-      const filePath = filePaths[0];
-      const fileName = path.basename(filePath);
-      const stat = await readableFile(filePath);
-      if (!getDocumentType(fileName)) return { canceled: false, error: 'Choose a PDF, EPUB, or TXT file' };
-      if (stat.size > MAX_FILE_SIZE) return { canceled: false, error: "Files must be 50 MB or smaller" };
-      const fileBuffer = await fs.promises.readFile(filePath);
-      const formData = new FormData();
-      const blob = new Blob([fileBuffer], { type: getDocumentType(fileName) || 'application/octet-stream' });
-      formData.append('UploadingFile', blob, fileName);
-      const response = await fetch(`${BACKEND_URL}/fileUpload`, {
-        signal: AbortSignal.timeout(120000),
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      const data = await response.json().catch(() => null);
-      if (!response.ok) return { canceled: false, status: response.status, error: data?.error || data?.message || 'Upload failed' };
-      if (!data?.url) return { canceled: false, error: 'The server returned no document URL' };
-
-      return { canceled: false, data };
-    } catch (err) {
-      console.error('File selection upload error:', err);
-      return { canceled: false, error: err.message };
-    }
-  });
-
-  // Handle drag-and-drop file upload (Cloud)
-  handle('upload-dropped-file', async (event, { token, filePath } = {}) => {
-    try {
-      const stat = await readableFile(filePath);
-      const fileName = path.basename(filePath);
-      if (!getDocumentType(fileName)) return { ok: false, error: 'Choose a PDF, EPUB, or TXT file' };
-      if (stat.size > MAX_FILE_SIZE) return { ok: false, error: "Files must be 50 MB or smaller" };
-      const fileBuffer = await fs.promises.readFile(filePath);
-
-      const formData = new FormData();
-      const blob = new Blob([fileBuffer], { type: getDocumentType(fileName) || 'application/octet-stream' });
-      formData.append('UploadingFile', blob, fileName);
-
-      const response = await fetch(`${BACKEND_URL}/fileUpload`, {
-        signal: AbortSignal.timeout(120000),
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        return { ok: false, status: response.status, error: data?.error || data?.message || 'Upload failed' };
-      }
-      if (!data?.url) return { ok: false, error: 'The server returned no document URL' };
-
-      return { ok: true, data };
-    } catch (err) {
-      console.error('Drop upload error:', err);
-      return { ok: false, error: err.message || 'Upload failed' };
     }
   });
 

@@ -1,6 +1,5 @@
 const path = require('path');
 const DOCUMENT_TYPES = { '.pdf': 'application/pdf', '.epub': 'application/epub+zip', '.txt': 'text/plain' };
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 function getDocumentType(name) {
   return typeof name === 'string' ? DOCUMENT_TYPES[path.extname(name).toLowerCase()] : undefined;
@@ -24,4 +23,4 @@ function getStorageObjectPath(url, bucketName) {
   } catch { return null; }
 }
 
-module.exports = { getDocumentType, MAX_FILE_SIZE, toLocalUrl, getStorageObjectPath };
+module.exports = { getDocumentType, toLocalUrl, getStorageObjectPath };
