@@ -4,6 +4,9 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
     output: process.env.MFR_DESKTOP_BUILD === '1' ? 'standalone' : undefined,
     outputFileTracingRoot: path.resolve(__dirname, '../..'),
+    experimental: {
+        agentUpgrade: 'security' as any,
+    },
 };
 
 export default nextConfig;
