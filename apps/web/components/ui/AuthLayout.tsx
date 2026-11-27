@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import AppShell from "./AppShell";
 import Brand from "./Brand";
 import FormatShowcase from "./FormatShowcase";
@@ -23,8 +23,8 @@ export default function AuthLayout({
       </div>
       <div className="grid flex-1 items-center gap-10 py-10 lg:grid-cols-2 lg:gap-20 lg:py-12">
         <div className="hidden max-w-xl space-y-6 lg:block">
-          <div className="mfr-eyebrow"><Sparkles size={14} className="text-primary" />All-in-one document reader</div>
-          <h2 className="text-4xl font-extrabold leading-tight tracking-tight text-foreground xl:text-5xl">
+          <div className="mfr-eyebrow">All-in-one document reader</div>
+          <h2 className="text-4xl font-semibold leading-tight tracking-tight text-foreground xl:text-5xl">
             Every document.<br /><span className="mfr-gradient-text">One place to read.</span>
           </h2>
           <p className="max-w-md text-sm leading-relaxed text-foreground-muted">
@@ -38,7 +38,7 @@ export default function AuthLayout({
           </Link>
           <section className="mfr-panel rounded-3xl p-6 shadow-xl sm:p-8">
             <header className="mb-6 space-y-2">
-              <h1 className="text-3xl font-extrabold tracking-tight text-foreground">{title}</h1>
+              <h1 className="text-3xl font-semibold tracking-tight text-foreground">{title}</h1>
               <p className="text-sm leading-relaxed text-foreground-muted">{description}</p>
             </header>
             {children}

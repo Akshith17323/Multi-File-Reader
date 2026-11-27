@@ -7,7 +7,7 @@ export default function Brand({ href = "/" }: { href?: string }) {
       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-sm transition-shadow group-hover:shadow-primary-glow">
         <Library size={19} className="text-on-primary" aria-hidden="true" />
       </span>
-      <span className="text-base font-extrabold tracking-tight text-foreground">MultiReader</span>
+      <span className="text-base font-bold tracking-tight text-foreground">MultiReader</span>
     </Link>
   );
 }

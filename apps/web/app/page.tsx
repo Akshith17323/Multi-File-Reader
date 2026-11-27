@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { FileText, BookOpen, Layers, BookmarkCheck, Sparkles } from "lucide-react";
+import { FileText, BookOpen, Layers, BookmarkCheck } from "lucide-react";
 import AppShell from "@/components/ui/AppShell";
 import FormatShowcase from "@/components/ui/FormatShowcase";
 
@@ -11,29 +11,24 @@ export default function Home() {
     <AppShell className="flex items-center" contentClassName="flex flex-col items-center justify-between gap-10 lg:flex-row lg:gap-12">
       {/* Left Content Section */}
       <div className="w-full lg:flex-1 flex flex-col justify-center items-start space-y-4 lg:space-y-5 max-w-xl">
-        {/* Glassmorphic Badge */}
         <div className="mfr-eyebrow">
-          <Sparkles size={14} className="text-primary" />
-          <span className="text-[11px] font-bold uppercase tracking-wider text-foreground-muted">
-            All-In-One Document Reader
-          </span>
+          <span>All-In-One Document Reader</span>
         </div>
 
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground leading-tight">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-foreground leading-tight">
           Welcome to <br />
           <span className="mfr-gradient-text">
             Multi File Reader
           </span>
         </h1>
 
-        {/* Glassmorphic Content Card */}
         <div className="mfr-panel rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 w-full">
           <p className="text-sm sm:text-base text-foreground font-semibold leading-snug">
-            Ever use multiple apps for reading different types of files and documents?
+            Read PDFs, EPUBs, and plain text documents in one focused library.
           </p>
 
           <p className="text-xs sm:text-sm text-foreground-muted leading-relaxed">
-            With us, you can read multiple file types in a single platform — clean, simple, and efficient.
+            Open multiple file formats in a single platform, organize tabs side by side, and automatically preserve your reading progress.
           </p>
 
           {/* Quick Feature Badges */}
