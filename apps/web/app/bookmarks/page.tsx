@@ -153,59 +153,58 @@ export default function BookmarksPage() {
                         <p className="text-xs text-foreground-muted font-medium">Loading reading history...</p>
                     </div>
                 ) : error ? null : bookmarks.length === 0 ? (
-                    <div className="mfr-panel text-center py-12 px-6 rounded-3xl shadow-sm">
-                        <div className="w-16 h-16 rounded-2xl bg-surface-hover/80 border border-border-subtle flex items-center justify-center mx-auto mb-4 text-primary shadow-sm">
-                            <BookOpen size={30} />
+                    <div className="mfr-panel text-center py-12 px-6 rounded-xl space-y-4">
+                        <div className="w-12 h-12 rounded-lg bg-surface-hover border border-border-subtle flex items-center justify-center mx-auto mb-2 text-foreground-muted">
+                            <BookOpen size={24} />
                         </div>
-                        <h3 className="text-2xl font-extrabold text-foreground mb-2">
+                        <h3 className="text-xl font-semibold text-foreground mb-1">
                             No Bookmarks Yet
                         </h3>
-                        <p className="text-foreground-muted text-xs sm:text-sm mb-6 max-w-md mx-auto">
+                        <p className="text-foreground-muted text-xs sm:text-sm mb-4 max-w-md mx-auto leading-relaxed">
                             Start reading any document in your library and your latest page and progress will be saved here automatically.
                         </p>
 
                         {/* Supported Formats preview */}
-                        <div className="grid grid-cols-3 gap-2.5 max-w-sm mx-auto mb-6">
-                            <div className="p-2 rounded-xl bg-surface-hover/50 border border-border-subtle text-center">
-                                <span className="text-xs font-bold text-foreground">PDF</span>
+                        <div className="grid grid-cols-3 gap-2 max-w-sm mx-auto mb-4">
+                            <div className="p-2 rounded-lg bg-surface-hover/50 border border-border-subtle text-center">
+                                <span className="text-xs font-medium text-foreground">PDF</span>
                                 <p className="text-[10px] text-foreground-muted">Saved page</p>
                             </div>
-                            <div className="p-2 rounded-xl bg-surface-hover/50 border border-border-subtle text-center">
-                                <span className="text-xs font-bold text-foreground">EPUB</span>
+                            <div className="p-2 rounded-lg bg-surface-hover/50 border border-border-subtle text-center">
+                                <span className="text-xs font-medium text-foreground">EPUB</span>
                                 <p className="text-[10px] text-foreground-muted">Reading position</p>
                             </div>
-                            <div className="p-2 rounded-xl bg-surface-hover/50 border border-border-subtle text-center">
-                                <span className="text-xs font-bold text-foreground">TXT</span>
+                            <div className="p-2 rounded-lg bg-surface-hover/50 border border-border-subtle text-center">
+                                <span className="text-xs font-medium text-foreground">TXT</span>
                                 <p className="text-[10px] text-foreground-muted">Saved progress</p>
                             </div>
                         </div>
 
                         <button
                             onClick={() => router.push("/files")}
-                            className="mfr-button-primary overflow-hidden group"
+                            className="mfr-button-primary inline-flex items-center gap-1.5"
                         >
-                            <span className="relative z-10">Explore Library</span>
-                            <ArrowRight size={14} className="relative z-10 group-hover:translate-x-0.5 transition-transform" />
-                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <span>Explore Library</span>
+                            <ArrowRight size={14} />
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
                         {bookmarks.map((bookmark) => {
                             const badge = getFormatBadge(bookmark.fileName || '');
                             return (
                                 <div
                                     key={bookmark.id}
-                                    className="mfr-panel group rounded-2xl p-5 hover:border-primary/40 hover:-translate-y-1 transition-all duration-300 shadow-sm hover:shadow-xl flex flex-col justify-between"
+                                    className="mfr-panel group rounded-xl p-4 border border-border-subtle bg-surface hover:border-primary/30 transition-colors flex flex-col justify-between"
                                 >
                                     <div>
-                                        <div className="flex items-start justify-between gap-2 mb-3">
+                                        <div className="flex items-start justify-between gap-2 mb-2.5">
                                             <div className="flex items-center gap-1.5 flex-wrap">
-                                                <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg border ${badge.badgeClass}`}>
+                                                <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border ${badge.badgeClass}`}>
                                                     {badge.icon}
                                                     {badge.label}
                                                 </span>
-                                                <span className="text-[11px] text-foreground-muted flex items-center gap-1">
+                                                <span className="text-[11px] text-foreground-muted flex items-center gap-1 font-mono">
                                                     <Clock size={11} />
                                                     {new Date(bookmark.lastRead).toLocaleDateString()}
                                                 </span>
@@ -216,7 +215,7 @@ export default function BookmarksPage() {
                                                     e.stopPropagation();
                                                     handleDelete(bookmark);
                                                 }}
-                                                className="text-foreground-muted hover:text-foreground hover:bg-foreground/10 p-1.5 rounded-lg transition-colors shrink-0"
+                                                className="text-foreground-muted hover:text-foreground p-1 rounded-md transition-colors shrink-0"
                                                 title="Clear Progress"
                                             >
                                                 <Trash2 size={13} />
@@ -224,7 +223,7 @@ export default function BookmarksPage() {
                                         </div>
 
                                         <h3
-                                            className="font-bold text-sm text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-3 leading-snug"
+                                            className="font-medium text-sm text-foreground line-clamp-2 mb-3 leading-snug"
                                             title={bookmark.fileName}
                                         >
                                             {bookmark.fileName || 'Untitled Document'}
@@ -232,15 +231,15 @@ export default function BookmarksPage() {
                                     </div>
 
                                     <div className="space-y-3 pt-1">
-                                        {/* Progress Bar with Glow */}
+                                        {/* Progress Bar */}
                                         <div>
-                                            <div className="flex justify-between items-center mb-1.5">
+                                            <div className="flex justify-between items-center mb-1">
                                                 <span className="text-[11px] font-medium text-foreground-muted">Progress</span>
-                                                <span className="text-[11px] font-bold text-primary">
+                                                <span className="text-[11px] font-mono tabular-nums text-foreground">
                                                     {getProgressText(bookmark)}
                                                 </span>
                                             </div>
-                                            <div className="w-full h-1.5 bg-surface-hover/80 backdrop-blur-md rounded-full overflow-hidden border border-border-subtle">
+                                            <div className="w-full h-1 bg-surface-hover rounded-full overflow-hidden border border-border-subtle">
                                                 <div
                                                     className="h-full bg-primary shadow-[0_0_8px_var(--color-primary-glow)] transition-all duration-300"
                                                     style={{ width: `${Math.min(100, Math.max(0, bookmark.progress || 0))}%` }}
@@ -251,11 +250,10 @@ export default function BookmarksPage() {
                                         {/* Continue Reading Button */}
                                         <button
                                             onClick={() => handleContinueReading(bookmark)}
-                                            className="mfr-button-primary w-full overflow-hidden group/btn"
+                                            className="mfr-button-primary w-full"
                                         >
-                                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-200" />
-                                            <BookOpen size={14} className="relative z-10" />
-                                            <span className="relative z-10">Continue Reading</span>
+                                            <BookOpen size={14} />
+                                            <span>Continue Reading</span>
                                         </button>
                                     </div>
                                 </div>
@@ -263,29 +261,29 @@ export default function BookmarksPage() {
                         })}
                     </div>
                 )}
-            {/* Glassmorphic Clear Progress Confirmation Modal */}
+            {/* Clear Progress Confirmation Modal */}
             {bookmarkToDelete && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200">
-                    <div className="bg-surface/90 backdrop-blur-2xl border border-border-subtle rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-4">
-                        <div className="w-12 h-12 rounded-2xl bg-foreground/10 border border-foreground/20 text-foreground flex items-center justify-center">
-                            <Trash2 size={22} />
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+                    <div className="bg-surface border border-border-subtle rounded-xl p-6 max-w-sm w-full space-y-4">
+                        <div className="w-10 h-10 rounded-lg bg-surface-hover border border-border-subtle text-foreground flex items-center justify-center">
+                            <Trash2 size={20} />
                         </div>
                         <div>
-                            <h3 className="text-lg font-extrabold text-foreground mb-1">Clear Bookmark</h3>
+                            <h3 className="text-base font-semibold text-foreground mb-1">Clear Bookmark</h3>
                             <p className="text-foreground-muted text-xs leading-relaxed">
-                                Are you sure you want to clear saved progress for <span className="font-bold text-foreground">&quot;{bookmarkToDelete.fileName}&quot;</span>?
+                                Are you sure you want to clear saved progress for <span className="font-medium text-foreground">&quot;{bookmarkToDelete.fileName}&quot;</span>?
                             </p>
                         </div>
-                        <div className="flex gap-2.5 pt-1">
+                        <div className="flex gap-2 pt-1">
                             <button
                                 onClick={() => setBookmarkToDelete(null)}
-                                className="flex-1 py-2.5 px-3 bg-surface-hover/80 hover:bg-surface-hover text-foreground font-bold text-xs rounded-xl border border-border-subtle transition-all duration-200"
+                                className="flex-1 py-1.5 px-3 bg-surface hover:bg-surface-hover text-foreground font-medium text-xs rounded-md border border-border-subtle transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={confirmDeleteBookmark}
-                                className="flex-1 py-2.5 px-3 bg-primary hover:bg-primary text-on-primary font-bold text-xs rounded-xl shadow-md hover:shadow-foreground/30 transition-all duration-200"
+                                className="flex-1 py-1.5 px-3 bg-primary hover:bg-primary-hover text-on-primary font-medium text-xs rounded-md transition-colors"
                             >
                                 Clear
                             </button>

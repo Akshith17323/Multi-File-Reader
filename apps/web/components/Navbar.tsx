@@ -16,7 +16,6 @@ export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
-        // Function to update user from storage
         const checkUser = () => {
             const storedUser = localStorage.getItem("user");
             const token = localStorage.getItem("token");
@@ -30,10 +29,7 @@ export default function Navbar() {
             }
         };
 
-        // Initial check
         checkUser();
-
-        // Listen for custom auth events and storage changes
         window.addEventListener("auth-change", checkUser);
         window.addEventListener("storage", checkUser);
 
@@ -54,10 +50,8 @@ export default function Navbar() {
         }
     };
 
-    // Safety check for pathname
     if (!pathname) return null;
 
-    // Hide Navbar on Login/Signup and all Reader pages
     if (pathname.includes("/auth/") || pathname === "/reader" || pathname.startsWith("/reader/")) {
         return null;
     }
@@ -66,7 +60,6 @@ export default function Navbar() {
         <nav aria-label="Main navigation" className="sticky top-3 z-50 mx-auto mt-3 w-[calc(100%-2rem)] max-w-[1500px] shrink-0 sm:w-[calc(100%-3rem)] lg:w-[calc(100%-6rem)]">
             <div className="mfr-panel rounded-2xl px-4 py-3 shadow-sm sm:px-5">
                 <div className="mfr-window-header flex items-center justify-between">
-                    {/* Logo */}
                     <Brand href={user ? "/files" : "/"} />
 
                     {/* Desktop Menu */}
@@ -74,7 +67,7 @@ export default function Navbar() {
                         <Link
                             href="/files"
                             aria-current={pathname === "/files" ? "page" : undefined}
-                            className={`relative text-xs font-bold tracking-wide py-1.5 px-2.5 rounded-lg transition-all duration-200 overflow-hidden group/link ${pathname === '/files'
+                            className={`relative text-xs font-semibold tracking-wide py-1.5 px-2.5 rounded-lg transition-colors overflow-hidden group/link ${pathname === '/files'
                                 ? 'text-primary bg-primary/10'
                                 : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
                                 }`}
@@ -88,7 +81,7 @@ export default function Navbar() {
                         <Link
                             href="/bookmarks"
                             aria-current={pathname === "/bookmarks" ? "page" : undefined}
-                            className={`relative text-xs font-bold tracking-wide py-1.5 px-2.5 rounded-lg transition-all duration-200 overflow-hidden group/link ${pathname === '/bookmarks'
+                            className={`relative text-xs font-semibold tracking-wide py-1.5 px-2.5 rounded-lg transition-colors overflow-hidden group/link ${pathname === '/bookmarks'
                                 ? 'text-primary bg-primary/10'
                                 : 'text-foreground-muted hover:text-foreground hover:bg-surface-hover'
                                 }`}
@@ -99,15 +92,14 @@ export default function Navbar() {
                             )}
                         </Link>
 
-                        {/* Divider */}
-                        <div className="h-4 w-px bg-border-subtle transition-all duration-200"></div>
+                        <div className="h-4 w-px bg-border-subtle" />
 
                         <ThemeToggle />
 
-                        <div className="h-4 w-px bg-border-subtle transition-all duration-200"></div>
+                        <div className="h-4 w-px bg-border-subtle" />
 
                         {user ? (
-                            <div className="relative group/user transition-all duration-200">
+                            <div className="relative group/user">
                                 <button className="flex max-w-52 items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full hover:bg-surface-hover transition-colors">
                                     <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-xs shadow-inner">
                                         {user.charAt(0).toUpperCase()}
@@ -115,11 +107,10 @@ export default function Navbar() {
                                     <span className="truncate text-xs font-medium text-foreground">{user}</span>
                                 </button>
 
-                                {/* Dropdown */}
                                 <div className="absolute right-0 top-full mt-2 w-44 bg-surface backdrop-blur-2xl border border-border-subtle rounded-xl shadow-xl opacity-0 invisible group-hover/user:opacity-100 group-hover/user:visible group-focus-within/user:opacity-100 group-focus-within/user:visible transition-all duration-200 transform origin-top-right p-1.5 z-50">
                                     <button
                                         onClick={handleLogout}
-                                        className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-all"
+                                        className="w-full flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-foreground-muted hover:text-foreground hover:bg-surface-hover rounded-lg transition-colors"
                                     >
                                         <LogOut size={14} />
                                         Sign Out
@@ -129,7 +120,7 @@ export default function Navbar() {
                         ) : (
                             <Link
                                 href="/auth/login"
-                                className="text-xs font-bold text-foreground bg-surface-hover hover:bg-border-subtle px-4 py-1.5 rounded-lg transition-all shadow-xs hover:shadow-sm duration-200"
+                                className="text-xs font-bold text-foreground bg-surface-hover hover:bg-border-subtle px-4 py-1.5 rounded-lg transition-colors shadow-xs"
                             >
                                 Login
                             </Link>
@@ -155,18 +146,18 @@ export default function Navbar() {
 
                 {/* Mobile Menu */}
                 {isOpen && (
-                    <div id="mobile-navigation" className="md:hidden mt-4 pt-4 border-t border-border-subtle space-y-3 animate-in fade-in slide-in-from-top-4 duration-200">
+                    <div id="mobile-navigation" className="md:hidden mt-4 pt-4 border-t border-border-subtle space-y-3">
                         <Link
                             href="/files"
                             onClick={() => setIsOpen(false)}
-                            className="block px-4 py-3 text-foreground font-semibold bg-surface/70 backdrop-blur-xl hover:bg-surface-hover rounded-2xl border border-border-subtle transition-all shadow-xs"
+                            className="block px-4 py-3 text-foreground font-semibold bg-surface/70 backdrop-blur-xl hover:bg-surface-hover rounded-2xl border border-border-subtle transition-colors shadow-xs"
                         >
                             My Library
                         </Link>
                         <Link
                             href="/bookmarks"
                             onClick={() => setIsOpen(false)}
-                            className="block px-4 py-3 text-foreground font-semibold bg-surface/70 backdrop-blur-xl hover:bg-surface-hover rounded-2xl border border-border-subtle transition-all shadow-xs"
+                            className="block px-4 py-3 text-foreground font-semibold bg-surface/70 backdrop-blur-xl hover:bg-surface-hover rounded-2xl border border-border-subtle transition-colors shadow-xs"
                         >
                             My Bookmarks
                         </Link>
@@ -180,7 +171,7 @@ export default function Navbar() {
                                 </div>
                                 <button
                                     onClick={handleLogout}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-on-primary font-bold bg-primary hover:bg-primary-hover rounded-2xl transition-all shadow-md"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-on-primary font-bold bg-primary hover:bg-primary-hover rounded-2xl transition-colors shadow-md"
                                 >
                                     <LogOut size={18} />
                                     Logout
@@ -189,7 +180,7 @@ export default function Navbar() {
                         ) : (
                             <Link
                                 href="/auth/login"
-                                className="block w-full text-center px-4 py-3 text-on-primary font-bold bg-primary hover:bg-primary-hover rounded-2xl transition-all shadow-md"
+                                className="block w-full text-center px-4 py-3 text-on-primary font-bold bg-primary hover:bg-primary-hover rounded-2xl transition-colors shadow-md"
                             >
                                 Login
                             </Link>

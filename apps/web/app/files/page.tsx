@@ -211,8 +211,8 @@ export default function FilesPage() {
 
         {notice && <InlineNotice tone={notice.tone} onDismiss={() => setNotice(null)}>{notice.message}</InlineNotice>}
 
-        {/* Controls Bar (Glassmorphic Card) */}
-        <div className="mfr-panel p-3 sm:p-4 rounded-2xl shadow-sm flex flex-col md:flex-row gap-3">
+        {/* Controls Bar */}
+        <div className="mfr-panel p-3 sm:p-4 rounded-xl flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground-muted pointer-events-none" />
             <input
@@ -272,14 +272,14 @@ export default function FilesPage() {
             </div>
           </div>
         ) : error ? null : files.length === 0 ? (
-          /* Empty State (Styled with Landing Page Showcase) */
-          <div className="mfr-panel text-center py-12 px-6 rounded-3xl shadow-sm space-y-6">
-            <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-inner">
-              <BookOpen size={30} />
+          /* Empty State */
+          <div className="mfr-panel text-center py-12 px-6 rounded-xl space-y-5">
+            <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-lg bg-surface-hover text-foreground-muted border border-border-subtle">
+              <BookOpen size={24} />
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-2xl font-extrabold text-foreground tracking-tight">
+            <div className="space-y-1.5">
+              <h3 className="text-xl font-semibold text-foreground tracking-tight">
                 {search || typeFilter ? "No matching files" : "Your library is ready"}
               </h3>
               <p className="text-foreground-muted text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
@@ -289,32 +289,31 @@ export default function FilesPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-w-lg mx-auto pt-2">
-              <div className="flex items-center gap-2 rounded-xl bg-surface-hover/65 border border-border-subtle p-2.5 text-left">
-                <FileText size={16} className="text-foreground shrink-0" />
-                <span className="text-xs font-bold text-foreground">PDF</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-w-lg mx-auto pt-1">
+              <div className="flex items-center gap-2 rounded-lg bg-surface-hover/50 border border-border-subtle p-2 text-left">
+                <FileText size={15} className="text-foreground-muted shrink-0" />
+                <span className="text-xs font-medium text-foreground">PDF</span>
               </div>
-              <div className="flex items-center gap-2 rounded-xl bg-surface-hover/65 border border-border-subtle p-2.5 text-left">
-                <BookOpen size={16} className="text-foreground shrink-0" />
-                <span className="text-xs font-bold text-foreground">EPUB</span>
+              <div className="flex items-center gap-2 rounded-lg bg-surface-hover/50 border border-border-subtle p-2 text-left">
+                <BookOpen size={15} className="text-foreground-muted shrink-0" />
+                <span className="text-xs font-medium text-foreground">EPUB</span>
               </div>
-              <div className="flex items-center gap-2 rounded-xl bg-surface-hover/65 border border-border-subtle p-2.5 text-left">
-                <FileText size={16} className="text-foreground shrink-0" />
-                <span className="text-xs font-bold text-foreground">TXT</span>
+              <div className="flex items-center gap-2 rounded-lg bg-surface-hover/50 border border-border-subtle p-2 text-left">
+                <FileText size={15} className="text-foreground-muted shrink-0" />
+                <span className="text-xs font-medium text-foreground">TXT</span>
               </div>
-              <div className="flex items-center gap-2 rounded-xl bg-surface-hover/65 border border-border-subtle p-2.5 text-left">
-                <Layers size={16} className="text-foreground shrink-0" />
-                <span className="text-xs font-bold text-foreground">Multi-Tab</span>
+              <div className="flex items-center gap-2 rounded-lg bg-surface-hover/50 border border-border-subtle p-2 text-left">
+                <Layers size={15} className="text-foreground-muted shrink-0" />
+                <span className="text-xs font-medium text-foreground">Multi-tab</span>
               </div>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-1">
               <button
                 onClick={() => router.push("/fileupload")}
-                className="mfr-button-primary overflow-hidden group"
+                className="mfr-button-primary"
               >
-                <span className="relative z-10">{isDesktop ? "Add your first files" : "Explore file sources"}</span>
-                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                <span>{isDesktop ? "Add your first files" : "Explore file sources"}</span>
               </button>
             </div>
           </div>
@@ -328,37 +327,37 @@ export default function FilesPage() {
                 return (
                   <div
                     key={file.id}
-                    className="mfr-panel group relative rounded-2xl overflow-hidden flex flex-col shadow-sm hover:shadow-xl hover:border-primary/40 transition-all duration-300 hover:-translate-y-1"
+                    className="mfr-panel group relative rounded-xl overflow-hidden flex flex-col border border-border-subtle bg-surface transition-colors hover:border-primary/30"
                   >
                     {/* Cover Preview Area */}
-                    <div className="aspect-[3/4] relative bg-background overflow-hidden group-hover:scale-102 transition-transform duration-300">
+                    <div className="aspect-[3/4] relative bg-surface-hover/30 overflow-hidden">
                       <div className="w-full h-full">
                         <FilePreview url={file.url} type={file.metadata.contentType} thumbnailUrl={file.thumbnailUrl} />
                       </div>
 
                       <span title={isLocalFileUrl(file.url) ? "Local file · on your computer" : "Legacy hosted file"}
-                        className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-border-subtle bg-surface-hover/90 text-foreground shadow-sm backdrop-blur-md">
-                        {isLocalFileUrl(file.url) ? <Monitor size={16} aria-hidden="true" /> : <Cloud size={16} aria-hidden="true" />}
+                        className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-md border border-border-subtle bg-surface/90 text-foreground-muted">
+                        {isLocalFileUrl(file.url) ? <Monitor size={14} aria-hidden="true" /> : <Cloud size={14} aria-hidden="true" />}
                         <span className="sr-only">{isLocalFileUrl(file.url) ? 'Local file' : 'Legacy hosted file'}</span>
                       </span>
                       {/* Format Badge */}
                       <div className="absolute top-2 left-2 z-10">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur-md shadow-xs border ${badge.bg} ${badge.color}`}>
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${badge.bg} ${badge.color}`}>
                           {badge.label}
                         </span>
                       </div>
 
                       {/* Hover Overlay with Quick Actions */}
-                      <div className="absolute inset-x-0 bottom-0 bg-surface/80 backdrop-blur-xl opacity-100 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-1.5 p-3">
+                      <div className="absolute inset-x-0 bottom-0 bg-surface/95 border-t border-border-subtle opacity-100 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 flex items-center justify-center gap-2 p-2">
                         <button
                           onClick={() => handleRead(file)}
-                          className="bg-primary hover:bg-primary-hover text-on-primary px-3 py-1.5 rounded-xl shadow-md transform scale-90 group-hover:scale-100 transition-all duration-200 font-bold text-xs cursor-pointer"
+                          className="bg-primary hover:bg-primary-hover text-on-primary px-3 py-1 rounded-md font-medium text-xs transition-colors cursor-pointer"
                         >
                           Open
                         </button>
                         <button
                           onClick={() => handleOpenInNewTab(file)}
-                          className="bg-surface/90 hover:bg-surface text-foreground border border-border-subtle px-2.5 py-1.5 rounded-xl shadow-md transform scale-90 group-hover:scale-100 transition-all duration-200 font-bold text-xs cursor-pointer"
+                          className="bg-surface hover:bg-surface-hover text-foreground border border-border-subtle px-2.5 py-1 rounded-md font-medium text-xs transition-colors cursor-pointer"
                         >
                           + Tab
                         </button>
@@ -366,7 +365,7 @@ export default function FilesPage() {
                     </div>
 
                     {/* Card Footer Info */}
-                    <div className="p-3 flex-1 flex flex-col justify-between bg-surface/60 backdrop-blur-md">
+                    <div className="p-3 flex-1 flex flex-col justify-between bg-surface">
                       <div className="flex justify-between items-start gap-1.5">
                         <div className="flex-1 min-w-0">
                           {editingFileId === file.id ? (
@@ -461,22 +460,22 @@ export default function FilesPage() {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-3 pb-8">
+              <div className="flex justify-center items-center gap-2.5 pb-8">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-4 py-1.5 bg-surface/75 backdrop-blur-xl border border-border-subtle text-foreground rounded-xl text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-hover hover:border-primary/40 shadow-xs transition-all"
+                  className="px-3 py-1.5 bg-surface border border-border-subtle text-foreground rounded-md text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-hover transition-colors"
                 >
                   Previous
                 </button>
-                <div className="px-3.5 py-1.5 bg-surface/75 backdrop-blur-xl border border-border-subtle rounded-xl text-foreground-muted text-xs font-medium shadow-xs">
-                  Page <span className="text-foreground font-bold">{page}</span> of{" "}
-                  <span className="text-foreground font-bold">{totalPages}</span>
+                <div className="px-3 py-1.5 bg-surface border border-border-subtle rounded-md text-foreground-muted text-xs font-mono tabular-nums">
+                  Page <span className="text-foreground font-medium">{page}</span> of{" "}
+                  <span className="text-foreground font-medium">{totalPages}</span>
                 </div>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-4 py-1.5 bg-surface/75 backdrop-blur-xl border border-border-subtle text-foreground rounded-xl text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-hover hover:border-primary/40 shadow-xs transition-all"
+                  className="px-3 py-1.5 bg-surface border border-border-subtle text-foreground rounded-md text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-hover transition-colors"
                 >
                   Next
                 </button>
@@ -484,30 +483,30 @@ export default function FilesPage() {
             )}
           </>
         )}
-      {/* Glassmorphic Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal */}
       {fileToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-surface/90 backdrop-blur-2xl border border-border-subtle rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 space-y-4">
-            <div className="w-11 h-11 rounded-2xl bg-foreground/10 border border-foreground/20 text-foreground flex items-center justify-center">
-              <Trash2 size={22} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-surface border border-border-subtle rounded-xl p-6 max-w-sm w-full space-y-4">
+            <div className="w-10 h-10 rounded-lg bg-surface-hover border border-border-subtle text-foreground flex items-center justify-center">
+              <Trash2 size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-foreground mb-1">Delete Document</h3>
+              <h3 className="text-base font-semibold text-foreground mb-1">Delete Document</h3>
               <p className="text-foreground-muted text-xs leading-relaxed">
                 Are you sure you want to delete{" "}
-                <span className="font-semibold text-foreground">&quot;{fileToDelete.name}&quot;</span>? This action cannot be undone.
+                <span className="font-medium text-foreground">&quot;{fileToDelete.name}&quot;</span>? This action cannot be undone.
               </p>
             </div>
-            <div className="flex gap-2.5 pt-1">
+            <div className="flex gap-2 pt-1">
               <button
                 onClick={() => setFileToDelete(null)}
-                className="flex-1 py-2 px-3 bg-surface-hover/80 hover:bg-surface-hover text-foreground font-semibold text-xs rounded-xl border border-border-subtle transition-all duration-200 cursor-pointer"
+                className="flex-1 py-1.5 px-3 bg-surface hover:bg-surface-hover text-foreground font-medium text-xs rounded-md border border-border-subtle transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
-                className="flex-1 py-2 px-3 bg-primary hover:bg-primary text-on-primary font-semibold text-xs rounded-xl shadow-md hover:shadow-foreground/30 transition-all duration-200 cursor-pointer"
+                className="flex-1 py-1.5 px-3 bg-primary hover:bg-primary-hover text-on-primary font-medium text-xs rounded-md transition-colors cursor-pointer"
               >
                 Delete
               </button>

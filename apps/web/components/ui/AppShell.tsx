@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Sparkles } from "lucide-react";
 
 export function AmbientBackground() {
   return (
@@ -46,10 +45,9 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={`flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between ${className}`}>
-      <div className="min-w-0 space-y-3">
+    <header className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${className}`}>
+      <div className="min-w-0 space-y-2">
         <div className="mfr-eyebrow">
-          <Sparkles size={14} className="text-primary" aria-hidden="true" />
           <span>{eyebrow}</span>
         </div>
         <h1 className="mfr-page-title">
