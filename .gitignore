@@ -74,6 +74,7 @@ Thumbs.db
 /ELECTRON_REFERENCE.local.md
 /EXPECTED_FEATURES.md
 /DEVELOPMENT_PLAN.md
+/REFACTORING_PLAN.md
 *.local.md
 *.local.txt
 *.local.json
@@ -86,6 +87,7 @@ Thumbs.db
 
 # Local issue tracker
 /BUGS.md
+/issues.md
 
 # Next.js generates local agent instructions during development.
 /apps/web/AGENTS.md
